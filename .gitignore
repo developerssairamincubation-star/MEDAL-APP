@@ -1,0 +1,61 @@
+# =========================
+# Python / FastAPI
+# =========================
+venv/
+.venv/
+**/venv/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+backend/uploads/
+
+# =========================
+# Environment / Secrets (Never commit .env files)
+# =========================
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# =========================
+# Flutter / Dart
+# =========================
+.dart_tool/
+**/.dart_tool/
+build/
+**/build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# Flutter generated build / registrant files
+**/Generated.xcconfig
+**/flutter_export_environment.sh
+**/generated_plugin_registrant.cc
+**/generated_plugin_registrant.h
+**/generated_plugins.cmake
+**/GeneratedPluginRegistrant.swift
+
+# =========================
+# IDE & System Files
+# =========================
+.vscode/
+**/.vscode/
+.idea/
+**/.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Backups & Archives
+# =========================
+frontend_backup/
+frontend/medal/lib/pro.zip
