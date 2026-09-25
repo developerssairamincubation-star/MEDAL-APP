@@ -42,6 +42,8 @@ class Complaint(Base):
     upvotes: Mapped[List["ComplaintUpvote"]] = relationship("ComplaintUpvote", back_populates="complaint", cascade="all, delete-orphan")
     # Relationship to Comments
     comments: Mapped[List["ComplaintComment"]] = relationship("ComplaintComment", back_populates="complaint", cascade="all, delete-orphan", order_by="ComplaintComment.created_at.asc()")
+    # Relationship to Reposts
+    reposts: Mapped[List["ComplaintRepost"]] = relationship("ComplaintRepost", back_populates="complaint", cascade="all, delete-orphan")
 
 
 class ComplaintUpvote(Base):
@@ -85,5 +87,27 @@ class ComplaintComment(Base):
     user: Mapped["User"] = relationship("User")
     parent: Mapped[Optional["ComplaintComment"]] = relationship("ComplaintComment", remote_side=[id], back_populates="replies")
     replies: Mapped[List["ComplaintComment"]] = relationship("ComplaintComment", back_populates="parent", cascade="all, delete-orphan", order_by="ComplaintComment.created_at.asc()")
+
+
+class ComplaintRepost(Base):
+    """Tracks which users have reposted a complaint. One repost per user per complaint."""
+    __tablename__ = "complaint_reposts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    complaint_id: Mapped[int] = mapped_column(Integer, ForeignKey("complaints.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "complaint_id", name="uq_user_complaint_repost"),
+    )
+
+    complaint: Mapped["Complaint"] = relationship("Complaint", back_populates="reposts")
+    user: Mapped["User"] = relationship("User")
 
 

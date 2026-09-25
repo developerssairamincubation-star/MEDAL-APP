@@ -645,6 +645,23 @@ class ApiService {
     return data as Map<String, dynamic>;
   }
 
+  /// POST /complaints/{id}/repost  — one repost per user per complaint
+  Future<Map<String, dynamic>> repostComplaint(int complaintId) async {
+    final uri = Uri.parse('$baseUrl/complaints/$complaintId/repost');
+    final response = await http.post(uri, headers: _headers());
+    final data = _handleResponse(response);
+    return data as Map<String, dynamic>;
+  }
+
+  /// GET /complaints/{id}/repost-status
+  Future<Map<String, dynamic>> getRepostStatus(int complaintId) async {
+    final uri = Uri.parse('$baseUrl/complaints/$complaintId/repost-status');
+    final response = await http.get(uri, headers: _headers());
+    final data = _handleResponse(response);
+    return data as Map<String, dynamic>;
+  }
+
+
   /// GET /complaints/stats (Official/Admin Dashboard Analytics)
   Future<Map<String, dynamic>> getComplaintStats() async {
     final uri = Uri.parse('$baseUrl/complaints/stats');

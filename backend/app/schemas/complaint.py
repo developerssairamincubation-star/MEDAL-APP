@@ -51,6 +51,8 @@ class ComplaintFeedItem(ComplaintBase):
     citizen_initials: str
     upvotes_count: int = 0
     comments_count: int = 0
+    reposts_count: int = 0
+    has_reposted: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -59,6 +61,12 @@ class UpvoteResponse(BaseModel):
     complaint_id: int
     total_upvotes: int
     has_upvoted: bool
+
+
+class RepostResponse(BaseModel):
+    complaint_id: int
+    total_reposts: int
+    has_reposted: bool
 
 
 class ComplaintStatsResponse(BaseModel):

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.complaint import Complaint, ComplaintComment, ComplaintUpvote
+from app.models.complaint import Complaint, ComplaintComment, ComplaintRepost, ComplaintUpvote
 from app.models.user import User
 from app.routers.auth import get_current_user, require_role
 from app.schemas.complaint import (
@@ -15,6 +15,7 @@ from app.schemas.complaint import (
     ComplaintStatsResponse,
     ComplaintStatusUpdate,
     ComplaintUpdate,
+    RepostResponse,
     UpvoteResponse,
 )
 from app.services.storage import BaseStorageService, get_storage_service
@@ -141,6 +142,7 @@ def get_community_feed(
         name_parts = citizen_name.split()
         initials = "".join([p[0].upper() for p in name_parts[:2]]) if name_parts else "AC"
         upvotes_total = len(c.upvotes)
+        reposts_total = len(c.reposts)
         feed_items.append(
             ComplaintFeedItem(
                 id=c.id,
@@ -158,6 +160,7 @@ def get_community_feed(
                 citizen_initials=initials,
                 upvotes_count=upvotes_total,
                 comments_count=len([comm for comm in c.comments if not getattr(comm, 'is_deleted', False)]),
+                reposts_count=reposts_total,
             )
         )
     return feed_items
@@ -238,6 +241,83 @@ def get_complaint_upvote_status(
         complaint_id=complaint_id,
         total_upvotes=total,
         has_upvoted=existing is not None,
+    )
+
+
+@router.post("/{complaint_id}/repost", response_model=RepostResponse, status_code=status.HTTP_200_OK)
+def repost_complaint(
+    complaint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Repost a civic complaint — one repost per user per complaint.
+    Returns 409 if the user has already reposted.
+    The reposted complaint appears in the user's own complaint list.
+    """
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Complaint not found",
+        )
+
+    existing = (
+        db.query(ComplaintRepost)
+        .filter(
+            ComplaintRepost.complaint_id == complaint_id,
+            ComplaintRepost.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You have already reposted this complaint.",
+        )
+
+    new_repost = ComplaintRepost(complaint_id=complaint_id, user_id=current_user.id)
+    db.add(new_repost)
+    db.commit()
+
+    total = db.query(ComplaintRepost).filter(ComplaintRepost.complaint_id == complaint_id).count()
+
+    return RepostResponse(
+        complaint_id=complaint_id,
+        total_reposts=total,
+        has_reposted=True,
+    )
+
+
+@router.get("/{complaint_id}/repost-status", response_model=RepostResponse, status_code=status.HTTP_200_OK)
+def get_complaint_repost_status(
+    complaint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Check repost count and whether current user has already reposted."""
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Complaint not found",
+        )
+
+    existing = (
+        db.query(ComplaintRepost)
+        .filter(
+            ComplaintRepost.complaint_id == complaint_id,
+            ComplaintRepost.user_id == current_user.id,
+        )
+        .first()
+    )
+    total = db.query(ComplaintRepost).filter(ComplaintRepost.complaint_id == complaint_id).count()
+
+    return RepostResponse(
+        complaint_id=complaint_id,
+        total_reposts=total,
+        has_reposted=existing is not None,
     )
 
 

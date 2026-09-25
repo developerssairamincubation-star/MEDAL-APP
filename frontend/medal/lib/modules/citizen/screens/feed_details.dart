@@ -18,9 +18,11 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
   late Map<String, dynamic> _data;
   int _upvotes = 0;
   int _comments = 0;
-  int _reports = 0;
+  int _reposts = 0;
   bool _hasUpvoted = false;
+  bool _hasReposted = false;
   bool _isLoadingUpvote = false;
+  bool _isLoadingRepost = false;
 
   @override
   void initState() {
@@ -35,19 +37,20 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
         ? _data['comments_count']
         : (int.tryParse(_data['comments_count']?.toString() ?? '0') ?? 0);
 
-    _reports = _data['reports_count'] is int
-        ? _data['reports_count']
-        : (int.tryParse(_data['reports_count']?.toString() ?? _data['report_count']?.toString() ?? '0') ?? 0);
+    _reposts = _data['reposts_count'] is int
+        ? _data['reposts_count']
+        : (int.tryParse(_data['reposts_count']?.toString() ?? '0') ?? 0);
 
     _hasUpvoted = _data['has_upvoted'] == true;
+    _hasReposted = _data['has_reposted'] == true;
 
     _loadUpvoteStatus();
+    _loadRepostStatus();
   }
 
   Future<void> _loadUpvoteStatus() async {
     final id = _data['id'] as int?;
     if (id == null) return;
-
     try {
       final status = await ApiService().getUpvoteStatus(id);
       if (mounted) {
@@ -60,6 +63,20 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
             widget.feedData!['upvotes_count'] = _upvotes;
             widget.feedData!['has_upvoted'] = _hasUpvoted;
           }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadRepostStatus() async {
+    final id = _data['id'] as int?;
+    if (id == null || !ApiService().isAuthenticated) return;
+    try {
+      final status = await ApiService().getRepostStatus(id);
+      if (mounted) {
+        setState(() {
+          _reposts = status['total_reposts'] ?? _reposts;
+          _hasReposted = status['has_reposted'] == true;
         });
       }
     } catch (_) {}
@@ -89,10 +106,55 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
       if (mounted) {
         setState(() => _isLoadingUpvote = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.redAccent,
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleRepost() async {
+    final id = _data['id'] as int?;
+    if (id == null || _isLoadingRepost || _hasReposted) return;
+
+    setState(() => _isLoadingRepost = true);
+    try {
+      final res = await ApiService().repostComplaint(id);
+      if (mounted) {
+        setState(() {
+          _reposts = res['total_reposts'] ?? _reposts;
+          _hasReposted = true;
+          _isLoadingRepost = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reposted! This report now appears on your profile.'),
+            backgroundColor: Color(0xFF4F46E5),
+            duration: Duration(seconds: 3),
           ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingRepost = false);
+        if (e.statusCode == 409) {
+          setState(() => _hasReposted = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You have already reposted this.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingRepost = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
         );
       }
     }
@@ -776,55 +838,41 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
 
             const SizedBox(height: 10),
 
-            /// 2. INTERACTION ROW (UPVOTE, COMMENTS, REPORT with vertical dividers)
+            /// 2. INTERACTION ROW — Upvote | Comment | Repost (matches reference design)
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color(0xFFEEF0F8),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0x08000000),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
+                border: Border.all(color: const Color(0xFFDDE1F0), width: 1),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 6),
               child: IntrinsicHeight(
                 child: Row(
                   children: [
-                    // Upvote Button
+                    // ── Upvote ──────────────────────────────────────────────
                     Expanded(
                       child: InkWell(
                         onTap: _handleToggleUpvote,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(12),
+                          bottomLeft: Radius.circular(12),
+                        ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
                                 _hasUpvoted ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-                                color: _hasUpvoted ? const Color(0xFF4F46E5) : const Color(0xFF6B7280),
-                                size: 19,
+                                size: 16,
+                                color: _hasUpvoted ? const Color(0xFF4F46E5) : const Color(0xFF555E8A),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(width: 6),
                               Text(
-                                "Upvote",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: _hasUpvoted ? FontWeight.bold : FontWeight.w500,
-                                  color: _hasUpvoted ? const Color(0xFF4F46E5) : const Color(0xFF4B5563),
-                                ),
-                              ),
-                              const SizedBox(height: 1),
-                              Text(
-                                "$_upvotes",
+                                'Upvote ($_upvotes)',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: _hasUpvoted ? const Color(0xFF4F46E5) : const Color(0xFF111827),
+                                  fontWeight: _hasUpvoted ? FontWeight.w700 : FontWeight.w600,
+                                  color: _hasUpvoted ? const Color(0xFF4F46E5) : const Color(0xFF555E8A),
                                 ),
                               ),
                             ],
@@ -833,46 +881,26 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                       ),
                     ),
 
-                    // Vertical Divider
-                    const VerticalDivider(
-                      width: 1,
-                      thickness: 1,
-                      color: Color(0xFFE5E7EB),
-                      indent: 6,
-                      endIndent: 6,
-                    ),
+                    // Divider
+                    const VerticalDivider(width: 1, thickness: 1, color: Color(0xFFDDE1F0), indent: 8, endIndent: 8),
 
-                    // Comments Button
+                    // ── Comment ─────────────────────────────────────────────
                     Expanded(
                       child: InkWell(
                         onTap: _handleOpenComments,
-                        borderRadius: BorderRadius.circular(8),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(
-                                Icons.chat_bubble_outline,
-                                color: Color(0xFF6B7280),
-                                size: 19,
-                              ),
-                              const SizedBox(height: 2),
-                              const Text(
-                                "Comments",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF4B5563),
-                                ),
-                              ),
-                              const SizedBox(height: 1),
+                              const Icon(Icons.chat_bubble_outline, size: 16, color: Color(0xFF555E8A)),
+                              const SizedBox(width: 6),
                               Text(
-                                "$_comments",
+                                'Comment ($_comments)',
                                 style: const TextStyle(
                                   fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF111827),
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF555E8A),
                                 ),
                               ),
                             ],
@@ -881,62 +909,45 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                       ),
                     ),
 
-                    // Vertical Divider
-                    const VerticalDivider(
-                      width: 1,
-                      thickness: 1,
-                      color: Color(0xFFE5E7EB),
-                      indent: 6,
-                      endIndent: 6,
-                    ),
+                    // Divider
+                    const VerticalDivider(width: 1, thickness: 1, color: Color(0xFFDDE1F0), indent: 8, endIndent: 8),
 
-                    // Report Button
+                    // ── Repost ──────────────────────────────────────────────
                     Expanded(
                       child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            _reports += 1;
-                            _data['reports_count'] = _reports;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Report flagged for civic moderation review."),
-                              backgroundColor: Color(0xFF4F46E5),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(8),
+                        onTap: _hasReposted ? null : _handleRepost,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.flag_outlined,
-                                color: Color(0xFF6B7280),
-                                size: 19,
-                              ),
-                              const SizedBox(height: 2),
-                              const Text(
-                                "Report",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF4B5563),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: _isLoadingRepost
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 16, height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4F46E5)),
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      _hasReposted ? Icons.repeat_one : Icons.repeat,
+                                      size: 16,
+                                      color: _hasReposted ? const Color(0xFF4F46E5) : const Color(0xFF555E8A),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Repost ($_reposts)',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: _hasReposted ? FontWeight.w700 : FontWeight.w600,
+                                        color: _hasReposted ? const Color(0xFF4F46E5) : const Color(0xFF555E8A),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 1),
-                              Text(
-                                "$_reports",
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF111827),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ),
