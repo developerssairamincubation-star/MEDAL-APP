@@ -77,6 +77,12 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
         setState(() {
           _reposts = status['total_reposts'] ?? _reposts;
           _hasReposted = status['has_reposted'] == true;
+          _data['reposts_count'] = _reposts;
+          _data['has_reposted'] = _hasReposted;
+          if (widget.feedData != null) {
+            widget.feedData!['reposts_count'] = _reposts;
+            widget.feedData!['has_reposted'] = _hasReposted;
+          }
         });
       }
     } catch (_) {}
@@ -114,41 +120,33 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
 
   Future<void> _handleRepost() async {
     final id = _data['id'] as int?;
-    if (id == null || _isLoadingRepost || _hasReposted) return;
+    if (id == null || _isLoadingRepost) return;
 
     setState(() => _isLoadingRepost = true);
     try {
       final res = await ApiService().repostComplaint(id);
       if (mounted) {
+        final nowReposted = res['has_reposted'] == true;
         setState(() {
           _reposts = res['total_reposts'] ?? _reposts;
-          _hasReposted = true;
+          _hasReposted = nowReposted;
           _isLoadingRepost = false;
+          _data['reposts_count'] = _reposts;
+          _data['has_reposted'] = _hasReposted;
+          if (widget.feedData != null) {
+            widget.feedData!['reposts_count'] = _reposts;
+            widget.feedData!['has_reposted'] = _hasReposted;
+          }
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reposted! This report now appears on your profile.'),
-            backgroundColor: Color(0xFF4F46E5),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: Text(nowReposted
+                ? 'Reposted! This report now appears on your profile.'
+                : 'Repost removed.'),
+            backgroundColor: const Color(0xFF4F46E5),
+            duration: const Duration(seconds: 2),
           ),
         );
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingRepost = false);
-        if (e.statusCode == 409) {
-          setState(() => _hasReposted = true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You have already reposted this.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent),
-          );
-        }
       }
     } catch (e) {
       if (mounted) {
@@ -915,7 +913,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                     // ── Repost ──────────────────────────────────────────────
                     Expanded(
                       child: InkWell(
-                        onTap: _hasReposted ? null : _handleRepost,
+                        onTap: _handleRepost,
                         borderRadius: const BorderRadius.only(
                           topRight: Radius.circular(12),
                           bottomRight: Radius.circular(12),

@@ -245,15 +245,16 @@ def get_complaint_upvote_status(
 
 
 @router.post("/{complaint_id}/repost", response_model=RepostResponse, status_code=status.HTTP_200_OK)
-def repost_complaint(
+def toggle_complaint_repost(
     complaint_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Repost a civic complaint — one repost per user per complaint.
-    Returns 409 if the user has already reposted.
-    The reposted complaint appears in the user's own complaint list.
+    Toggle repost for a civic complaint:
+    - If current user already reposted, removes the repost (undo).
+    - If not reposted, creates a new repost record.
+    - Returns updated total_reposts and has_reposted status.
     """
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
     if not complaint:
@@ -272,21 +273,21 @@ def repost_complaint(
     )
 
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="You have already reposted this complaint.",
-        )
-
-    new_repost = ComplaintRepost(complaint_id=complaint_id, user_id=current_user.id)
-    db.add(new_repost)
-    db.commit()
+        db.delete(existing)
+        db.commit()
+        has_reposted = False
+    else:
+        new_repost = ComplaintRepost(complaint_id=complaint_id, user_id=current_user.id)
+        db.add(new_repost)
+        db.commit()
+        has_reposted = True
 
     total = db.query(ComplaintRepost).filter(ComplaintRepost.complaint_id == complaint_id).count()
 
     return RepostResponse(
         complaint_id=complaint_id,
         total_reposts=total,
-        has_reposted=True,
+        has_reposted=has_reposted,
     )
 
 

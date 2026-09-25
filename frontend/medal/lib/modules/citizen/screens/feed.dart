@@ -55,6 +55,20 @@ class _FeedScreenState extends State<FeedScreen> {
     try {
       final category = _getCategoryFilter(selectedTab);
       final items = await ApiService().getCommunityFeed(category: category);
+
+      // Load repost status for all items so the feed card shows correct has_reposted
+      if (ApiService().isAuthenticated) {
+        for (final item in items) {
+          final id = item['id'] as int?;
+          if (id == null) continue;
+          try {
+            final status = await ApiService().getRepostStatus(id);
+            item['has_reposted'] = status['has_reposted'] == true;
+            item['reposts_count'] = status['total_reposts'] ?? item['reposts_count'] ?? 0;
+          } catch (_) {}
+        }
+      }
+
       if (mounted) {
         setState(() {
           _feedItems = items;
@@ -362,22 +376,17 @@ class _FeedScreenState extends State<FeedScreen> {
     final imageUrl = item['image_url'] as String?;
     final sdgText = item['sdg_alignment'] as String?;
 
-    // Exact count displays matching the screenshot (124 upvotes, 12 comments, 24 reposts)
-    // with dynamic increments when interacted with
+    // Use real counts from API — no hardcoded values
     final isUpvoted = _upvotedIds.contains(id);
-    final isReposted = _repostedIds.contains(id);
-    final baseUpvotes = (id == 101 || id == 102 || id == 103)
-        ? 124
-        : (item['upvotes_count'] as int? ?? 0);
+    final isReposted = item['has_reposted'] == true || _repostedIds.contains(id);
+    final baseUpvotes = item['upvotes_count'] as int? ?? 0;
     final upvotesCount = baseUpvotes + (isUpvoted ? 1 : 0);
 
-    final baseComments = (id == 101 || id == 102 || id == 103)
-        ? 12
-        : (item['comments_count'] as int? ?? 0);
-    final commentsCount = baseComments;
+    final commentsCount = item['comments_count'] as int? ?? 0;
 
-    final baseReposts = 24;
-    final repostsCount = baseReposts + (isReposted ? 1 : 0);
+    // Use real repost count from the API response
+    final baseReposts = item['reposts_count'] as int? ?? 0;
+    final repostsCount = baseReposts + (_repostedIds.contains(id) && item['has_reposted'] != true ? 1 : 0);
 
     final avatarColors = _getAvatarColors(initials);
 
@@ -717,25 +726,61 @@ class _FeedScreenState extends State<FeedScreen> {
                 // Repost button
                 Expanded(
                   child: InkWell(
-                    onTap: () {
+                    onTap: () async {
+                      final prevReposted = item['has_reposted'] == true || _repostedIds.contains(id);
+                      // Optimistic UI update
                       setState(() {
-                        if (_repostedIds.contains(id)) {
+                        if (prevReposted) {
                           _repostedIds.remove(id);
+                          item['reposts_count'] = ((item['reposts_count'] as int? ?? 1) - 1).clamp(0, 999999);
+                          item['has_reposted'] = false;
                         } else {
                           _repostedIds.add(id);
+                          item['reposts_count'] = ((item['reposts_count'] as int? ?? 0) + 1);
+                          item['has_reposted'] = true;
                         }
                       });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_repostedIds.contains(id) ? "Report reposted to your network!" : "Repost undone."),
-                          duration: const Duration(seconds: 1),
-                          backgroundColor: const Color(0xFF4338CA),
-                        ),
-                      );
+                      try {
+                        final res = await ApiService().repostComplaint(id);
+                        if (mounted) {
+                          setState(() {
+                            item['reposts_count'] = res['total_reposts'] ?? item['reposts_count'];
+                            item['has_reposted'] = res['has_reposted'] == true;
+                            if (res['has_reposted'] == true) {
+                              _repostedIds.add(id);
+                            } else {
+                              _repostedIds.remove(id);
+                            }
+                          });
+                        }
+                      } catch (_) {
+                        // Rollback optimistic update on error
+                        if (mounted) {
+                          setState(() {
+                            item['has_reposted'] = prevReposted;
+                            if (prevReposted) {
+                              _repostedIds.add(id);
+                            } else {
+                              _repostedIds.remove(id);
+                            }
+                          });
+                        }
+                      }
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(item['has_reposted'] == true
+                                ? "Reposted to your network!"
+                                : "Repost removed."),
+                            duration: const Duration(seconds: 1),
+                            backgroundColor: const Color(0xFF4338CA),
+                          ),
+                        );
+                      }
                     },
                     child: Center(
                       child: Text(
-                        "Repost ($repostsCount)",
+                        "Repost (${item['reposts_count'] ?? 0})",
                         style: TextStyle(
                           color: isReposted ? const Color(0xFF4338CA) : const Color(0xFF64748B),
                           fontSize: 12,
