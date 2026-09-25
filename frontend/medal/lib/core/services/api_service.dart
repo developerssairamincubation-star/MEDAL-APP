@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:medal/config/api_config.dart';
 
 class SessionRestoreResult {
   final bool isValid;
@@ -34,12 +35,12 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  /// Configure default backend API Base URL
-  /// For physical Android phone on LAN use PC IP http://172.16.126.130:8000
-  /// For web/desktop use http://127.0.0.1:8000
+  /// Backend API Base URL — driven by lib/config/api_config.dart.
+  /// To change the IP, update kPcWifiIp in that file and rebuild.
+  /// For web/desktop, kLocalhostUrl is used automatically.
   String baseUrl = defaultTargetPlatform == TargetPlatform.android && !kIsWeb
-      ? 'http://172.16.126.130:8000'
-      : 'http://127.0.0.1:8000';
+      ? kAndroidLanUrl
+      : kLocalhostUrl;
 
   /// Resolves image URLs for both local uploads and MinIO object storage.
   /// Dynamically maps localhost/LAN hosts to the active server host for web, desktop, and mobile.
@@ -360,14 +361,43 @@ class ApiService {
     required String password,
   }) async {
     final uri = Uri.parse('$baseUrl/login');
-    final response = await http.post(
-      uri,
-      headers: _headers(withAuth: false),
-      body: jsonEncode({
-        'email': email.trim(),
-        'password': password,
-      }),
-    );
+    debugPrint('[MEDAL] LOGIN STARTED — URL: $uri');
+    debugPrint('[MEDAL] REQUEST: email=$email');
+
+    late http.Response response;
+    try {
+      response = await http
+          .post(
+            uri,
+            headers: _headers(withAuth: false),
+            body: jsonEncode({
+              'email': email.trim(),
+              'password': password,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              debugPrint('[MEDAL] LOGIN TIMEOUT after 15s');
+              throw ApiException(
+                0,
+                'Server is taking too long to respond. Make sure the backend is running and your phone and PC are on the same Wi-Fi.',
+              );
+            },
+          );
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[MEDAL] LOGIN NETWORK ERROR: $e');
+      throw ApiException(
+        0,
+        'Cannot connect to the MEDAL server. Make sure the backend is running on 0.0.0.0:8000 and your phone is on the same Wi-Fi.',
+      );
+    }
+
+    debugPrint('[MEDAL] RESPONSE STATUS: ${response.statusCode}');
+    debugPrint('[MEDAL] RESPONSE BODY: ${response.body}');
+
     final data = _handleResponse(response) as Map<String, dynamic>;
     if (data.containsKey('access_token')) {
       _token = data['access_token'];
@@ -375,9 +405,11 @@ class ApiService {
         _currentUser = Map<String, dynamic>.from(data['data']);
       }
       await _persistSession();
+      debugPrint('[MEDAL] LOGIN SUCCESS — user=${_currentUser?['email']}');
     }
     return data;
   }
+
 
   /// GET /me
   Future<Map<String, dynamic>> getMe() async {

@@ -41,9 +41,11 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _isLoading = true);
+    debugPrint('[MEDAL] LOGIN STARTED — email=$email');
 
     try {
       await ApiService().login(email: email, password: password);
+      debugPrint('[MEDAL] LOGIN SUCCESS');
 
       if (!mounted) return;
 
@@ -61,18 +63,55 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         (route) => false,
       );
+    } on ApiException catch (e) {
+      debugPrint('[MEDAL] LOGIN API EXCEPTION: statusCode=${e.statusCode} message=${e.message}');
+      if (!mounted) return;
+      String msg;
+      switch (e.statusCode) {
+        case 0:
+          // Network error or timeout — message already set by ApiService
+          msg = e.message;
+          break;
+        case 401:
+          msg = 'Invalid email or password. Please try again.';
+          break;
+        case 403:
+          msg = 'Your account is not authorized to log in.';
+          break;
+        case 404:
+          msg = 'Login endpoint not found. Check backend configuration.';
+          break;
+        case 500:
+        case 502:
+        case 503:
+          msg = 'Server error (${e.statusCode}). Please try again later.';
+          break;
+        default:
+          msg = e.message.isNotEmpty ? e.message : 'Something went wrong. Please try again.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 6),
+        ),
+      );
     } catch (e) {
+      debugPrint('[MEDAL] LOGIN UNEXPECTED ERROR: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: Text('Unexpected error: ${e.runtimeType}. Check debug logs.'),
           backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 6),
         ),
       );
     } finally {
+      debugPrint('[MEDAL] LOGIN FLOW COMPLETE — resetting spinner');
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

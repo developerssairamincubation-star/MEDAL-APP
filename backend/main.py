@@ -31,3 +31,7 @@ def read_root():
     return {"message": "MEDAL Backend is running"}
 
 
+@app.get("/health")
+def health_check():
+    """Lightweight connectivity check — use this to verify backend is reachable from the phone."""
+    return {"status": "ok", "service": "MEDAL API"}
