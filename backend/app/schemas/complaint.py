@@ -12,6 +12,12 @@ class ComplaintBase(BaseModel):
     sdg_alignment: Optional[str] = None
     impact_level: Optional[str] = None
     equity_classification: Optional[str] = None
+    ai_detected_issue: Optional[str] = None
+    ai_issue_confidence: Optional[float] = None
+    ai_suggested_sdgs: Optional[str] = None
+    ai_analysis_status: Optional[str] = None
+    ai_analysis_timestamp: Optional[datetime] = None
+    ai_model_version: Optional[str] = None
 
 
 class ComplaintCreate(ComplaintBase):

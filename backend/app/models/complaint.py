@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.database import Base
@@ -21,6 +21,15 @@ class Complaint(Base):
     sdg_alignment: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     impact_level: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     equity_classification: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    # AI Analysis Fields (YOLO detection + civic issue + SDG suggestions)
+    ai_detected_issue: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    ai_issue_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    ai_suggested_sdgs: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ai_analysis_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    ai_analysis_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    ai_model_version: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
     citizen_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

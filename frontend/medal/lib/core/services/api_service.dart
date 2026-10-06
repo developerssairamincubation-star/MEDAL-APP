@@ -595,6 +595,11 @@ class ApiService {
     String? sdgAlignment,
     String? impactLevel,
     String? equityClassification,
+    String? aiDetectedIssue,
+    double? aiIssueConfidence,
+    String? aiSuggestedSdgs,
+    String? aiAnalysisStatus,
+    String? aiModelVersion,
   }) async {
     final uri = Uri.parse('$baseUrl/complaints');
     final response = await http.post(
@@ -610,6 +615,16 @@ class ApiService {
         if (impactLevel != null && impactLevel.isNotEmpty) 'impact_level': impactLevel,
         if (equityClassification != null && equityClassification.isNotEmpty)
           'equity_classification': equityClassification,
+        if (aiDetectedIssue != null && aiDetectedIssue.isNotEmpty)
+          'ai_detected_issue': aiDetectedIssue,
+        if (aiIssueConfidence != null && aiIssueConfidence > 0)
+          'ai_issue_confidence': aiIssueConfidence,
+        if (aiSuggestedSdgs != null && aiSuggestedSdgs.isNotEmpty)
+          'ai_suggested_sdgs': aiSuggestedSdgs,
+        if (aiAnalysisStatus != null && aiAnalysisStatus.isNotEmpty)
+          'ai_analysis_status': aiAnalysisStatus,
+        if (aiModelVersion != null && aiModelVersion.isNotEmpty)
+          'ai_model_version': aiModelVersion,
       }),
     );
     final data = _handleResponse(response);

@@ -35,4 +35,5 @@ httpx==0.28.1
 python-multipart==0.0.32
 uvicorn==0.52.1
 minio==7.2.15
+ultralytics>=8.4.0
 

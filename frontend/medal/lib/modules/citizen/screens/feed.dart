@@ -727,6 +727,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 Expanded(
                   child: InkWell(
                     onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
                       final prevReposted = item['has_reposted'] == true || _repostedIds.contains(id);
                       // Optimistic UI update
                       setState(() {
@@ -766,21 +767,20 @@ class _FeedScreenState extends State<FeedScreen> {
                           });
                         }
                       }
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(item['has_reposted'] == true
-                                ? "Reposted to your network!"
-                                : "Repost removed."),
-                            duration: const Duration(seconds: 1),
-                            backgroundColor: const Color(0xFF4338CA),
-                          ),
-                        );
-                      }
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(item['has_reposted'] == true
+                              ? "Reposted to your network!"
+                              : "Repost removed."),
+                          duration: const Duration(seconds: 1),
+                          backgroundColor: const Color(0xFF4338CA),
+                        ),
+                      );
                     },
                     child: Center(
                       child: Text(
-                        "Repost (${item['reposts_count'] ?? 0})",
+                        "Repost ($repostsCount)",
                         style: TextStyle(
                           color: isReposted ? const Color(0xFF4338CA) : const Color(0xFF64748B),
                           fontSize: 12,

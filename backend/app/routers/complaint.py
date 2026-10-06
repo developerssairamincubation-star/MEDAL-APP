@@ -72,6 +72,12 @@ def create_complaint(
         sdg_alignment=complaint_in.sdg_alignment,
         impact_level=complaint_in.impact_level,
         equity_classification=complaint_in.equity_classification,
+        ai_detected_issue=complaint_in.ai_detected_issue,
+        ai_issue_confidence=complaint_in.ai_issue_confidence,
+        ai_suggested_sdgs=complaint_in.ai_suggested_sdgs,
+        ai_analysis_status=complaint_in.ai_analysis_status,
+        ai_analysis_timestamp=complaint_in.ai_analysis_timestamp,
+        ai_model_version=complaint_in.ai_model_version,
         citizen_id=current_user.id,
     )
     db.add(new_complaint)

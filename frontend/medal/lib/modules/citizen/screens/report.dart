@@ -2,7 +2,9 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:medal/core/models/image_analysis_result.dart';
 import 'package:medal/core/services/api_service.dart';
+import 'package:medal/core/services/ml_analysis_service.dart';
 import 'package:medal/modules/citizen/screens/components.dart';
 import 'package:medal/widgets/medal_app_bar.dart';
 
@@ -21,7 +23,7 @@ class _ReportScreenState extends State<ReportScreen> {
   final TextEditingController imageUrlController = TextEditingController();
 
   String selectedCategory = "Workplace Conduct";
-  String selectedSdg = "SDG 8: Decent Work and Economic Growth";
+  String? selectedSdg;
   String selectedImpact = "Medium";
   String selectedEquity = "Standard Urban Zone";
   String selectedPostAs = "Public";
@@ -31,6 +33,11 @@ class _ReportScreenState extends State<ReportScreen> {
   Uint8List? _imageBytes;
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  // AI & Computer Vision Analysis State
+  bool _isAnalyzingImage = false;
+  ImageAnalysisResult? _aiAnalysisResult;
+  String? _aiStatusMessage;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -190,7 +197,12 @@ class _ReportScreenState extends State<ReportScreen> {
           _selectedImage = picked;
           _imageBytes = bytes;
           _errorMessage = null;
+          _isAnalyzingImage = true;
+          _aiAnalysisResult = null;
+          _aiStatusMessage = null;
         });
+        // Run AI Analysis concurrently — never blocks image preview or reporting
+        _runAiAnalysis(bytes, picked.name, picked.mimeType);
       }
     } catch (e) {
       if (!mounted) return;
@@ -203,10 +215,83 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  Future<void> _runAiAnalysis(Uint8List bytes, String filename, String? mimeType) async {
+    try {
+      final result = await MlAnalysisService().analyzeImage(
+        imageBytes: bytes,
+        filename: filename,
+        mimeType: mimeType,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isAnalyzingImage = false;
+        _aiAnalysisResult = result;
+        if (result.success && result.sdgs.isNotEmpty && result.issue.category != 'unknown') {
+          // Auto-select primary suggested SDG
+          final topId = result.sdgs.first.id;
+          final match = sdgList.firstWhere(
+            (s) => s["number"] == topId,
+            orElse: () => <String, dynamic>{},
+          );
+          if (match.isNotEmpty && match["fullName"] != null) {
+            selectedSdg = match["fullName"] as String;
+          }
+
+          // Auto-align civic issue category
+          if (result.issue.category == 'waste_dumping') {
+            selectedCategory = "Garbage & Solid Waste";
+          } else if (result.issue.category == 'road_damage') {
+            selectedCategory = "Road & Potholes";
+          } else if (result.issue.category == 'water_leakage') {
+            selectedCategory = "Water Supply & Leakage";
+          } else if (result.issue.category == 'streetlight_damage') {
+            selectedCategory = "Streetlight & Lighting";
+          } else if (result.issue.category == 'tree_damage') {
+            selectedCategory = "Environment & Greenery";
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "AI detected ${result.issue.label} — Selected SDG $topId automatically!",
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF16A34A),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          _aiStatusMessage = result.message.isNotEmpty
+              ? result.message
+              : "The image could not be confidently classified. Please select the SDG manually.";
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isAnalyzingImage = false;
+        _aiStatusMessage = "AI analysis unavailable. Please select the SDG manually.";
+      });
+    }
+  }
+
   void _removeImage() {
     setState(() {
       _selectedImage = null;
       _imageBytes = null;
+      _isAnalyzingImage = false;
+      _aiAnalysisResult = null;
+      _aiStatusMessage = null;
+      selectedSdg = null;
     });
   }
 
@@ -406,6 +491,21 @@ class _ReportScreenState extends State<ReportScreen> {
         sdgAlignment: selectedSdg,
         impactLevel: selectedImpact,
         equityClassification: selectedEquity,
+        aiDetectedIssue: (_aiAnalysisResult != null && _aiAnalysisResult!.issue.category != 'unknown')
+            ? _aiAnalysisResult!.issue.category
+            : null,
+        aiIssueConfidence: (_aiAnalysisResult != null && _aiAnalysisResult!.issue.confidence > 0)
+            ? _aiAnalysisResult!.issue.confidence
+            : null,
+        aiSuggestedSdgs: (_aiAnalysisResult != null && _aiAnalysisResult!.sdgs.isNotEmpty)
+            ? _aiAnalysisResult!.toJsonString()
+            : null,
+        aiAnalysisStatus: _aiAnalysisResult != null
+            ? (_aiAnalysisResult!.success && _aiAnalysisResult!.issue.category != 'unknown'
+                ? 'success'
+                : 'unknown')
+            : null,
+        aiModelVersion: 'yolo26n.pt',
       );
 
       if (!mounted) return;
@@ -790,63 +890,130 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Dashed Photo Upload Box
-                  GestureDetector(
-                    onTap: _showImageSourceDialog,
-                    child: Container(
-                      width: 92,
-                      height: 92,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: const Color(0xFFCBD5E1),
-                          width: 1.2,
+                  // Dashed Photo Upload Box + AI Analyze Button Row
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: _showImageSourceDialog,
+                        child: Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: const Color(0xFFCBD5E1),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: _imageBytes != null
+                              ? Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.memory(
+                                        _imageBytes!,
+                                        width: 96,
+                                        height: 96,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: -6,
+                                      right: -6,
+                                      child: GestureDetector(
+                                        onTap: _removeImage,
+                                        child: const CircleAvatar(
+                                          radius: 12,
+                                          backgroundColor: Color(0xFFEF4444),
+                                          child: Icon(Icons.close, size: 14, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: const [
+                                    Icon(Icons.camera_alt_outlined, color: Color(0xFF64748B), size: 26),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      "Add Photo",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                         ),
                       ),
-                      child: _imageBytes != null
-                          ? Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.memory(
-                                    _imageBytes!,
-                                    width: 92,
-                                    height: 92,
-                                    fit: BoxFit.cover,
+                      const SizedBox(width: 14),
+                      // AI Analyze action button
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: (_imageBytes == null || _isAnalyzingImage)
+                                    ? (_imageBytes == null ? _showImageSourceDialog : null)
+                                    : () {
+                                        if (_imageBytes != null && _selectedImage != null) {
+                                          setState(() {
+                                            _isAnalyzingImage = true;
+                                            _aiAnalysisResult = null;
+                                            _aiStatusMessage = null;
+                                          });
+                                          _runAiAnalysis(_imageBytes!, _selectedImage!.name, _selectedImage!.mimeType);
+                                        }
+                                      },
+                                icon: _isAnalyzingImage
+                                    ? const SizedBox(
+                                        width: 15,
+                                        height: 15,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Icon(Icons.auto_awesome, size: 16, color: Colors.white),
+                                label: Text(
+                                  _isAnalyzingImage
+                                      ? "Analyzing..."
+                                      : (_imageBytes != null ? "Analyze with AI" : "Upload Evidence"),
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
                                   ),
                                 ),
-                                Positioned(
-                                  top: -6,
-                                  right: -6,
-                                  child: GestureDetector(
-                                    onTap: _removeImage,
-                                    child: const CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: Color(0xFFEF4444),
-                                      child: Icon(Icons.close, size: 14, color: Colors.white),
-                                    ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryColor,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                              ],
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.camera_alt_outlined, color: Color(0xFF64748B), size: 26),
-                                SizedBox(height: 4),
-                                Text(
-                                  "Add Photo",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
-                    ),
+                            const SizedBox(height: 5),
+                            Text(
+                              _imageBytes != null
+                                  ? "Tap to run YOLO AI & auto-select correct SDG"
+                                  : "Add a photo to enable instant AI civic analysis",
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                color: Color(0xFF64748B),
+                                height: 1.25,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
 
@@ -1067,17 +1234,70 @@ class _ReportScreenState extends State<ReportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    children: const [
-                      Icon(Icons.auto_awesome, color: primaryColor, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        "SDG Alignment",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
-                        ),
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.auto_awesome, color: primaryColor, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            "SDG Alignment",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
                       ),
+                      if (_imageBytes != null)
+                        InkWell(
+                          onTap: _isAnalyzingImage
+                              ? null
+                              : () {
+                                  if (_imageBytes != null && _selectedImage != null) {
+                                    setState(() {
+                                      _isAnalyzingImage = true;
+                                      _aiAnalysisResult = null;
+                                      _aiStatusMessage = null;
+                                    });
+                                    _runAiAnalysis(_imageBytes!, _selectedImage!.name, _selectedImage!.mimeType);
+                                  }
+                                },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFC7D2FE)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_isAnalyzingImage) ...[
+                                  const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(strokeWidth: 1.8, color: primaryColor),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    "Analyzing...",
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primaryColor),
+                                  ),
+                                ] else ...[
+                                  const Icon(Icons.refresh_rounded, size: 14, color: primaryColor),
+                                  const SizedBox(width: 4),
+                                  const Text(
+                                    "Re-Analyze",
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primaryColor),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -1087,9 +1307,182 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                   const SizedBox(height: 14),
 
+                  // ── AI State 1: Active Analysis Spinner ──
+                  if (_isAnalyzingImage) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFC7D2FE)),
+                      ),
+                      child: Row(
+                        children: const [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: primaryColor,
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "✨ AI Analysis in Progress",
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  "Scanning evidence with YOLO to detect civic issues & SDGs...",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF4338CA),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // ── AI State 2: Successful AI Alignment Suggestions ──
+                  if (!_isAnalyzingImage &&
+                      _aiAnalysisResult != null &&
+                      _aiAnalysisResult!.sdgs.isNotEmpty &&
+                      _aiAnalysisResult!.issue.category != 'unknown') ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.auto_awesome, color: Color(0xFF16A34A), size: 18),
+                              const SizedBox(width: 8),
+                              const Text(
+                                "✨ AI Suggested Alignment",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF166534),
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDCFCE7),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  "Confidence: ${(_aiAnalysisResult!.issue.confidence * 100).toInt()}%",
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Detected issue: ${_aiAnalysisResult!.issue.label}",
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: _aiAnalysisResult!.sdgs.map((sdg) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF86EFAC)),
+                                ),
+                                child: Text(
+                                  "SDG ${sdg.id} — ${sdg.name} (${(sdg.confidence * 100).toInt()}% relevance)",
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF166534),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            "💡 Suggestions applied. You can freely change or tap any SDG card below.",
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontStyle: FontStyle.italic,
+                              color: Color(0xFF15803D),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // ── AI State 3: Informational / Fallback Notice ──
+                  if (!_isAnalyzingImage &&
+                      _aiStatusMessage != null &&
+                      (_aiAnalysisResult == null ||
+                          _aiAnalysisResult!.issue.category == 'unknown' ||
+                          _aiAnalysisResult!.sdgs.isEmpty)) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Color(0xFF64748B), size: 17),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _aiStatusMessage!,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // Horizontal SDG Cards
                   SizedBox(
-                    height: 124,
+                    height: 136,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: sdgList.length,
@@ -1097,6 +1490,12 @@ class _ReportScreenState extends State<ReportScreen> {
                       itemBuilder: (context, index) {
                         final sdg = sdgList[index];
                         final isSelected = selectedSdg == sdg["fullName"];
+                        final isAiSuggested = _aiAnalysisResult != null &&
+                            _aiAnalysisResult!.sdgs.any((s) => s.id == sdg["number"]);
+                        final suggestedItem = isAiSuggested
+                            ? _aiAnalysisResult!.sdgs.firstWhere((s) => s.id == sdg["number"])
+                            : null;
+
                         return GestureDetector(
                           onTap: () {
                             setState(() {
@@ -1104,14 +1503,18 @@ class _ReportScreenState extends State<ReportScreen> {
                             });
                           },
                           child: Container(
-                            width: 88,
+                            width: 96,
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: isSelected ? primaryColor : const Color(0xFFE2E8F0),
-                                width: isSelected ? 2.0 : 1.0,
+                                color: isSelected
+                                    ? primaryColor
+                                    : (isAiSuggested
+                                        ? const Color(0xFF22C55E)
+                                        : const Color(0xFFE2E8F0)),
+                                width: isSelected ? 2.0 : (isAiSuggested ? 1.5 : 1.0),
                               ),
                               boxShadow: [
                                 if (isSelected)
@@ -1125,9 +1528,29 @@ class _ReportScreenState extends State<ReportScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
+                                if (isAiSuggested) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    margin: const EdgeInsets.only(bottom: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      suggestedItem != null
+                                          ? "${(suggestedItem.confidence * 100).toInt()}% AI"
+                                          : "AI Pick",
+                                      style: const TextStyle(
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF15803D),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 Container(
-                                  width: 44,
-                                  height: 44,
+                                  width: 42,
+                                  height: 42,
                                   decoration: BoxDecoration(
                                     color: sdg["color"] as Color,
                                     borderRadius: BorderRadius.circular(8),
@@ -1138,17 +1561,17 @@ class _ReportScreenState extends State<ReportScreen> {
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w900,
-                                      fontSize: 20,
+                                      fontSize: 19,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 5),
                                 Text(
                                   sdg["title"] as String,
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10.5,
                                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                                     color: isSelected ? primaryColor : const Color(0xFF334155),
                                     height: 1.1,
