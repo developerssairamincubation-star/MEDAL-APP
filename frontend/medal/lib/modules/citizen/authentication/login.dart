@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => const MainScreen(),
+          builder: (context) => const MainScreen(showAcademyPopup: true),
         ),
         (route) => false,
       );

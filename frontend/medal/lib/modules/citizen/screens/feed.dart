@@ -16,12 +16,21 @@ class FeedScreen extends StatefulWidget {
 class _FeedScreenState extends State<FeedScreen> {
   int selectedTab = 0;
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _offset = 0;
+  static const int _pageSize = 20;
+  int _currentRequestId = 0;
+
   String? _errorMessage;
   List<Map<String, dynamic>> _feedItems = [];
+  final Set<int> _seenItemIds = {};
 
   // Track local upvotes and reposts
   final Set<int> _upvotedIds = {};
   final Set<int> _repostedIds = {};
+
+  late final ScrollController _scrollController;
 
   final List<String> tabs = [
     "All Reports",
@@ -32,56 +41,138 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchFeed();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+    _fetchFeed(reset: true);
   }
 
-  String? _getCategoryFilter(int tabIndex) {
-    switch (tabIndex) {
-      case 1:
-        return "environment";
-      case 2:
-        return "infrastructure";
-      default:
-        return null;
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (currentScroll >= maxScroll - 200) {
+      _loadMore();
     }
   }
 
-  Future<void> _fetchFeed() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  String? _getCategoryFilter(int tabIndex) {
+    if (tabIndex <= 0 || tabIndex >= tabs.length) return null;
+    final tabName = tabs[tabIndex].trim();
+    if (tabName.toLowerCase() == "all reports" || tabName.toLowerCase() == "all") {
+      return null;
+    }
+    return tabName;
+  }
+
+  Future<void> _fetchFeed({bool reset = true}) async {
+    final requestId = ++_currentRequestId;
+
+    if (reset) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+        _feedItems = [];
+        _seenItemIds.clear();
+        _offset = 0;
+        _hasMore = true;
+      });
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+    }
 
     try {
       final category = _getCategoryFilter(selectedTab);
-      final items = await ApiService().getCommunityFeed(category: category);
+      final items = await ApiService().getCommunityFeed(
+        category: category,
+        limit: _pageSize,
+        offset: 0,
+      );
 
-      // Load repost status for all items so the feed card shows correct has_reposted
-      if (ApiService().isAuthenticated) {
-        for (final item in items) {
-          final id = item['id'] as int?;
-          if (id == null) continue;
-          try {
-            final status = await ApiService().getRepostStatus(id);
-            item['has_reposted'] = status['has_reposted'] == true;
-            item['reposts_count'] = status['total_reposts'] ?? item['reposts_count'] ?? 0;
-          } catch (_) {}
+      if (!mounted || requestId != _currentRequestId) return;
+
+      final newItems = <Map<String, dynamic>>[];
+      for (final item in items) {
+        final id = item['id'] as int?;
+        if (id != null) {
+          if (_seenItemIds.add(id)) {
+            newItems.add(item);
+          }
+          if (item['has_reposted'] == true) {
+            _repostedIds.add(id);
+          }
+        } else {
+          newItems.add(item);
         }
       }
 
-      if (mounted) {
-        setState(() {
-          _feedItems = items;
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _feedItems = newItems;
+        _offset = items.length;
+        _hasMore = items.length >= _pageSize;
+        _isLoading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
+      if (!mounted || requestId != _currentRequestId) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    final requestId = _currentRequestId;
+
+    try {
+      final category = _getCategoryFilter(selectedTab);
+      final items = await ApiService().getCommunityFeed(
+        category: category,
+        limit: _pageSize,
+        offset: _offset,
+      );
+
+      if (!mounted || requestId != _currentRequestId) return;
+
+      final newItems = <Map<String, dynamic>>[];
+      for (final item in items) {
+        final id = item['id'] as int?;
+        if (id != null) {
+          if (_seenItemIds.add(id)) {
+            newItems.add(item);
+          }
+          if (item['has_reposted'] == true) {
+            _repostedIds.add(id);
+          }
+        } else {
+          newItems.add(item);
+        }
       }
+
+      setState(() {
+        _feedItems.addAll(newItems);
+        _offset += items.length;
+        _hasMore = items.length >= _pageSize;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted || requestId != _currentRequestId) return;
+      setState(() {
+        _isLoadingMore = false;
+      });
     }
   }
 
@@ -266,7 +357,7 @@ class _FeedScreenState extends State<FeedScreen> {
                         setState(() {
                           selectedTab = index;
                         });
-                        _fetchFeed();
+                        _fetchFeed(reset: true);
                       }
                     },
                     child: Container(
@@ -296,7 +387,7 @@ class _FeedScreenState extends State<FeedScreen> {
           // 2. COMMUNITY FEED LIST
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _fetchFeed,
+              onRefresh: () => _fetchFeed(reset: true),
               color: const Color(0xFF4338CA),
               child: _isLoading
                   ? const Center(
@@ -316,7 +407,7 @@ class _FeedScreenState extends State<FeedScreen> {
                               ),
                               const SizedBox(height: 12),
                               ElevatedButton(
-                                onPressed: _fetchFeed,
+                                onPressed: () => _fetchFeed(reset: true),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF4338CA),
                                 ),
@@ -349,9 +440,26 @@ class _FeedScreenState extends State<FeedScreen> {
                               ),
                             )
                           : ListView.builder(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                              itemCount: _feedItems.length,
+                              itemCount: _feedItems.length + (_isLoadingMore ? 1 : 0),
                               itemBuilder: (context, index) {
+                                if (index == _feedItems.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 16),
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: Color(0xFF4338CA),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
                                 final item = _feedItems[index];
                                 return _buildFeedCard(context, item);
                               },
@@ -424,7 +532,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               );
               if (mounted) {
-                _fetchFeed();
+                _fetchFeed(reset: true);
               }
             },
             child: Column(
@@ -435,23 +543,50 @@ class _FeedScreenState extends State<FeedScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(
               children: [
-                // Avatar circle with colored background & initials
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: avatarColors['bg'],
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    initials,
-                    style: TextStyle(
-                      color: avatarColors['text'],
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
+                // Avatar circle with user's actual profile picture or colored background & initials fallback
+                Builder(
+                  builder: (context) {
+                    final currentUserId = ApiService().currentUser?['id'];
+                    final isCurrentUser = (currentUserId != null && item['citizen_id'] == currentUserId);
+                    String? rawProfileUrl = item['profile_image_url'] as String?;
+                    if ((rawProfileUrl == null || rawProfileUrl.trim().isEmpty) && isCurrentUser) {
+                      rawProfileUrl = ApiService().currentUser?['profile_image_url'] as String?;
+                    }
+                    final resolvedPhotoUrl = (rawProfileUrl != null && rawProfileUrl.trim().isNotEmpty)
+                        ? ApiService().resolveImageUrl(rawProfileUrl.trim())
+                        : null;
+
+                    Widget fallbackInitials() => Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: avatarColors['bg'],
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        initials,
+                        style: TextStyle(
+                          color: avatarColors['text'],
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    );
+
+                    if (resolvedPhotoUrl != null && resolvedPhotoUrl.isNotEmpty) {
+                      return ClipOval(
+                        child: Image.network(
+                          resolvedPhotoUrl,
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => fallbackInitials(),
+                        ),
+                      );
+                    }
+                    return fallbackInitials();
+                  },
                 ),
                 const SizedBox(width: 10),
                 // Name & Time
@@ -766,21 +901,20 @@ class _FeedScreenState extends State<FeedScreen> {
                           });
                         }
                       }
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(item['has_reposted'] == true
-                                ? "Reposted to your network!"
-                                : "Repost removed."),
-                            duration: const Duration(seconds: 1),
-                            backgroundColor: const Color(0xFF4338CA),
-                          ),
-                        );
-                      }
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(
+                          content: Text(item['has_reposted'] == true
+                              ? "Reposted to your network!"
+                              : "Repost removed."),
+                          duration: const Duration(seconds: 1),
+                          backgroundColor: const Color(0xFF4338CA),
+                        ),
+                      );
                     },
                     child: Center(
                       child: Text(
-                        "Repost (${item['reposts_count'] ?? 0})",
+                        "Repost ($repostsCount)",
                         style: TextStyle(
                           color: isReposted ? const Color(0xFF4338CA) : const Color(0xFF64748B),
                           fontSize: 12,
@@ -842,6 +976,7 @@ class _FeedScreenState extends State<FeedScreen> {
         if (mounted) {
           setState(() {
             _feedItems.removeWhere((c) => c['id'] == complaintId);
+            _seenItemIds.remove(complaintId);
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

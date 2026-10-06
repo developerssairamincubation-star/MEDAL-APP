@@ -1,11 +1,11 @@
 """
 Verification of MEDAL over PC LAN IP (Wi-Fi readiness for physical Android phone).
 Tests:
-1. FastAPI GET / and GET /docs via http://172.16.125.49:8000
-2. MinIO S3 API via http://172.16.125.49:9000
+1. FastAPI GET / and GET /docs via http://172.16.125.17:8000
+2. MinIO S3 API via http://172.16.125.17:9000
 3. Citizen register & login via LAN IP
 4. Upload evidence image to MinIO via LAN IP
-5. Verify returned image_url contains http://172.16.125.49:9000
+5. Verify returned image_url contains http://172.16.125.17:9000
 6. Direct HTTP GET to fetch the image from MinIO via LAN IP
 """
 
@@ -13,7 +13,7 @@ import io
 import uuid
 import httpx
 
-LAN_IP = "172.16.126.130"
+LAN_IP = "172.16.125.17"
 API_BASE = f"http://{LAN_IP}:8000"
 MINIO_BASE = f"http://{LAN_IP}:9000"
 

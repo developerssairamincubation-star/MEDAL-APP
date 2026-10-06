@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:medal/core/services/api_service.dart';
+import 'package:medal/widgets/comments_controller.dart';
 
 /// Reusable comment section displayed below feed post action bar.
 /// Handles:
@@ -36,10 +37,8 @@ class _PostCommentSectionState extends State<PostCommentSection> {
   final FocusNode _focusNode = FocusNode();
   final ImagePicker _imagePicker = ImagePicker();
 
-  bool _isLoading = true;
+  late ComplaintCommentsController _controller;
   bool _isSubmitting = false;
-  String? _errorMessage;
-  List<Map<String, dynamic>> _comments = [];
 
   // Active reply target: {'id': int, 'user_name': String}
   Map<String, dynamic>? _replyingTo;
@@ -49,12 +48,6 @@ class _PostCommentSectionState extends State<PostCommentSection> {
 
   // Emoji picker strip visibility
   bool _showEmojiStrip = false;
-
-  // Track collapsed status of parent comments: set of parent comment IDs that are collapsed
-  final Set<int> _collapsedParentIds = {};
-
-  // Track local upvotes and downvotes: commentId -> vote (1 for up, -1 for down, 0 for none)
-  final Map<int, int> _userVotes = {};
 
   // Whether the user tapped "Show all comments." to expand the entire thread
   bool _showAll = false;
@@ -75,106 +68,40 @@ class _PostCommentSectionState extends State<PostCommentSection> {
   @override
   void initState() {
     super.initState();
-    _fetchComments();
+    _controller = ComplaintCommentsController.forComplaint(widget.complaintId);
+    _controller.addListener(_handleControllerUpdate);
+    _controller.fetchComments();
+  }
+
+  @override
+  void didUpdateWidget(covariant PostCommentSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.complaintId != widget.complaintId) {
+      _controller.removeListener(_handleControllerUpdate);
+      _controller = ComplaintCommentsController.forComplaint(widget.complaintId);
+      _controller.addListener(_handleControllerUpdate);
+      _controller.fetchComments();
+    }
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_handleControllerUpdate);
     _textController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchComments() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final data = await ApiService().getComments(widget.complaintId);
-      if (mounted) {
-        setState(() {
-          _comments = data;
-          _isLoading = false;
-        });
-        widget.onCommentCountChanged?.call(_comments.length);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
+  void _handleControllerUpdate() {
+    if (mounted) {
+      setState(() {});
+      if (_controller.hasFetched) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            widget.onCommentCountChanged?.call(_controller.activeCommentCount);
+          }
         });
       }
-    }
-  }
-
-  String _getCurrentUserInitials() {
-    final user = ApiService().currentUser;
-    final name = (user?['full_name'] as String?) ?? 'Mukil K';
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.length > 1 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : 'MK';
-  }
-
-  Map<String, Color> _getAvatarColors(String initials) {
-    final clean = initials.toUpperCase();
-    if (clean == "LG") {
-      return {
-        "bg": const Color(0xFFE2F952),
-        "text": const Color(0xFF4D7C0F),
-      };
-    } else if (clean == "RG") {
-      return {
-        "bg": const Color(0xFFBAE6FD),
-        "text": const Color(0xFF0369A1),
-      };
-    } else if (clean == "MK") {
-      return {
-        "bg": const Color(0xFFF3E8FF),
-        "text": const Color(0xFF7C3AED),
-      };
-    } else if (clean == "JD") {
-      return {
-        "bg": const Color(0xFFF3E8FF),
-        "text": const Color(0xFF7C3AED),
-      };
-    } else if (clean == "ML") {
-      return {
-        "bg": const Color(0xFFDBEAFE),
-        "text": const Color(0xFF4F46E5),
-      };
-    } else if (clean == "OI") {
-      return {
-        "bg": const Color(0xFFFCE7F3),
-        "text": const Color(0xFF9333EA),
-      };
-    }
-    return {
-      "bg": const Color(0xFFE0E7FF),
-      "text": const Color(0xFF4338CA),
-    };
-  }
-
-  String _formatTimestamp(dynamic dateStr) {
-    if (dateStr == null) return "24m ago";
-    try {
-      final dt = DateTime.parse(dateStr.toString()).toLocal();
-      final diff = DateTime.now().difference(dt);
-      if (diff.inMinutes < 60) {
-        return "${diff.inMinutes.clamp(1, 60)}m ago";
-      } else if (diff.inHours < 24) {
-        return "${diff.inHours}h ago";
-      } else if (diff.inDays < 7) {
-        return "${diff.inDays}d ago";
-      } else {
-        return "${dt.day}/${dt.month}/${dt.year}";
-      }
-    } catch (_) {
-      return "24m ago";
     }
   }
 
@@ -225,11 +152,8 @@ class _PostCommentSectionState extends State<PostCommentSection> {
     setState(() => _isSubmitting = true);
 
     try {
-      final parentId = _replyingTo != null
-          ? ((_replyingTo!['parent_comment_id'] as int?) ?? (_replyingTo!['id'] as int?))
-          : null;
-      final added = await ApiService().addComment(
-        widget.complaintId,
+      final parentId = _replyingTo != null ? (_replyingTo!['id'] as int?) : null;
+      await _controller.addComment(
         content.isNotEmpty ? content : "[Image Attachment]",
         parentCommentId: parentId,
       );
@@ -237,21 +161,12 @@ class _PostCommentSectionState extends State<PostCommentSection> {
       _textController.clear();
       if (mounted) {
         setState(() {
-          _comments.add(added);
           _showAll = true;
-          if (parentId != null) {
-            _collapsedParentIds.remove(parentId);
-            final targetId = _replyingTo?['id'] as int?;
-            if (targetId != null) {
-              _collapsedParentIds.remove(targetId);
-            }
-          }
           _replyingTo = null;
           _selectedImage = null;
           _showEmojiStrip = false;
           _isSubmitting = false;
         });
-        widget.onCommentCountChanged?.call(_comments.length);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(parentId != null ? "Reply posted!" : "Comment posted!"),
@@ -291,20 +206,6 @@ class _PostCommentSectionState extends State<PostCommentSection> {
     });
   }
 
-  bool _isCurrentUserCommentAuthor(Map<String, dynamic> comment) {
-    final user = ApiService().currentUser;
-    if (user == null) return false;
-    if (user['role'] == 'admin') return true;
-    final currentUserId = user['id'];
-    final commentUserId = comment['user_id'];
-    if (currentUserId != null && commentUserId != null) {
-      return currentUserId.toString() == commentUserId.toString();
-    }
-    final currentName = (user['full_name'] ?? user['username'] ?? '').toString().trim().toLowerCase();
-    final commentName = (comment['user_name'] ?? comment['username'] ?? '').toString().trim().toLowerCase();
-    return currentName.isNotEmpty && currentName == commentName;
-  }
-
   Future<void> _confirmDeleteComment(Map<String, dynamic> comment) async {
     final commentId = comment['id'] as int?;
     if (commentId == null) return;
@@ -334,24 +235,8 @@ class _PostCommentSectionState extends State<PostCommentSection> {
 
     if (confirmed == true) {
       try {
-        final res = await ApiService().deleteComment(widget.complaintId, commentId);
-        final bool hasReplies = res['has_replies'] == true;
+        await _controller.deleteComment(commentId);
         if (mounted) {
-          setState(() {
-            if (hasReplies) {
-              final idx = _comments.indexWhere((c) => c['id'] == commentId);
-              if (idx != -1) {
-                _comments[idx]['is_deleted'] = true;
-                _comments[idx]['comment'] = 'This comment was deleted';
-                _comments[idx]['content'] = 'This comment was deleted';
-              }
-            } else {
-              _comments.removeWhere((c) => c['id'] == commentId);
-            }
-          });
-          widget.onCommentCountChanged?.call(
-            _comments.where((c) => c['is_deleted'] != true).length,
-          );
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Comment deleted."),
@@ -375,38 +260,10 @@ class _PostCommentSectionState extends State<PostCommentSection> {
 
   @override
   Widget build(BuildContext context) {
-    // Build quick lookup for parent id of every comment to resolve root threads
-    final Map<int, int?> parentIdLookup = {};
-    for (final c in _comments) {
-      final id = c['id'] as int?;
-      if (id != null) {
-        parentIdLookup[id] = c['parent_comment_id'] as int?;
-      }
-    }
-
-    int getRootParentId(int childId) {
-      int current = childId;
-      int depth = 0;
-      while (parentIdLookup[current] != null && depth < 20) {
-        current = parentIdLookup[current]!;
-        depth++;
-      }
-      return current;
-    }
-
-    // Organize comments into parent and replies
-    final parentComments = _comments.where((c) => c['parent_comment_id'] == null).toList();
-    final allReplies = _comments.where((c) => c['parent_comment_id'] != null).toList();
-
-    // Map root parent ID -> list of replies
-    final Map<int, List<Map<String, dynamic>>> repliesMap = {};
-    for (final reply in allReplies) {
-      final rootId = getRootParentId(reply['id'] as int? ?? 0);
-      repliesMap.putIfAbsent(rootId, () => []).add(reply);
-    }
+    final rootNodes = _controller.getThreadedTree();
 
     // Limit initial display to 2 parent comments unless _showAll is true
-    final displayedParents = _showAll ? parentComments : parentComments.take(2).toList();
+    final displayedNodes = _showAll ? rootNodes : rootNodes.take(2).toList();
 
     return Container(
       decoration: const BoxDecoration(
@@ -437,7 +294,7 @@ class _PostCommentSectionState extends State<PostCommentSection> {
           const SizedBox(height: 18),
 
           // 3. COMMENTS LIST
-          if (_isLoading)
+          if (_controller.isLoading && _controller.comments.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
@@ -451,25 +308,25 @@ class _PostCommentSectionState extends State<PostCommentSection> {
                 ),
               ),
             )
-          else if (_errorMessage != null)
+          else if (_controller.errorMessage != null && _controller.comments.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
                 child: Column(
                   children: [
                     Text(
-                      _errorMessage!,
+                      _controller.errorMessage!,
                       style: const TextStyle(color: Colors.redAccent, fontSize: 12),
                     ),
                     TextButton(
-                      onPressed: _fetchComments,
+                      onPressed: () => _controller.fetchComments(forceRefresh: true),
                       child: const Text("Retry", style: TextStyle(color: Color(0xFF4338CA))),
                     ),
                   ],
                 ),
               ),
             )
-          else if (parentComments.isEmpty)
+          else if (rootNodes.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 14),
               child: Center(
@@ -483,13 +340,15 @@ class _PostCommentSectionState extends State<PostCommentSection> {
               ),
             )
           else ...[
-            // Render comments hierarchy
-            for (int i = 0; i < displayedParents.length; i++) ...[
-              _buildParentCommentWithReplies(
-                displayedParents[i],
-                repliesMap[displayedParents[i]['id'] as int? ?? 0] ?? [],
+            // Render comments hierarchy with ThreadedCommentNodeWidget
+            for (int i = 0; i < displayedNodes.length; i++) ...[
+              ThreadedCommentNodeWidget(
+                node: displayedNodes[i],
+                controller: _controller,
+                onReply: _startReply,
+                onDelete: _confirmDeleteComment,
               ),
-              if (i < displayedParents.length - 1) const SizedBox(height: 16),
+              if (i < displayedNodes.length - 1) const SizedBox(height: 16),
             ],
 
             const SizedBox(height: 14),
@@ -525,7 +384,7 @@ class _PostCommentSectionState extends State<PostCommentSection> {
 
   /// Banner shown when replying to a specific comment
   Widget _buildReplyingBanner() {
-    final targetName = _replyingTo?['user_name'] ?? 'User';
+    final targetName = _replyingTo?['user_name'] ?? _replyingTo?['username'] ?? 'User';
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -558,29 +417,16 @@ class _PostCommentSectionState extends State<PostCommentSection> {
 
   /// Main comment input row with user avatar and action buttons
   Widget _buildCommentInput() {
-    final initials = _getCurrentUserInitials();
-    final avatarColors = _getAvatarColors(initials);
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Left User Avatar (e.g. MK in purple circle)
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: avatarColors['bg'],
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            initials,
-            style: TextStyle(
-              color: avatarColors['text'],
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-          ),
+        // Left User Avatar (profile photo or initials fallback)
+        buildCommentAvatarWidget(
+          initials: getCurrentUserInitials(),
+          size: 36,
+          profileImageUrl: ApiService().currentUser?['profile_image_url']?.toString(),
+          userId: ApiService().currentUser?['id'],
+          fontSize: 13,
         ),
         const SizedBox(width: 10),
 
@@ -775,468 +621,4 @@ class _PostCommentSectionState extends State<PostCommentSection> {
       ),
     );
   }
-
-  /// Parent comment and its nested replies connected via tree branch
-  Widget _buildParentCommentWithReplies(
-    Map<String, dynamic> parent,
-    List<Map<String, dynamic>> replies,
-  ) {
-    final parentId = parent['id'] as int? ?? 0;
-    final initials = (parent['user_initials'] ?? 'LG').toString();
-    final authorName = (parent['user_name'] ?? parent['username'] ?? 'Lisa Godwin').toString();
-    final timestamp = _formatTimestamp(parent['created_at']);
-    final commentText = (parent['comment'] ?? parent['content'] ?? '').toString();
-
-    final isCollapsed = _collapsedParentIds.contains(parentId);
-    final hasReplies = replies.isNotEmpty;
-    final isDeleted = parent['is_deleted'] == true;
-
-    // Upvote calculation
-    final userVote = _userVotes[parentId] ?? 0;
-    final baseVotes = (parentId == 3 || parentId == 101) ? 11 : 0;
-    final votesDisplay = (baseVotes + userVote).clamp(0, 999);
-
-    final avatarColors = _getAvatarColors(initials);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // PARENT COMMENT CARD
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Avatar (e.g. LG in Lime Green)
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: avatarColors['bg'],
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                initials,
-                style: TextStyle(
-                  color: avatarColors['text'],
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-
-            // Content Column
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Author Name & Timestamp
-                  Row(
-                    children: [
-                      Text(
-                        authorName,
-                        style: const TextStyle(
-                          color: Color(0xFF1E293B),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        "•",
-                        style: TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        timestamp,
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-
-                  // Comment Body (RichText supporting @mentions, or deleted placeholder)
-                  if (isDeleted)
-                    const Text(
-                      "This comment was deleted",
-                      style: TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    )
-                  else
-                    _buildFormattedCommentText(commentText),
-
-                  const SizedBox(height: 6),
-
-                  // Voting & Reply Toolbar (▲ 11 ▼  💬 1  Delete)
-                  if (!isDeleted)
-                    Row(
-                      children: [
-                        // Collapse control placeholder / icon if has replies
-                        if (hasReplies)
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                if (isCollapsed) {
-                                  _collapsedParentIds.remove(parentId);
-                                } else {
-                                  _collapsedParentIds.add(parentId);
-                                }
-                              });
-                            },
-                            child: Container(
-                              width: 16,
-                              height: 16,
-                              margin: const EdgeInsets.only(right: 6),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(0xFFCBD5E1),
-                                  width: 1.2,
-                                ),
-                                color: Colors.white,
-                              ),
-                              alignment: Alignment.center,
-                              child: Icon(
-                                isCollapsed ? Icons.add : Icons.remove,
-                                size: 10,
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
-                          ),
-
-                        // Upvote arrow ▲
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (_userVotes[parentId] == 1) {
-                                _userVotes[parentId] = 0;
-                              } else {
-                                _userVotes[parentId] = 1;
-                              }
-                            });
-                          },
-                          child: Icon(
-                            Icons.arrow_drop_up,
-                            size: 20,
-                            color: userVote == 1 ? const Color(0xFF4338CA) : const Color(0xFF64748B),
-                          ),
-                        ),
-
-                        // Vote count
-                        Text(
-                          "$votesDisplay",
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: userVote == 1 ? const Color(0xFF4338CA) : const Color(0xFF64748B),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-
-                        // Downvote arrow ▼
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (_userVotes[parentId] == -1) {
-                                _userVotes[parentId] = 0;
-                              } else {
-                                _userVotes[parentId] = -1;
-                              }
-                            });
-                          },
-                          child: Icon(
-                            Icons.arrow_drop_down,
-                            size: 20,
-                            color: userVote == -1 ? Colors.redAccent : const Color(0xFF64748B),
-                          ),
-                        ),
-
-                        const SizedBox(width: 8),
-
-                        // Reply icon & count
-                        GestureDetector(
-                          onTap: () => _startReply(parent),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.chat_bubble_outline,
-                                size: 12.5,
-                                color: Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                "${replies.length}",
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  color: Color(0xFF64748B),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                "Reply",
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: Color(0xFF4338CA),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Delete button for comment author
-                        if (_isCurrentUserCommentAuthor(parent)) ...[
-                          const SizedBox(width: 12),
-                          GestureDetector(
-                            onTap: () => _confirmDeleteComment(parent),
-                            child: const Row(
-                              children: [
-                                Icon(
-                                  Icons.delete_outline,
-                                  size: 13,
-                                  color: Color(0xFFEF4444),
-                                ),
-                                SizedBox(width: 2),
-                                Text(
-                                  "Delete",
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: Color(0xFFEF4444),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-
-        // NESTED REPLIES WITH TREE BRANCH CONNECTOR
-        if (hasReplies && !isCollapsed) ...[
-          for (int j = 0; j < replies.length; j++) ...[
-            _buildNestedReplyItem(replies[j], isLast: j == replies.length - 1),
-          ],
-        ],
-      ],
-    );
-  }
-
-  /// Nested reply item indented underneath parent with branch curve
-  Widget _buildNestedReplyItem(Map<String, dynamic> reply, {required bool isLast}) {
-    final initials = (reply['user_initials'] ?? 'RG').toString();
-    final authorName = (reply['user_name'] ?? reply['username'] ?? 'Ramya Govindhan').toString();
-    final timestamp = _formatTimestamp(reply['created_at']);
-    final commentText = (reply['comment'] ?? reply['content'] ?? '').toString();
-
-    final avatarColors = _getAvatarColors(initials);
-
-    return Padding(
-      padding: const EdgeInsets.only(left: 14, top: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // L-shaped connector branch curve
-          CustomPaint(
-            size: const Size(20, 36),
-            painter: _TreeBranchPainter(),
-          ),
-          const SizedBox(width: 4),
-
-          // Reply Author Avatar (e.g. RG in Light Sky Blue)
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: avatarColors['bg'],
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              initials,
-              style: TextStyle(
-                color: avatarColors['text'],
-                fontWeight: FontWeight.w700,
-                fontSize: 10.5,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Reply Content Column
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Name & Timestamp
-                Row(
-                  children: [
-                    Text(
-                      authorName,
-                      style: const TextStyle(
-                        color: Color(0xFF1E293B),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      "•",
-                      style: TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      timestamp,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-
-                // Reply text (or deleted placeholder)
-                if (reply['is_deleted'] == true)
-                  const Text(
-                    "This comment was deleted",
-                    style: TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  )
-                else
-                  _buildFormattedCommentText(commentText),
-
-                const SizedBox(height: 4),
-
-                if (reply['is_deleted'] != true)
-                  Row(
-                    children: [
-                      // Quick reply action
-                      GestureDetector(
-                        onTap: () => _startReply(reply),
-                        child: const Text(
-                          "Reply",
-                          style: TextStyle(
-                            color: Color(0xFF4338CA),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-
-                      // Delete button for reply author
-                      if (_isCurrentUserCommentAuthor(reply)) ...[
-                        const SizedBox(width: 10),
-                        GestureDetector(
-                          onTap: () => _confirmDeleteComment(reply),
-                          child: const Row(
-                            children: [
-                              Icon(
-                                Icons.delete_outline,
-                                size: 12,
-                                color: Color(0xFFEF4444),
-                              ),
-                              SizedBox(width: 2),
-                              Text(
-                                "Delete",
-                                style: TextStyle(
-                                  color: Color(0xFFEF4444),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Parses text to highlight @mentions in accent blue/purple
-  Widget _buildFormattedCommentText(String text) {
-    final words = text.split(" ");
-    final List<InlineSpan> spans = [];
-
-    for (int i = 0; i < words.length; i++) {
-      final word = words[i];
-      if (word.startsWith("@")) {
-        spans.add(
-          TextSpan(
-            text: "$word ",
-            style: const TextStyle(
-              color: Color(0xFF4338CA),
-              fontWeight: FontWeight.w600,
-              fontSize: 12.5,
-            ),
-          ),
-        );
-      } else {
-        spans.add(
-          TextSpan(
-            text: "$word ",
-            style: const TextStyle(
-              color: Color(0xFF1E293B),
-              fontSize: 12.5,
-              height: 1.35,
-            ),
-          ),
-        );
-      }
-    }
-
-    return RichText(
-      text: TextSpan(children: spans),
-    );
-  }
-}
-
-/// Custom painter for the L-shaped connector tree branch
-class _TreeBranchPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFCBD5E1)
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(0, size.height * 0.5)
-      ..quadraticBezierTo(0, size.height * 0.7, size.width * 0.5, size.height * 0.7)
-      ..lineTo(size.width, size.height * 0.7);
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

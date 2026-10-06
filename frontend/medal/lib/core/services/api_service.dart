@@ -585,6 +585,61 @@ class ApiService {
     return data['image_url'] as String;
   }
 
+  /// POST /complaints/analyze-sdg
+  /// Multimodal AI evaluation of civic grievance to recommend UN SDGs (1-17)
+  Future<Map<String, dynamic>> analyzeSdg({
+    required String subject,
+    required String category,
+    required String description,
+    List<int>? evidenceBytes,
+    String? evidenceFilename,
+    String? evidenceMimeType,
+    String? imageUrl,
+  }) async {
+    final uri = Uri.parse('$baseUrl/complaints/analyze-sdg');
+    final request = http.MultipartRequest('POST', uri);
+
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+
+    request.fields['subject'] = subject.trim();
+    request.fields['category'] = category.trim();
+    request.fields['description'] = description.trim();
+    if (imageUrl != null && imageUrl.trim().isNotEmpty) {
+      request.fields['image_url'] = imageUrl.trim();
+    }
+
+    if (evidenceBytes != null && evidenceBytes.isNotEmpty) {
+      String safeFilename = (evidenceFilename != null && evidenceFilename.trim().isNotEmpty)
+          ? evidenceFilename.trim()
+          : 'evidence.jpg';
+      if (!safeFilename.contains('.')) {
+        safeFilename = '$safeFilename.jpg';
+      }
+      final mediaType = _resolveMediaType(safeFilename, evidenceMimeType);
+      request.files.add(http.MultipartFile.fromBytes(
+        'evidence',
+        evidenceBytes,
+        filename: safeFilename,
+        contentType: mediaType,
+      ));
+    }
+
+    final streamedResponse = await request.send().timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        throw ApiException(
+          0,
+          'AI analysis request timed out. You can select the SDG manually.',
+        );
+      },
+    );
+    final response = await http.Response.fromStream(streamedResponse);
+    final data = _handleResponse(response) as Map<String, dynamic>;
+    return data;
+  }
+
   /// POST /complaints
   Future<Map<String, dynamic>> createComplaint({
     required String title,
@@ -619,14 +674,39 @@ class ApiService {
   /// GET /complaints/feed (Public Community Feed)
   Future<List<Map<String, dynamic>>> getCommunityFeed({
     String? category,
+    int? limit,
+    int? offset,
   }) async {
     final params = <String, String>{};
-    if (category != null && category.isNotEmpty) params['category'] = category;
+    if (category != null &&
+        category.trim().isNotEmpty &&
+        category.trim().toLowerCase() != 'all reports' &&
+        category.trim().toLowerCase() != 'all') {
+      params['category'] = category.trim();
+    }
+    if (limit != null) params['limit'] = limit.toString();
+    if (offset != null) params['offset'] = offset.toString();
 
     final uri = Uri.parse('$baseUrl/complaints/feed').replace(queryParameters: params.isNotEmpty ? params : null);
-    final response = await http.get(uri, headers: _headers(withAuth: false));
-    final data = _handleResponse(response) as List;
-    return data.map((e) => Map<String, dynamic>.from(e)).toList();
+    try {
+      final response = await http
+          .get(uri, headers: _headers())
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw ApiException(
+                0,
+                'Request timed out while loading the community feed. Please check your network connection.',
+              );
+            },
+          );
+      final data = _handleResponse(response) as List;
+      return data.map((e) => Map<String, dynamic>.from(e)).toList();
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException(0, 'Failed to connect to feed service: $e');
+    }
   }
 
   /// POST /complaints/{id}/upvote

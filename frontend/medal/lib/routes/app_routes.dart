@@ -7,7 +7,6 @@ import '../screens/role_selection_screen.dart';
 import '../modules/citizen/authentication/login.dart' as citizen;
 import '../modules/citizen/authentication/forgot_password.dart' as citizen;
 import '../modules/citizen/authentication/reset_password.dart' as citizen;
-import '../modules/citizen/screens/home.dart' as citizen;
 import '../modules/citizen/screens/components.dart' as citizen;
 import '../modules/institution/institution_app.dart';
 
@@ -29,7 +28,7 @@ abstract final class AppRoutes {
         citizenLogin: (context) => const citizen.LoginScreen(),
         citizenForgotPassword: (context) => const citizen.ForgotPasswordScreen(),
         citizenResetPassword: (context) => const citizen.ResetPasswordScreen(),
-        citizenDashboard: (context) => const citizen.HomeScreen(),
+        citizenDashboard: (context) => const citizen.MainScreen(showAcademyPopup: true),
         citizenMain: (context) => const citizen.MainScreen(),
         institution: (context) => const InstitutionAppWrapper(),
       };

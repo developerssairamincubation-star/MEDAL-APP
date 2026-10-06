@@ -580,6 +580,15 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
   Widget build(BuildContext context) {
     final initials = (_data['citizen_initials'] ?? 'AC').toString();
     final userName = (_data['citizen_name'] ?? 'Anonymous Citizen').toString();
+    final currentUserId = ApiService().currentUser?['id'];
+    final isCurrentUser = (currentUserId != null && _data['citizen_id'] == currentUserId);
+    String? rawProfileUrl = _data['profile_image_url'] as String?;
+    if ((rawProfileUrl == null || rawProfileUrl.trim().isEmpty) && isCurrentUser) {
+      rawProfileUrl = ApiService().currentUser?['profile_image_url'] as String?;
+    }
+    final resolvedPhotoUrl = (rawProfileUrl != null && rawProfileUrl.trim().isNotEmpty)
+        ? ApiService().resolveImageUrl(rawProfileUrl.trim())
+        : null;
     final time = _formatTime(_data['created_at']);
     final status = (_data['status'] ?? 'submitted').toString();
     final statusColor = _getStatusColor(status);
@@ -659,14 +668,35 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                       CircleAvatar(
                         radius: 15,
                         backgroundColor: const Color(0xFFEBF4FA),
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF4F46E5),
-                          ),
-                        ),
+                        child: (resolvedPhotoUrl != null && resolvedPhotoUrl.isNotEmpty)
+                            ? ClipOval(
+                                child: Image.network(
+                                  resolvedPhotoUrl,
+                                  width: 30,
+                                  height: 30,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Center(
+                                    child: Text(
+                                      initials,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF4F46E5),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  initials,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF4F46E5),
+                                  ),
+                                ),
+                              ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -983,6 +1013,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                     }
                   });
                 },
+                onShowAllPressed: _handleOpenComments,
               ),
             ),
 

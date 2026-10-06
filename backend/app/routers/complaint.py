@@ -1,11 +1,12 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database.database import get_db
 from app.models.complaint import Complaint, ComplaintComment, ComplaintRepost, ComplaintUpvote
 from app.models.user import User
-from app.routers.auth import get_current_user, require_role
+from app.routers.auth import get_current_user, get_optional_current_user, require_role
 from app.schemas.complaint import (
     CommentCreate,
     CommentResponse,
@@ -16,17 +17,42 @@ from app.schemas.complaint import (
     ComplaintStatusUpdate,
     ComplaintUpdate,
     RepostResponse,
+    SdgAnalysisResponse,
     UpvoteResponse,
 )
+from app.services.ai_sdg_service import AiSdgService
 from app.services.storage import BaseStorageService, get_storage_service
 
 router = APIRouter(prefix="/complaints", tags=["Complaints"])
+
 
 VALID_STATUSES = {"submitted", "under_review", "in_progress", "resolved", "rejected"}
 VALID_CATEGORIES = {
     "road", "garbage", "waste", "water", "streetlight", "drainage",
     "health", "education", "sanitation", "infrastructure", "environment", "other"
 }
+
+ENVIRONMENTAL_CATEGORIES = [
+    "environment",
+    "environmental",
+    "environment_&_greenery",
+    "garbage",
+    "garbage_&_solid_waste",
+    "waste",
+    "sanitation",
+    "health_&_sanitation",
+]
+
+INFRASTRUCTURE_CATEGORIES = [
+    "infrastructure",
+    "road",
+    "road_&_potholes",
+    "streetlight",
+    "streetlight_&_lighting",
+    "drainage",
+    "drainage_&_sewage",
+    "educational_infrastructure",
+]
 
 
 import mimetypes
@@ -53,6 +79,74 @@ async def upload_evidence(
         )
     file_url = await storage.upload_file(file, folder="reports")
     return {"image_url": file_url}
+
+
+@router.post("/analyze-sdg", response_model=SdgAnalysisResponse, status_code=status.HTTP_200_OK)
+async def analyze_complaint_sdg(
+    request: Request,
+    subject: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    evidence: Optional[UploadFile] = File(None),
+    image_url: Optional[str] = Form(None),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """
+    AI-powered SDG evaluation endpoint.
+    Analyzes subject, category, detailed description, and optional evidence image
+    to recommend United Nations Sustainable Development Goals (SDG 1 - 17).
+    """
+    # Gracefully accept application/json if provided
+    content_type_header = request.headers.get("content-type", "")
+    if content_type_header.startswith("application/json"):
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                subject = body.get("subject", subject) or ""
+                category = body.get("category", category) or ""
+                description = body.get("description", description) or ""
+                image_url = body.get("image_url", image_url)
+        except Exception:
+            pass
+
+    subject_val = (subject or "").strip()
+    category_val = (category or "").strip()
+    description_val = (description or "").strip()
+
+    if not description_val:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Description is required for SDG evaluation.",
+        )
+
+    image_bytes: Optional[bytes] = None
+    mime_type = "image/jpeg"
+
+    if evidence is not None and evidence.filename:
+        c_type = evidence.content_type
+        if not c_type or c_type in ("application/octet-stream", "application/octetstream", "binary/octet-stream"):
+            guessed_type, _ = mimetypes.guess_type(evidence.filename or "")
+            if guessed_type:
+                c_type = guessed_type
+
+        if c_type and not c_type.startswith("image/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only image files are accepted as evidence",
+            )
+        image_bytes = await evidence.read()
+        mime_type = c_type or "image/jpeg"
+
+    result = await AiSdgService.analyze(
+        subject=subject_val,
+        category=category_val,
+        description=description_val,
+        image_bytes=image_bytes,
+        mime_type=mime_type,
+        image_url=image_url,
+    )
+
+    return SdgAnalysisResponse(**result)
 
 
 @router.post("", response_model=ComplaintResponse, status_code=status.HTTP_201_CREATED)
@@ -102,7 +196,7 @@ def list_complaints(
         if status_filter:
             query = query.filter(Complaint.status == status_filter.lower())
         if category_filter:
-            query = query.filter(Complaint.category == category_filter.lower())
+            query = query.filter(func.lower(Complaint.category) == category_filter.strip().lower())
 
     complaints = query.order_by(Complaint.created_at.desc()).all()
     return complaints
@@ -111,30 +205,74 @@ def list_complaints(
 @router.get("/feed", response_model=List[ComplaintFeedItem], status_code=status.HTTP_200_OK)
 def get_community_feed(
     category: Optional[str] = Query(None, alias="category"),
+    limit: int = Query(30, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """
     Public Community Feed:
     - Returns all active, non-rejected complaints submitted by all citizens.
     - Ordered newest first (created_at desc).
+    - Uses eager loading (joinedload & selectinload) to eliminate N+1 queries.
+    - Supports limit/offset pagination (default limit=30, offset=0).
+    - Includes accurate has_reposted flag when citizen is authenticated.
     - Preserves citizen privacy (only full_name / initials, no phone/email).
     """
     query = (
         db.query(Complaint)
-        .join(User, Complaint.citizen_id == User.id)
+        .options(
+            joinedload(Complaint.citizen),
+            selectinload(Complaint.upvotes),
+            selectinload(Complaint.reposts),
+            selectinload(Complaint.comments),
+        )
         .filter(Complaint.status != "rejected")
     )
 
     if category:
         cat_clean = category.strip().lower()
-        if cat_clean in ("environment", "environmental"):
-            query = query.filter(Complaint.category.in_(["environment", "garbage", "waste", "sanitation", "water"]))
-        elif cat_clean in ("infrastructure", "road"):
-            query = query.filter(Complaint.category.in_(["road", "streetlight", "drainage", "infrastructure"]))
-        elif cat_clean not in ("all", "all reports"):
-            query = query.filter(Complaint.category == cat_clean)
+        cat_normalized = cat_clean.replace(" ", "_")
+        if cat_clean in ("all", "all reports", "") or cat_normalized in ("all", "all_reports"):
+            pass  # Union of all categories — no category restriction
+        elif cat_clean in ("environment", "environmental") or cat_normalized in ("environment", "environmental"):
+            query = query.filter(func.lower(Complaint.category).in_(ENVIRONMENTAL_CATEGORIES))
+        elif cat_clean in ("infrastructure",) or cat_normalized in ("infrastructure",):
+            query = query.filter(func.lower(Complaint.category).in_(INFRASTRUCTURE_CATEGORIES))
+        elif cat_normalized in ("road", "road_&_potholes"):
+            query = query.filter(func.lower(Complaint.category).in_(["road", "road_&_potholes"]))
+        elif cat_normalized in ("streetlight", "streetlight_&_lighting"):
+            query = query.filter(func.lower(Complaint.category).in_(["streetlight", "streetlight_&_lighting"]))
+        elif cat_normalized in ("drainage", "drainage_&_sewage"):
+            query = query.filter(func.lower(Complaint.category).in_(["drainage", "drainage_&_sewage"]))
+        elif cat_normalized in ("garbage", "garbage_&_solid_waste", "waste"):
+            query = query.filter(func.lower(Complaint.category).in_(["garbage", "garbage_&_solid_waste", "waste"]))
+        elif cat_normalized in ("water", "water_supply_&_leakage"):
+            query = query.filter(func.lower(Complaint.category).in_(["water", "water_supply_&_leakage"]))
+        elif cat_normalized in ("workplace_conduct", "workplace"):
+            query = query.filter(func.lower(Complaint.category) == "workplace_conduct")
+        else:
+            query = query.filter(func.lower(Complaint.category) == cat_normalized)
 
-    complaints = query.order_by(Complaint.created_at.desc()).all()
+    complaints = (
+        query.order_by(Complaint.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    user_reposted_ids = set()
+    if current_user and complaints:
+        complaint_ids = [c.id for c in complaints]
+        user_reposted_ids = set(
+            r[0]
+            for r in db.query(ComplaintRepost.complaint_id)
+            .filter(
+                ComplaintRepost.user_id == current_user.id,
+                ComplaintRepost.complaint_id.in_(complaint_ids),
+            )
+            .all()
+        )
 
     feed_items = []
     for c in complaints:
@@ -143,6 +281,7 @@ def get_community_feed(
         initials = "".join([p[0].upper() for p in name_parts[:2]]) if name_parts else "AC"
         upvotes_total = len(c.upvotes)
         reposts_total = len(c.reposts)
+        comments_total = len([comm for comm in c.comments if not getattr(comm, 'is_deleted', False)])
         feed_items.append(
             ComplaintFeedItem(
                 id=c.id,
@@ -158,9 +297,12 @@ def get_community_feed(
                 created_at=c.created_at,
                 citizen_name=citizen_name,
                 citizen_initials=initials,
+                citizen_id=c.citizen_id,
+                profile_image_url=c.citizen.profile_image_url if c.citizen else None,
                 upvotes_count=upvotes_total,
-                comments_count=len([comm for comm in c.comments if not getattr(comm, 'is_deleted', False)]),
+                comments_count=comments_total,
                 reposts_count=reposts_total,
+                has_reposted=(c.id in user_reposted_ids),
             )
         )
     return feed_items

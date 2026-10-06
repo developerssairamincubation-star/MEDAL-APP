@@ -17,7 +17,7 @@
 /// ★ CHANGE ONLY THIS VALUE when your PC's Wi-Fi IP changes.
 ///   Run: Get-NetIPAddress -AddressFamily IPv4 in PowerShell
 ///   then look for the Wi-Fi row.
-const String kPcWifiIp = '172.16.127.223';
+const String kPcWifiIp = '172.16.125.17';
 
 /// Backend port — matches uvicorn startup port
 const int kBackendPort = 8000;

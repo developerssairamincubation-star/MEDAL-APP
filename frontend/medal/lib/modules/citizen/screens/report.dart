@@ -30,6 +30,8 @@ class _ReportScreenState extends State<ReportScreen> {
   XFile? _selectedImage;
   Uint8List? _imageBytes;
   bool _isSubmitting = false;
+  bool _isAnalyzingSdg = false;
+  Map<String, dynamic>? _aiSdgResult;
   String? _errorMessage;
 
   final ImagePicker _picker = ImagePicker();
@@ -208,6 +210,93 @@ class _ReportScreenState extends State<ReportScreen> {
       _selectedImage = null;
       _imageBytes = null;
     });
+  }
+
+  Future<void> _handleAnalyzeSdg() async {
+    final subject = titleController.text.trim();
+    final category = selectedCategory;
+    final description = descriptionController.text.trim();
+
+    if (description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter a detailed description before analyzing with AI."),
+          backgroundColor: Colors.orangeAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_isAnalyzingSdg) return;
+
+    setState(() {
+      _isAnalyzingSdg = true;
+    });
+
+    try {
+      final result = await ApiService().analyzeSdg(
+        subject: subject,
+        category: category,
+        description: description,
+        evidenceBytes: _imageBytes,
+        evidenceFilename: _selectedImage?.name,
+        evidenceMimeType: _selectedImage?.mimeType,
+        imageUrl: imageUrlController.text.trim().isNotEmpty
+            ? imageUrlController.text.trim()
+            : null,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _aiSdgResult = result;
+        final primaryId = result['primary_sdg'];
+        if (primaryId != null) {
+          final matched = sdgList.firstWhere(
+            (item) => item['number'] == primaryId,
+            orElse: () => {},
+          );
+          if (matched.isNotEmpty && matched['fullName'] != null) {
+            selectedSdg = matched['fullName'] as String;
+          }
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "AI suggested: ${result['primary_sdg_name'] ?? 'SDG ${result['primary_sdg']}'}",
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E293B),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("AI analysis is currently unavailable. You can select the SDG manually."),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAnalyzingSdg = false;
+        });
+      }
+    }
   }
 
   void _showImageSourceDialog() {
@@ -1067,17 +1156,90 @@ class _ReportScreenState extends State<ReportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    children: const [
-                      Icon(Icons.auto_awesome, color: primaryColor, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        "SDG Alignment",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
-                        ),
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.auto_awesome, color: primaryColor, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            "SDG Alignment",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
                       ),
+                      if (_isAnalyzingSdg)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2FF),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFC7D2FE)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: primaryColor,
+                                ),
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                "Analyzing grievance...",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        InkWell(
+                          onTap: _handleAnalyzeSdg,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.auto_awesome, color: Colors.amberAccent, size: 13),
+                                SizedBox(width: 5),
+                                Text(
+                                  "Analyze with AI",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -1085,11 +1247,130 @@ class _ReportScreenState extends State<ReportScreen> {
                     "Select the Sustainable Development Goals impacted by this grievance.",
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
+                  if (_aiSdgResult != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.stars_rounded, color: Color(0xFF16A34A), size: 16),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  "✨ AI Suggested: ${_aiSdgResult!['primary_sdg_name'] ?? 'SDG ${_aiSdgResult!['primary_sdg']}'}",
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                              ),
+                              if (_aiSdgResult!['confidence'] != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDCFCE7),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    "${((_aiSdgResult!['confidence'] as num) * 100).toInt()}% match",
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF16A34A),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (_aiSdgResult!['reason'] != null &&
+                              (_aiSdgResult!['reason'] as String).isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _aiSdgResult!['reason'] as String,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF166534),
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                          if (_aiSdgResult!['secondary_sdgs'] != null &&
+                              (_aiSdgResult!['secondary_sdgs'] as List).isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                const Text(
+                                  "Related:",
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF166534),
+                                  ),
+                                ),
+                                ...(_aiSdgResult!['secondary_sdgs'] as List).map((secId) {
+                                  final secNum = secId as int;
+                                  final secMatch = sdgList.firstWhere(
+                                    (s) => s['number'] == secNum,
+                                    orElse: () => {'title': 'SDG $secNum'},
+                                  );
+                                  final cleanTitle =
+                                      (secMatch['title'] as String).replaceAll('\n', ' ');
+                                  return InkWell(
+                                    onTap: () {
+                                      final match = sdgList.firstWhere(
+                                        (s) => s['number'] == secNum,
+                                        orElse: () => {},
+                                      );
+                                      if (match.isNotEmpty && match['fullName'] != null) {
+                                        setState(() {
+                                          selectedSdg = match['fullName'] as String;
+                                        });
+                                      }
+                                    },
+                                    child: Container(
+                                      padding:
+                                          const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFF86EFAC)),
+                                      ),
+                                      child: Text(
+                                        "SDG $secNum: $cleanTitle",
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF15803D),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 14),
 
                   // Horizontal SDG Cards
                   SizedBox(
-                    height: 124,
+                    height: 136,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: sdgList.length,
@@ -1097,6 +1378,25 @@ class _ReportScreenState extends State<ReportScreen> {
                       itemBuilder: (context, index) {
                         final sdg = sdgList[index];
                         final isSelected = selectedSdg == sdg["fullName"];
+                        final isAiPrimary = _aiSdgResult != null &&
+                            _aiSdgResult!['primary_sdg'] == sdg['number'];
+                        final isAiSecondary = _aiSdgResult != null &&
+                            _aiSdgResult!['secondary_sdgs'] is List &&
+                            (_aiSdgResult!['secondary_sdgs'] as List).contains(sdg['number']);
+
+                        Color borderColor = const Color(0xFFE2E8F0);
+                        double borderWidth = 1.0;
+                        if (isSelected) {
+                          borderColor = primaryColor;
+                          borderWidth = 2.0;
+                        } else if (isAiPrimary) {
+                          borderColor = const Color(0xFF16A34A);
+                          borderWidth = 2.0;
+                        } else if (isAiSecondary) {
+                          borderColor = const Color(0xFF86EFAC);
+                          borderWidth = 1.5;
+                        }
+
                         return GestureDetector(
                           onTap: () {
                             setState(() {
@@ -1104,14 +1404,14 @@ class _ReportScreenState extends State<ReportScreen> {
                             });
                           },
                           child: Container(
-                            width: 88,
-                            padding: const EdgeInsets.all(8),
+                            width: 92,
+                            padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: isSelected ? primaryColor : const Color(0xFFE2E8F0),
-                                width: isSelected ? 2.0 : 1.0,
+                                color: borderColor,
+                                width: borderWidth,
                               ),
                               boxShadow: [
                                 if (isSelected)
@@ -1119,15 +1419,56 @@ class _ReportScreenState extends State<ReportScreen> {
                                     color: primaryColor.withValues(alpha: 0.15),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
+                                  )
+                                else if (isAiPrimary)
+                                  BoxShadow(
+                                    color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
                                   ),
                               ],
                             ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
+                                if (isAiPrimary) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      "✨ AI Pick",
+                                      style: TextStyle(
+                                        fontSize: 7.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF15803D),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                ] else if (isAiSecondary) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      "Related",
+                                      style: TextStyle(
+                                        fontSize: 7.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                ],
                                 Container(
-                                  width: 44,
-                                  height: 44,
+                                  width: 40,
+                                  height: 40,
                                   decoration: BoxDecoration(
                                     color: sdg["color"] as Color,
                                     borderRadius: BorderRadius.circular(8),
@@ -1138,17 +1479,17 @@ class _ReportScreenState extends State<ReportScreen> {
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w900,
-                                      fontSize: 20,
+                                      fontSize: 18,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 5),
                                 Text(
                                   sdg["title"] as String,
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10.5,
                                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                                     color: isSelected ? primaryColor : const Color(0xFF334155),
                                     height: 1.1,

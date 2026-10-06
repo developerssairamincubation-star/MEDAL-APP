@@ -5,13 +5,16 @@ import 'tracker.dart';
 import 'report.dart';
 import 'academy.dart';
 import 'profile.dart';
+import 'home.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
+  final bool showAcademyPopup;
 
   const MainScreen({
     super.key,
     this.initialIndex = 0,
+    this.showAcademyPopup = false,
   });
 
   @override
@@ -23,11 +26,30 @@ class _MainScreenState
     extends State<MainScreen> {
 
   late int currentIndex;
+  bool _popupChecked = false;
 
   @override
   void initState() {
     super.initState();
     currentIndex = widget.initialIndex;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_popupChecked) {
+      _popupChecked = true;
+      final args = ModalRoute.of(context)?.settings.arguments;
+      final shouldShow = widget.showAcademyPopup ||
+          (args is Map && args['showAcademyPopup'] == true);
+      if (shouldShow) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            showAcademyModalPopup(context);
+          }
+        });
+      }
+    }
   }
 
   final List<Widget> pages = const [

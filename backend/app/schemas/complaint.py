@@ -1,6 +1,22 @@
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, ConfigDict
+from typing import List, Optional
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class SdgAnalysisRequest(BaseModel):
+    subject: Optional[str] = ""
+    category: Optional[str] = ""
+    description: str
+    image_url: Optional[str] = None
+
+
+class SdgAnalysisResponse(BaseModel):
+    primary_sdg: int = Field(..., ge=1, le=17, description="Recommended primary UN SDG (1-17)")
+    primary_sdg_name: str = Field(..., description="Full SDG name")
+    secondary_sdgs: List[int] = Field(default_factory=list, description="Zero or more secondary SDGs (1-17)")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score between 0 and 1")
+    reason: str = Field(..., description="Short explanation of why the SDG was selected")
+
 
 
 class ComplaintBase(BaseModel):
@@ -49,6 +65,8 @@ class ComplaintFeedItem(ComplaintBase):
     created_at: datetime
     citizen_name: str
     citizen_initials: str
+    citizen_id: Optional[int] = None
+    profile_image_url: Optional[str] = None
     upvotes_count: int = 0
     comments_count: int = 0
     reposts_count: int = 0
