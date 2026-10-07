@@ -128,7 +128,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
+                backgroundColor: const Color(0xFF2321BC),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -156,7 +156,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4F46E5),
+        backgroundColor: const Color(0xFF2321BC),
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           "Reset Password",
@@ -191,7 +191,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     const Center(
                       child: Icon(
                         Icons.password_outlined,
-                        color: Color(0xFF4F46E5),
+                        color: Color(0xFF2321BC),
                         size: 56,
                       ),
                     ),
@@ -202,7 +202,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF4F46E5),
+                          color: Color(0xFF2321BC),
                         ),
                       ),
                     ),
@@ -214,7 +214,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF4F46E5),
+                          color: Color(0xFF2321BC),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -369,7 +369,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handleResetPassword,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4F46E5),
+                          backgroundColor: const Color(0xFF2321BC),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -406,7 +406,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         child: const Text(
                           "Remembered password? Sign In",
                           style: TextStyle(
-                            color: Color(0xFF4F46E5),
+                            color: Color(0xFF2321BC),
                             fontWeight: FontWeight.w600,
                           ),
                         ),

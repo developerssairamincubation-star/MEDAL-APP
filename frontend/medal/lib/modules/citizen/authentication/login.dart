@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Welcome back, ${ApiService().currentUser?['full_name'] ?? 'Citizen'}!'),
-          backgroundColor: const Color(0xFF4F46E5),
+          backgroundColor: const Color(0xFF2321BC),
         ),
       );
 
@@ -116,12 +116,12 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5FA),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E293B), size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF111C2D), size: 20),
           tooltip: "Back to Role Selection",
           onPressed: () {
             if (Navigator.canPop(context)) {
@@ -139,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 10),
               const Icon(
                 Icons.workspace_premium,
-                color: Color(0xFF4F46E5),
+                color: Color(0xFF2321BC),
                 size: 50,
               ),
               const SizedBox(height: 10),
@@ -149,6 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   fontSize: 34,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2,
+                  color: Color(0xFF111C2D),
                 ),
               ),
               const SizedBox(height: 25),
@@ -158,10 +159,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFC6C5D7).withValues(alpha: 0.5)),
                   boxShadow: const [
                     BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 12,
+                      color: Color(0x0D000000), // 000000 5%
+                      blurRadius: 16,
                       offset: Offset(0, 4),
                     )
                   ],
@@ -173,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0567B6),
+                        color: Color(0xFF111C2D),
                       ),
                     ),
                     const SizedBox(height: 25),
@@ -184,10 +186,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: "Email Address",
+                        labelStyle: const TextStyle(color: Color(0xFF5D6478)),
                         hintText: "user@example.com",
-                        prefixIcon: const Icon(Icons.email_outlined),
+                        hintStyle: const TextStyle(color: Color(0xA36B7280)),
+                        prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF5D6478)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFC6C5D7)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF2321BC), width: 1.5),
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFC6C5D7)),
                         ),
                       ),
                     ),
@@ -199,10 +212,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: "Password",
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        labelStyle: const TextStyle(color: Color(0xFF5D6478)),
+                        prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF5D6478)),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            color: const Color(0xFF5D6478),
                           ),
                           onPressed: () {
                             setState(() {
@@ -210,8 +225,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             });
                           },
                         ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFC6C5D7)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF2321BC), width: 1.5),
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFC6C5D7)),
                         ),
                       ),
                       onSubmitted: (_) => _handleLogin(),
@@ -233,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text(
                           "Forgot Password?",
                           style: TextStyle(
-                            color: Color(0xFF4F46E5),
+                            color: Color(0xFF2321BC),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -248,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4F46E5),
+                          backgroundColor: const Color(0xFF2321BC),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -273,11 +297,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Divider(),
+                    const Divider(color: Color(0xFFC6C5D7)),
                     const SizedBox(height: 12),
                     const Text(
                       "Don't have an account?",
-                      style: TextStyle(color: Colors.black54),
+                      style: TextStyle(color: Color(0xFF5D6478)),
                     ),
                     TextButton(
                       onPressed: () {
@@ -291,7 +315,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text(
                         "Create an account",
                         style: TextStyle(
-                          color: Color(0xFF4F46E5),
+                          color: Color(0xFF2321BC),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -301,17 +325,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () {
                         Navigator.pushNamed(context, AppRoutes.institution);
                       },
-                      icon: const Icon(Icons.account_balance, size: 18, color: Color(0xFF4338CA)),
+                      icon: const Icon(Icons.account_balance, size: 18, color: Color(0xFF2321BC)),
                       label: const Text(
                         "Institution / Official Portal",
                         style: TextStyle(
-                          color: Color(0xFF4338CA),
+                          color: Color(0xFF2321BC),
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFE0E7FF)),
+                        side: const BorderSide(color: Color(0xFFC6C5D7)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

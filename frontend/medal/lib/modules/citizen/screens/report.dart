@@ -2,8 +2,10 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:medal/core/models/selected_location.dart';
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/citizen/screens/components.dart';
+import 'package:medal/widgets/location_picker.dart';
 import 'package:medal/widgets/medal_app_bar.dart';
 
 class ReportScreen extends StatefulWidget {
@@ -17,8 +19,11 @@ class _ReportScreenState extends State<ReportScreen> {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController locationController =
-      TextEditingController(text: "2nd street, medavakkam");
+      TextEditingController();
   final TextEditingController imageUrlController = TextEditingController();
+
+  SelectedLocation? _confirmedLocation;
+  bool _hasConfirmedLocation = false;
 
   String selectedCategory = "Workplace Conduct";
   String selectedSdg = "SDG 8: Decent Work and Economic Growth";
@@ -309,7 +314,7 @@ class _ReportScreenState extends State<ReportScreen> {
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF4F46E5)),
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF2321BC)),
               title: const Text('Take Photo with Camera'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -317,7 +322,7 @@ class _ReportScreenState extends State<ReportScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF4F46E5)),
+              leading: const Icon(Icons.photo_library, color: Color(0xFF2321BC)),
               title: const Text('Choose from Gallery'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -348,7 +353,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 height: 100,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFF4F46E5), Color(0xFF3730A3)],
+                    colors: [Color(0xFF2321BC), Color(0xFF3730A3)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -363,7 +368,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                     child: const Icon(
                       Icons.close,
-                      color: Color(0xFF4F46E5),
+                      color: Color(0xFF2321BC),
                       size: 26,
                     ),
                   ),
@@ -401,7 +406,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       height: 48,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4F46E5),
+                          backgroundColor: const Color(0xFF2321BC),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -454,14 +459,28 @@ class _ReportScreenState extends State<ReportScreen> {
     final location = locationController.text.trim();
     final directUrl = imageUrlController.text.trim();
 
-    if (title.isEmpty || description.isEmpty || location.isEmpty) {
+    if (title.isEmpty || description.isEmpty) {
       setState(() {
-        _errorMessage = "Please fill in the title, location, and description.";
+        _errorMessage = "Please fill in all required fields (Subject, Description).";
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please fill in all required fields (Subject, Description)."),
           backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (!_hasConfirmedLocation || _confirmedLocation == null) {
+      setState(() {
+        _errorMessage = "Please select and confirm the incident location.";
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please select and confirm the incident location."),
+          backgroundColor: Colors.orangeAccent,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -486,11 +505,18 @@ class _ReportScreenState extends State<ReportScreen> {
         } catch (_) {}
       }
 
+      final resolvedLocation = _confirmedLocation!.address.isNotEmpty
+          ? _confirmedLocation!.address
+          : (location.isNotEmpty ? location : '${_confirmedLocation!.latitude}, ${_confirmedLocation!.longitude}');
+
       final complaint = await ApiService().createComplaint(
         title: title,
         description: description,
         category: selectedCategory.toLowerCase().replaceAll(' ', '_'),
-        location: location,
+        location: resolvedLocation,
+        latitude: _confirmedLocation!.latitude,
+        longitude: _confirmedLocation!.longitude,
+        locationAddress: _confirmedLocation!.address,
         imageUrl: finalImageUrl,
         sdgAlignment: selectedSdg,
         impactLevel: selectedImpact,
@@ -544,7 +570,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF4F46E5);
+    const primaryColor = Color(0xFF2321BC);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -737,104 +763,27 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
             const SizedBox(height: 14),
 
-            // 2. GPS STATUS / MAP CARD
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x06000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Map graphic container with circular radar pin
-                  Container(
-                    height: 130,
-                    width: double.infinity,
-                    color: const Color(0xFF334155),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Stylized blueprint grid
-                        CustomPaint(
-                          size: const Size(double.infinity, 130),
-                          painter: _MapGridPainter(),
-                        ),
-                        // Radar ring
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: primaryColor.withValues(alpha: 0.25),
-                          ),
-                        ),
-                        // Radar pin
-                        const Icon(
-                          Icons.location_on,
-                          color: primaryColor,
-                          size: 28,
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Bottom bar with GPS STATUS and Location secured badge
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "GPS STATUS",
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF64748B),
-                                letterSpacing: 0.4,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              locationController.text,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEEF2FF),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            "Location secured",
-                            style: TextStyle(
-                              color: primaryColor,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            // 2. REAL-TIME LOCATION PICKER
+            LocationPickerWidget(
+              initialLocation: _confirmedLocation,
+              onLocationConfirmed: (loc) {
+                if (loc != null) {
+                  setState(() {
+                    _confirmedLocation = loc;
+                    _hasConfirmedLocation = true;
+                    locationController.text = loc.address;
+                    _errorMessage = null;
+                  });
+                }
+              },
+              onLocationChanged: (loc) {
+                if (loc != null) {
+                  setState(() {
+                    _confirmedLocation = loc;
+                    locationController.text = loc.address;
+                  });
+                }
+              },
             ),
             const SizedBox(height: 14),
 
@@ -1211,12 +1160,12 @@ class _ReportScreenState extends State<ReportScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                                colors: [Color(0xFF6366F1), Color(0xFF2321BC)],
                               ),
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
+                                  color: const Color(0xFF2321BC).withValues(alpha: 0.25),
                                   blurRadius: 4,
                                   offset: const Offset(0, 1),
                                 ),
@@ -1574,25 +1523,4 @@ class _ReportScreenState extends State<ReportScreen> {
     ),
   );
 }
-}
-
-/// Painter for the subtle blueprint grid in the map card
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF475569).withValues(alpha: 0.4)
-      ..strokeWidth = 1.0;
-
-    const spacing = 24.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -146,6 +146,44 @@ def run_tests():
     assert bad_upload.status_code == 400, f"Expected 400 for non-image, got {bad_upload.status_code}"
     print("  -> PASS: 400 Bad Request returned for invalid evidence file type")
 
+    # 7. Verify Real-time Location Picker payload (latitude, longitude, location_address)
+    print("\n[STEP 7] Testing location picker coordinates and address submission...")
+    loc_report = {
+        "title": "Broken Streetlight at Corner",
+        "description": "Streetlight pole flickering and wire exposed near intersection.",
+        "category": "streetlight",
+        "latitude": 12.917142,
+        "longitude": 80.192384,
+        "location_address": "2nd Street, Medavakkam, Chennai, Tamil Nadu",
+    }
+    loc_res = client.post("/complaints", headers=headers, json=loc_report)
+    assert loc_res.status_code == 201, f"Report with coordinates failed: {loc_res.text}"
+    loc_data = loc_res.json()
+    assert loc_data["latitude"] == 12.917142
+    assert loc_data["longitude"] == 80.192384
+    assert loc_data["location_address"] == "2nd Street, Medavakkam, Chennai, Tamil Nadu"
+    print("  -> PASS: Report created with coordinates and location_address")
+
+    # Coordinate boundary validation tests (-90 <= lat <= 90, -180 <= lon <= 180)
+    bad_lat = client.post("/complaints", headers=headers, json={
+        "title": "Invalid Lat",
+        "description": "Testing boundary",
+        "category": "road",
+        "latitude": 95.0,
+        "longitude": 80.0,
+    })
+    assert bad_lat.status_code == 422, "Expected 422 for latitude > 90"
+
+    bad_lon = client.post("/complaints", headers=headers, json={
+        "title": "Invalid Lon",
+        "description": "Testing boundary",
+        "category": "road",
+        "latitude": 12.0,
+        "longitude": 195.0,
+    })
+    assert bad_lon.status_code == 422, "Expected 422 for longitude > 180"
+    print("  -> PASS: Coordinate boundary validation (-90..90, -180..180) strictly enforced")
+
     print("\n" + "=" * 60)
     print("ALL CITIZEN REPORT CREATION TESTS PASSED SUCCESSFULLY!")
     print("=" * 60)

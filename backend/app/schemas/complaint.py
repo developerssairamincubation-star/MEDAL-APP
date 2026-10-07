@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SdgAnalysisRequest(BaseModel):
@@ -23,11 +23,30 @@ class ComplaintBase(BaseModel):
     title: str
     description: str
     category: str
-    location: str
+    location: Optional[str] = None
+    latitude: Optional[float] = Field(None, ge=-90.0, le=90.0, description="Latitude between -90 and 90")
+    longitude: Optional[float] = Field(None, ge=-180.0, le=180.0, description="Longitude between -180 and 180")
+    location_address: Optional[str] = None
     image_url: Optional[str] = None
     sdg_alignment: Optional[str] = None
     impact_level: Optional[str] = None
     equity_classification: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_location(self) -> "ComplaintBase":
+        has_location = bool(self.location and self.location.strip())
+        has_address = bool(self.location_address and self.location_address.strip())
+        has_coords = self.latitude is not None and self.longitude is not None
+        if not (has_location or has_address or has_coords):
+            raise ValueError("Location, address, or valid coordinates must be provided.")
+        if not has_location:
+            if has_address:
+                self.location = self.location_address
+            elif has_coords:
+                self.location = f"{self.latitude}, {self.longitude}"
+        if not has_address and has_location:
+            self.location_address = self.location
+        return self
 
 
 class ComplaintCreate(ComplaintBase):
@@ -39,6 +58,9 @@ class ComplaintUpdate(BaseModel):
     description: Optional[str] = None
     category: Optional[str] = None
     location: Optional[str] = None
+    latitude: Optional[float] = Field(None, ge=-90.0, le=90.0)
+    longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
+    location_address: Optional[str] = None
     image_url: Optional[str] = None
     sdg_alignment: Optional[str] = None
     impact_level: Optional[str] = None

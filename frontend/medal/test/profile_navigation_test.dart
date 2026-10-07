@@ -23,6 +23,10 @@ void main() {
     // Check if ProfileScreen is in tree and visible
     expect(find.byType(ProfileScreen), findsOneWidget);
 
+    // Verify CITIZEN badge is shown and AUTHORITY is NOT shown
+    expect(find.text('CITIZEN'), findsOneWidget);
+    expect(find.text('AUTHORITY'), findsNothing);
+
     // Tap somewhere on ProfileScreen to trigger hitTest
     await tester.tap(find.text("Earned Certifications"));
     await tester.pump();

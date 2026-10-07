@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.database import Base
@@ -17,6 +17,9 @@ class Complaint(Base):
     category: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="submitted")
     location: Mapped[str] = mapped_column(String, nullable=False)
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    location_address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     sdg_alignment: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     impact_level: Mapped[Optional[str]] = mapped_column(String, nullable=True)

@@ -5,20 +5,34 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// MEDAL Design System — Material 3 Theme
-/// Primary brand color: Indigo #3333CC (deep UNESCO blue)
+/// Unified Design System Material 3 Theme for MEDAL Institution
 abstract final class AppTheme {
+  // ── Palette from Design System Specification ─────────────────
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color darkNavy = Color(0xFF111C2D);
+  static const Color brandBlue = Color(0xFF2321BC);
+  static const Color slateBlue = Color(0xFF5D6478);
+  static const Color black = Color(0xFF000000);
+  static const Color black05 = Color(0x0D000000); // 000000 5%
+  static const Color charcoal = Color(0xFF464555);
+  static const Color slate = Color(0xFF575E72);
+  static const Color gray64 = Color(0xA36B7280); // 6B7280 64%
+  static const Color gray46 = Color(0x756B7280); // 6B7280 46%
+  static const Color lavenderBorder = Color(0xFFC6C5D7); // C6C5D7 100%
+
   // ── Brand Colors ──────────────────────────────────────────────
-  static const Color primary = Color(0xFF3333CC);
-  static const Color primaryDark = Color(0xFF2222AA);
-  static const Color primaryLight = Color(0xFF6666EE);
+  static const Color primary = brandBlue; // #2321BC
+  static const Color primaryDark = Color(0xFF1A18A0);
+  static const Color primaryLight = Color(0xFF4340E0);
 
   static const Color background = Color(0xFFF0F0FA); // lavender-grey
-  static const Color surface = Colors.white;
-  static const Color cardSurface = Colors.white;
+  static const Color surface = white;
+  static const Color cardSurface = white;
 
-  static const Color textPrimary = Color(0xFF1A1A2E);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color textMuted = Color(0xFF9CA3AF);
+  static const Color textPrimary = darkNavy; // #111C2D
+  static const Color textSecondary = slateBlue; // #5D6478
+  static const Color textMuted = gray64; // #6B7280 64%
+  static const Color border = lavenderBorder; // #C6C5D7
 
   // Status badge colors
   static const Color statusActive = Color(0xFF2ECC71);

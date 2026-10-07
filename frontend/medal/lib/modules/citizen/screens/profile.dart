@@ -18,7 +18,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _user;
   bool _isUploadingPhoto = false;
 
-  static const Color primaryIndigo = Color(0xFF4F46E5);
+  static const Color primaryIndigo = Color(0xFF2321BC);
+  static const Color darkNavy = Color(0xFF111C2D);
+  static const Color slateBlue = Color(0xFF5D6478);
+  static const Color lavenderBorder = Color(0xFFC6C5D7);
   static const Color accentPurple = Color(0xFF9333EA);
 
   @override
@@ -80,7 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E1B4B),
+                          color: darkNavy,
                         ),
                       ),
                       IconButton(
@@ -233,7 +236,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E1B4B),
+                        color: darkNavy,
                       ),
                     ),
                     IconButton(
@@ -484,7 +487,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E1B4B),
+                        color: darkNavy,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -508,19 +511,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                     child: Column(
                       children: [
-                        // AUTHORITY Pill Badge in top right
+                        // CITIZEN Pill Badge in top right
                         Align(
                           alignment: Alignment.topRight,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5F3FF),
+                              color: const Color(0xFFEEF0FD),
                               borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: lavenderBorder.withValues(alpha: 0.6)),
                             ),
                             child: const Text(
-                              "AUTHORITY",
+                              "CITIZEN",
                               style: TextStyle(
-                                color: Color(0xFF7C3AED),
+                                color: primaryIndigo,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.8,
@@ -624,7 +628,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E1B4B),
+                            color: darkNavy,
                             letterSpacing: -0.3,
                           ),
                         ),
@@ -643,7 +647,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(
                               "Certified user",
                               style: TextStyle(
-                                color: Color(0xFF4B5563),
+                                color: slateBlue,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -667,7 +671,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 email,
                                 style: const TextStyle(
                                   fontSize: 13.5,
-                                  color: Color(0xFF334155),
+                                  color: slateBlue,
                                   fontWeight: FontWeight.w500,
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -692,7 +696,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 phone,
                                 style: const TextStyle(
                                   fontSize: 13.5,
-                                  color: Color(0xFF334155),
+                                  color: slateBlue,
                                   fontWeight: FontWeight.w500,
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -711,7 +715,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(
                               "You have earned 35 points!",
                               style: TextStyle(
-                                color: Color(0xFF1E1B4B),
+                                color: darkNavy,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -742,7 +746,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF1E1B4B),
+                              color: darkNavy,
                             ),
                           ),
                         ],
@@ -933,7 +937,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1E1B4B),
+              color: darkNavy,
               height: 1.25,
             ),
           ),
@@ -960,7 +964,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E1B4B),
+                      color: darkNavy,
                     ),
                   ),
                 ],

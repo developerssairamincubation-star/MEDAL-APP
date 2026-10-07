@@ -67,7 +67,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Status updated to ${_formatStatus(newStatus)}"),
-            backgroundColor: const Color(0xFF4F46E5),
+            backgroundColor: const Color(0xFF2321BC),
           ),
         );
       }
@@ -92,7 +92,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         return Colors.red;
       case 'submitted':
       default:
-        return const Color(0xFF4F46E5);
+        return const Color(0xFF2321BC);
     }
   }
 
@@ -117,7 +117,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFFF5F5FA),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF2321BC))),
       );
     }
 
@@ -202,13 +202,13 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                          color: const Color(0xFF2321BC).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           category,
                           style: const TextStyle(
-                            color: Color(0xFF4F46E5),
+                            color: Color(0xFF2321BC),
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
@@ -243,7 +243,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, size: 18, color: Color(0xFF4F46E5)),
+                      const Icon(Icons.location_on, size: 18, color: Color(0xFF2321BC)),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -289,7 +289,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF4F46E5),
+                        color: Color(0xFF2321BC),
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -320,7 +320,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.shield_outlined, color: Color(0xFF4F46E5), size: 18),
+                          const Icon(Icons.shield_outlined, color: Color(0xFF2321BC), size: 18),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
@@ -379,14 +379,14 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.photo_library_outlined, color: Color(0xFF4F46E5), size: 18),
+                        Icon(Icons.photo_library_outlined, color: Color(0xFF2321BC), size: 18),
                         SizedBox(width: 8),
                         Text(
                           "PHOTO EVIDENCE",
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF4F46E5),
+                            color: Color(0xFF2321BC),
                             letterSpacing: 0.8,
                           ),
                         ),
@@ -432,7 +432,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF4F46E5),
+                      color: Color(0xFF2321BC),
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -470,7 +470,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF4F46E5),
+                        color: Color(0xFF2321BC),
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -484,7 +484,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _statusActionButton("submitted", "Submitted", const Color(0xFF4F46E5)),
+                        _statusActionButton("submitted", "Submitted", const Color(0xFF2321BC)),
                         _statusActionButton("under_review", "Under Review", Colors.orange),
                         _statusActionButton("in_progress", "In Progress", Colors.purple),
                         _statusActionButton("resolved", "Resolved", Colors.green),
@@ -515,7 +515,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF4F46E5),
+                      color: Color(0xFF2321BC),
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -580,7 +580,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
               height: 22,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isCompleted ? const Color(0xFF4F46E5) : Colors.grey.shade300,
+                color: isCompleted ? const Color(0xFF2321BC) : Colors.grey.shade300,
               ),
               child: isCompleted
                   ? const Icon(Icons.check, size: 14, color: Colors.white)
@@ -590,7 +590,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
               Container(
                 width: 2,
                 height: 36,
-                color: isCompleted ? const Color(0xFF4F46E5) : Colors.grey.shade300,
+                color: isCompleted ? const Color(0xFF2321BC) : Colors.grey.shade300,
               ),
           ],
         ),

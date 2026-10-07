@@ -6,7 +6,7 @@ import 'package:medal/widgets/medal_app_bar.dart';
 class AcademyCertificates extends StatelessWidget {
   const AcademyCertificates({super.key});
 
-  static const Color primaryIndigo = Color(0xFF4F46E5);
+  static const Color primaryIndigo = Color(0xFF2321BC);
 
   @override
   Widget build(BuildContext context) {

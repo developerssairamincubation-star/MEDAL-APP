@@ -14,7 +14,7 @@ class _AcademyScreenState extends State<AcademyScreen> {
   String _selectedTopic = "All Topics";
   final TextEditingController _searchController = TextEditingController();
 
-  static const Color primaryIndigo = Color(0xFF4F46E5);
+  static const Color primaryIndigo = Color(0xFF2321BC);
   static const Color accentPurple = Color(0xFF9333EA);
 
   final List<String> _courseTopics = [
@@ -531,7 +531,7 @@ class _AcademyScreenState extends State<AcademyScreen> {
           end: Alignment.bottomCenter,
           colors: [
             Color(0xFF818CF8),
-            Color(0xFF4F46E5),
+            Color(0xFF2321BC),
           ],
         ),
         borderRadius: BorderRadius.circular(14),

@@ -103,13 +103,14 @@ class _InstitutionLoginScreenState
                   width: double.infinity,
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
+                    border: Border.all(color: AppTheme.border.withValues(alpha: 0.5)),
+                    boxShadow: const [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
+                        color: AppTheme.black05,
                         blurRadius: 20,
-                        offset: const Offset(0, 4),
+                        offset: Offset(0, 4),
                       ),
                     ],
                   ),
@@ -124,7 +125,7 @@ class _InstitutionLoginScreenState
                           style: GoogleFonts.inter(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: AppTheme.primary,
+                            color: AppTheme.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 6),

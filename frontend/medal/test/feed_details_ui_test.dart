@@ -109,4 +109,37 @@ void main() {
     expect(find.text('3'), findsOneWidget);
     expect(find.text('Report flagged for civic moderation review.'), findsOneWidget);
   });
+
+  testWidgets('FeedDetailScreen does not open Mark as Resolved dialog on tapping status badge',
+      (WidgetTester tester) async {
+    final mockFeedData = {
+      'id': 103,
+      'title': 'Streetlight Broken',
+      'description': 'Streetlight not working.',
+      'citizen_name': 'Citizen Two',
+      'citizen_initials': 'CT',
+      'created_at': '2026-09-21T09:00:00Z',
+      'status': 'submitted',
+      'location': 'Anna Nagar',
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FeedDetailScreen(feedData: mockFeedData),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify SUBMITTED is shown
+    expect(find.text('SUBMITTED'), findsOneWidget);
+
+    // Tap on SUBMITTED badge
+    await tester.tap(find.text('SUBMITTED'));
+    await tester.pump();
+
+    // Verify "Mark as Resolved" and "Status update" dialogs are NOT opened
+    expect(find.text('Mark as Resolved'), findsNothing);
+    expect(find.text('Status update'), findsNothing);
+  });
 }
+

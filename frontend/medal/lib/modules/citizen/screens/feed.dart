@@ -210,7 +210,7 @@ class _FeedScreenState extends State<FeedScreen> {
     } else if (clean == "ML") {
       return {
         "bg": const Color(0xFFDBEAFE),
-        "text": const Color(0xFF4F46E5),
+        "text": const Color(0xFF2321BC),
       };
     } else if (clean == "OI") {
       return {

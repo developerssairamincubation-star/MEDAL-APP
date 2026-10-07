@@ -143,7 +143,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
             content: Text(nowReposted
                 ? 'Reposted! This report now appears on your profile.'
                 : 'Repost removed.'),
-            backgroundColor: const Color(0xFF4F46E5),
+            backgroundColor: const Color(0xFF2321BC),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -263,224 +263,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
     );
   }
 
-  void _showStatusUpdateDialog() {
-    final id = _data['id'] as int?;
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        clipBehavior: Clip.antiAlias,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 340),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header Banner with circuit gradient & circular sync icon (Image 2)
-              Container(
-                width: double.infinity,
-                height: 100,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF4F46E5), Color(0xFF3730A3)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.sync,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ),
-              ),
 
-              // Body content
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Status update",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      "Verify the current status of reported grievance and then update the status.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF64748B),
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // "Mark as Resolved" primary button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4F46E5),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        onPressed: () async {
-                          Navigator.pop(ctx);
-                          if (id != null) {
-                            try {
-                              final updated = await ApiService().updateComplaintStatus(id, 'resolved');
-                              if (mounted) {
-                                setState(() {
-                                  _data = updated;
-                                  if (widget.feedData != null) {
-                                    widget.feedData!['status'] = 'resolved';
-                                  }
-                                });
-                              }
-                            } catch (_) {
-                              if (mounted) {
-                                setState(() {
-                                  _data['status'] = 'resolved';
-                                  if (widget.feedData != null) {
-                                    widget.feedData!['status'] = 'resolved';
-                                  }
-                                });
-                              }
-                            }
-                          } else {
-                            setState(() {
-                              _data['status'] = 'resolved';
-                              if (widget.feedData != null) {
-                                widget.feedData!['status'] = 'resolved';
-                              }
-                            });
-                          }
-                          _showGrievanceResolvedDialog();
-                        },
-                        child: const Text(
-                          "Mark as Resolved",
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // "Cancel" button
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text(
-                        "Cancel",
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showGrievanceResolvedDialog() {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        clipBehavior: Clip.antiAlias,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 340),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header Banner with checkmark (Image 3)
-              Container(
-                width: double.infinity,
-                height: 100,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF4F46E5), Color(0xFF3730A3)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Color(0xFF4F46E5),
-                      size: 26,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Body content
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Grievance Resolved",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF10B981),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      "🏆",
-                      style: TextStyle(fontSize: 34),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      "25 points added!",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -494,7 +277,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
         return Colors.grey.shade600;
       case 'submitted':
       default:
-        return const Color(0xFF4F46E5);
+        return const Color(0xFF2321BC);
     }
   }
 
@@ -681,7 +464,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF4F46E5),
+                                        color: Color(0xFF2321BC),
                                       ),
                                     ),
                                   ),
@@ -693,7 +476,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF4F46E5),
+                                    color: Color(0xFF2321BC),
                                   ),
                                 ),
                               ),
@@ -743,22 +526,19 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                           ],
                         ),
                       ),
-                      GestureDetector(
-                        onTap: _showStatusUpdateDialog,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            _formatStatus(status),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.3,
-                            ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          _formatStatus(status),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
                           ),
                         ),
                       ),
@@ -818,7 +598,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                       const Icon(
                         Icons.location_on,
                         size: 15,
-                        color: Color(0xFF4F46E5),
+                        color: Color(0xFF2321BC),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -826,7 +606,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                           location,
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF4F46E5),
+                            color: Color(0xFF2321BC),
                             fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
@@ -892,7 +672,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                               Icon(
                                 _hasUpvoted ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
                                 size: 16,
-                                color: _hasUpvoted ? const Color(0xFF4F46E5) : const Color(0xFF555E8A),
+                                color: _hasUpvoted ? const Color(0xFF2321BC) : const Color(0xFF555E8A),
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -900,7 +680,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: _hasUpvoted ? FontWeight.w700 : FontWeight.w600,
-                                  color: _hasUpvoted ? const Color(0xFF4F46E5) : const Color(0xFF555E8A),
+                                  color: _hasUpvoted ? const Color(0xFF2321BC) : const Color(0xFF555E8A),
                                 ),
                               ),
                             ],
@@ -954,7 +734,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                               ? const Center(
                                   child: SizedBox(
                                     width: 16, height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4F46E5)),
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2321BC)),
                                   ),
                                 )
                               : Row(
@@ -963,7 +743,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                     Icon(
                                       _hasReposted ? Icons.repeat_one : Icons.repeat,
                                       size: 16,
-                                      color: _hasReposted ? const Color(0xFF4F46E5) : const Color(0xFF555E8A),
+                                      color: _hasReposted ? const Color(0xFF2321BC) : const Color(0xFF555E8A),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -971,7 +751,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: _hasReposted ? FontWeight.w700 : FontWeight.w600,
-                                        color: _hasReposted ? const Color(0xFF4F46E5) : const Color(0xFF555E8A),
+                                        color: _hasReposted ? const Color(0xFF2321BC) : const Color(0xFF555E8A),
                                       ),
                                     ),
                                   ],
@@ -1050,7 +830,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                     children: [
                       const CircleAvatar(
                         radius: 15,
-                        backgroundColor: Color(0xFF4F46E5),
+                        backgroundColor: Color(0xFF2321BC),
                         child: Icon(Icons.person, color: Colors.white, size: 17),
                       ),
                       const SizedBox(width: 10),

@@ -72,7 +72,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Registration successful! Please sign in.'),
-          backgroundColor: Color(0xFF4F46E5),
+          backgroundColor: Color(0xFF2321BC),
         ),
       );
 
@@ -95,7 +95,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4F46E5),
+        backgroundColor: const Color(0xFF2321BC),
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           "Register",
@@ -121,7 +121,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               const Icon(
                 Icons.workspace_premium,
-                color: Color(0xFF4F46E5),
+                color: Color(0xFF2321BC),
                 size: 45,
               ),
               const SizedBox(height: 10),
@@ -239,7 +239,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F46E5),
+                    backgroundColor: const Color(0xFF2321BC),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -272,7 +272,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
                 child: const Text(
                   "Already have an account? Sign In",
-                  style: TextStyle(color: Color(0xFF4F46E5)),
+                  style: TextStyle(color: Color(0xFF2321BC)),
                 ),
               ),
             ],

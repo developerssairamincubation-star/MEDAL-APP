@@ -7,27 +7,41 @@ import 'package:google_fonts/google_fonts.dart';
 /// MEDAL Design System — Unified Material 3 Theme.
 /// Brand color: Indigo #4F46E5.
 abstract final class MedalTheme {
+  // ── Palette from Design System Specification ─────────────────
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color darkNavy = Color(0xFF111C2D);
+  static const Color brandBlue = Color(0xFF2321BC);
+  static const Color slateBlue = Color(0xFF5D6478);
+  static const Color black = Color(0xFF000000);
+  static const Color black05 = Color(0x0D000000); // 000000 5%
+  static const Color charcoal = Color(0xFF464555);
+  static const Color slate = Color(0xFF575E72);
+  static const Color gray64 = Color(0xA36B7280); // 6B7280 64%
+  static const Color gray46 = Color(0x756B7280); // 6B7280 46%
+  static const Color lavenderBorder = Color(0xFFC6C5D7); // C6C5D7 100%
+
   // ── Brand Colors ──────────────────────────────────────────────
-  static const Color primary = Color(0xFF4F46E5);
-  static const Color primaryDark = Color(0xFF4338CA);
-  static const Color primaryLight = Color(0xFF6366F1);
-  static const Color primaryTint = Color(0xFFEEF2FF);
+  static const Color primary = brandBlue; // #2321BC
+  static const Color primaryDark = Color(0xFF1A18A0);
+  static const Color primaryLight = Color(0xFF4340E0);
+  static const Color primaryTint = Color(0xFFEEF0FD);
 
   static const Color background = Color(0xFFF8FAFC);
-  static const Color surface = Colors.white;
+  static const Color surface = white;
 
-  static const Color textPrimary = Color(0xFF0F172A);
-  static const Color textSecondary = Color(0xFF64748B);
-  static const Color textMuted = Color(0xFF94A3B8);
+  static const Color textPrimary = darkNavy; // #111C2D
+  static const Color textSecondary = slateBlue; // #5D6478
+  static const Color textMuted = gray64; // #6B7280 64%
+  static const Color border = lavenderBorder; // #C6C5D7
 
   // ── Gradient (used in Splash Screen) ──────────────────────────
   static const LinearGradient splashGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF4F46E5),
-      Color(0xFF4338CA),
-      Color(0xFF3730A3),
+      Color(0xFF2321BC),
+      Color(0xFF1A18A0),
+      Color(0xFF111C2D),
     ],
   );
 

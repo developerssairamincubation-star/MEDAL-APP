@@ -12,7 +12,7 @@ Widget commonBottomNav(
     type: BottomNavigationBarType.fixed,
 
     selectedItemColor:
-        const Color(0xFF4F46E5),
+        const Color(0xFF2321BC),
 
     onTap: (index) {
       Navigator.pushAndRemoveUntil(

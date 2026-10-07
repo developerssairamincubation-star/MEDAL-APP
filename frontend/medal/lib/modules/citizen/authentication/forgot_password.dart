@@ -92,7 +92,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4F46E5),
+        backgroundColor: const Color(0xFF2321BC),
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           "Forgot Password",
@@ -127,7 +127,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     const Center(
                       child: Icon(
                         Icons.lock_reset,
-                        color: Color(0xFF4F46E5),
+                        color: Color(0xFF2321BC),
                         size: 56,
                       ),
                     ),
@@ -274,7 +274,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handleForgotPassword,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4F46E5),
+                          backgroundColor: const Color(0xFF2321BC),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -303,11 +303,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     /// Option to manually enter token
                     TextButton.icon(
                       onPressed: _navigateToResetPassword,
-                      icon: const Icon(Icons.key, size: 16, color: Color(0xFF4F46E5)),
+                      icon: const Icon(Icons.key, size: 16, color: Color(0xFF2321BC)),
                       label: const Text(
                         "Already have a reset token?",
                         style: TextStyle(
-                          color: Color(0xFF4F46E5),
+                          color: Color(0xFF2321BC),
                           fontWeight: FontWeight.w600,
                         ),
                       ),

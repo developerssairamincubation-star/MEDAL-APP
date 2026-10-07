@@ -43,14 +43,14 @@ class MedalAppBar extends StatelessWidget implements PreferredSizeWidget {
             children: [
               Icon(
                 Icons.military_tech_rounded,
-                color: Color(0xFF4338CA),
+                color: Color(0xFF2321BC),
                 size: 26,
               ),
               SizedBox(width: 8),
               Text(
                 "MEdAL",
                 style: TextStyle(
-                  color: Color(0xFF1E293B),
+                  color: Color(0xFF111C2D),
                   fontWeight: FontWeight.w800,
                   fontSize: 22,
                   letterSpacing: -0.3,
@@ -67,7 +67,7 @@ class MedalAppBar extends StatelessWidget implements PreferredSizeWidget {
             child: IconButton(
               icon: const Icon(
                 Icons.notifications,
-                color: Color(0xFF334155),
+                color: Color(0xFF5D6478),
                 size: 24,
               ),
               tooltip: "Notifications",
