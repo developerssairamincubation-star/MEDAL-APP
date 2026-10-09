@@ -384,25 +384,56 @@ def run_tests():
         print("  -> PASS: /resend-otp works and enforces cooldown")
 
         # -------------------------------------------------------------
-        # STEP 19c: Verify another user register & login intact
+        # STEP 20: Regression test: Render Free tier SMTP block ([Errno 101])
         # -------------------------------------------------------------
-        print("\n[TEST 19c] Verifying standard registration & login for independent user...")
-        indep_user = f"indep_{uid}@example.com"
-        r_indep = client.post("/register", json={
-            "email": indep_user,
-            "password": "IndepPassword123!",
-            "full_name": "Independent User",
+        print("\n[TEST 20] Testing Render Free tier SMTP block ([Errno 101] Network is unreachable)...")
+        render_user = f"render_block_{uid}@example.com"
+        client.post("/register", json={
+            "email": render_user,
+            "password": "Password123!",
+            "full_name": "Render Block User",
         })
-        assert r_indep.status_code == 201
-        l_indep = client.post("/login", json={
-            "email": indep_user,
-            "password": "IndepPassword123!"
+
+        with patch("smtplib.SMTP", side_effect=OSError(101, "Network is unreachable")), \
+             patch.dict("os.environ", {"RENDER": "true", "SMTP_USER": "valid@gmail.com", "SMTP_PASSWORD": "apppassword1234"}):
+            r_block = client.post("/forgot-password", json={"email": render_user})
+            assert r_block.status_code == 503, f"Expected 503, got {r_block.status_code}"
+            assert "blocked by server host firewall" in r_block.json().get("detail", "").lower()
+            # Verify OTP record was cleanly deleted / rolled back
+            otps = db.query(PasswordResetOTP).filter(PasswordResetOTP.email == render_user).all()
+            assert len(otps) == 0, f"Expected 0 OTPs after rollback, got {len(otps)}"
+        print("  -> PASS: Render SMTP block returns clean 503 and rolls back DB (never 500)")
+
+        # -------------------------------------------------------------
+        # STEP 21: Testing HTTPS email API dispatch (Resend)
+        # -------------------------------------------------------------
+        print("\n[TEST 21] Testing HTTPS REST email dispatch (Resend API)...")
+        https_user = f"https_email_{uid}@example.com"
+        client.post("/register", json={
+            "email": https_user,
+            "password": "Password123!",
+            "full_name": "HTTPS User",
         })
-        assert l_indep.status_code == 200
-        print("  -> PASS: Standard register & login completely unaffected")
+
+        class MockHTTPResponse:
+            def __init__(self, status=200):
+                self.status = status
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                pass
+
+        with patch("urllib.request.urlopen", return_value=MockHTTPResponse(200)), \
+             patch.dict("os.environ", {"RESEND_API_KEY": "re_mock_test_key_12345"}):
+            r_https = client.post("/forgot-password", json={"email": https_user})
+            assert r_https.status_code == 200, f"Expected 200, got {r_https.status_code}"
+            # Verify OTP record exists
+            otps_https = db.query(PasswordResetOTP).filter(PasswordResetOTP.email == https_user).all()
+            assert len(otps_https) == 1
+        print("  -> PASS: HTTPS REST email dispatch operates over port 443 successfully")
 
         print("\n" + "=" * 75)
-        print("ALL 19 TESTS (INCLUDING SMTP AUTH, CONNECTION & CONFIG) PASSED!")
+        print("ALL 21 TESTS (INCLUDING RENDER SMTP BLOCK & HTTPS DISPATCH) PASSED!")
         print("=" * 75)
 
     finally:

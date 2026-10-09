@@ -314,7 +314,9 @@ class ApiService {
       logout();
     }
 
-    String errorMsg = 'An error occurred (${response.statusCode})';
+    String errorMsg = response.statusCode >= 500
+        ? 'Service is temporarily unavailable. Please try again shortly.'
+        : 'An error occurred (${response.statusCode})';
     if (body is Map && body.containsKey('detail')) {
       final detail = body['detail'];
       if (detail is String) {

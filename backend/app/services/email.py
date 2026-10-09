@@ -1,7 +1,10 @@
+import json
 import logging
 import os
 import smtplib
 import ssl
+import urllib.error
+import urllib.request
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -132,11 +135,17 @@ class EmailService:
         )
         self.use_ssl = str(ssl_setting).lower() in ("true", "1", "yes")
 
+        self.resend_api_key = (
+            os.getenv("RESEND_API_KEY")
+            or os.getenv("EMAIL_API_KEY")
+            or ""
+        ).strip()
+
         self.timeout = timeout
 
     def is_configured(self) -> bool:
-        """Returns True if real SMTP credentials are provided."""
-        return bool(self.smtp_user and self.smtp_password)
+        """Returns True if real SMTP credentials or HTTPS email API key are provided."""
+        return bool(self.resend_api_key or (self.smtp_user and self.smtp_password))
 
     def is_production(self) -> bool:
         """Detects whether running in Render or explicit production environment."""
@@ -326,6 +335,15 @@ class EmailService:
 </html>
 """
 
+        # If an HTTPS transactional email API key is configured, use port 443 (never blocked on Render)
+        if self.resend_api_key:
+            return self._send_via_https_api(
+                to_email=to_email,
+                subject=subject,
+                text_content=text_content,
+                html_content=html_content,
+            )
+
         logger.info(
             "Initiating SMTP email dispatch to %s (Host=%s:%s, TLS=%s, SSL=%s, Sender=%s)",
             masked_recipient,
@@ -386,6 +404,22 @@ class EmailService:
                 "Email authentication failed. Please check the Gmail App Password in server configuration."
             ) from e
         except (smtplib.SMTPConnectError, OSError) as e:
+            err_str = str(e)
+            is_unreachable = "101" in err_str or "unreachable" in err_str.lower() or "timed out" in err_str.lower()
+            if self.is_production() and is_unreachable:
+                logger.error(
+                    "SMTP connection blocked by hosting environment connecting to %s:%s for recipient %s: %s. "
+                    "Render free tier blocks outbound SMTP ports (25, 465, 587).",
+                    self.smtp_host,
+                    self.smtp_port,
+                    masked_recipient,
+                    e,
+                )
+                raise EmailDeliveryError(
+                    f"Outbound SMTP is blocked by server host firewall ({err_str}). "
+                    "Render Free tier blocks outbound SMTP ports (587/465); please set RESEND_API_KEY in Render Environment settings to send via HTTPS."
+                ) from e
+
             logger.error(
                 "SMTP Connection Error connecting to %s:%s for recipient %s: %s",
                 self.smtp_host,
@@ -405,6 +439,58 @@ class EmailService:
             raise EmailDeliveryError(
                 f"SMTP delivery error: {str(e)}"
             ) from e
+
+    def _send_via_https_api(
+        self,
+        to_email: str,
+        subject: str,
+        text_content: str,
+        html_content: str,
+    ) -> bool:
+        """Send email via Resend HTTPS REST API (Port 443, unrestricted on Render)."""
+        masked_recipient = mask_email(to_email)
+        logger.info("Initiating HTTPS email dispatch via Resend API to %s", masked_recipient)
+
+        # Resend free tier sends from 'onboarding@resend.dev' or custom verified domain
+        sender_email = self.from_email
+        if not sender_email or "@gmail.com" in sender_email.lower():
+            sender_email = "onboarding@resend.dev"
+
+        sender_header = f"{self.from_name} <{sender_email}>" if self.from_name else sender_email
+
+        payload = {
+            "from": sender_header,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content,
+            "text": text_content,
+        }
+
+        data_bytes = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=data_bytes,
+            headers={
+                "Authorization": f"Bearer {self.resend_api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "MEDAL-App/1.0",
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                if 200 <= resp.status < 300:
+                    logger.info("Email delivered successfully via HTTPS API to %s", masked_recipient)
+                    return True
+                raise EmailDeliveryError(f"HTTPS email API returned status {resp.status}")
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="ignore")
+            logger.error("HTTPS email API error for %s: %s - %s", masked_recipient, e.code, err_body)
+            raise EmailDeliveryError(f"HTTPS email provider error ({e.code}): {err_body}") from e
+        except Exception as e:
+            logger.error("HTTPS email API connection failed for %s: %s", masked_recipient, e)
+            raise EmailDeliveryError(f"Could not connect to HTTPS email API: {str(e)}") from e
 
 
 def get_email_service() -> EmailService:

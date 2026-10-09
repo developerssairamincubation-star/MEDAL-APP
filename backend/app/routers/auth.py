@@ -262,12 +262,28 @@ def forgot_password(
         logger.info("Password reset OTP successfully dispatched for %s", masked)
     except EmailDeliveryError as e:
         logger.error("Email delivery failed for %s: %s. Rolling back OTP record.", masked, e)
-        # Roll back OTP record if email delivery failed
-        db.delete(otp_record)
-        db.commit()
+        # Safely clean up OTP record if email delivery failed
+        try:
+            db.delete(otp_record)
+            db.commit()
+        except Exception as db_err:
+            logger.warning("DB cleanup exception during email failure rollback: %s", db_err)
+            db.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Failed to send verification email. {str(e)}",
+        ) from e
+    except Exception as e:
+        logger.error("Unexpected error during password reset dispatch for %s: %s", masked, e)
+        try:
+            db.delete(otp_record)
+            db.commit()
+        except Exception as db_err:
+            logger.warning("DB cleanup exception during unexpected error rollback: %s", db_err)
+            db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email delivery service encountered an unexpected error. Please try again shortly.",
         ) from e
 
     return {
