@@ -36,11 +36,7 @@ class ApiService {
   ApiService._internal();
 
   /// Backend API Base URL — driven by lib/config/api_config.dart.
-  /// To change the IP, update kPcWifiIp in that file and rebuild.
-  /// For web/desktop, kLocalhostUrl is used automatically.
-  String baseUrl = defaultTargetPlatform == TargetPlatform.android && !kIsWeb
-      ? kAndroidLanUrl
-      : kLocalhostUrl;
+  String baseUrl = kActiveBaseUrl;
 
   /// Resolves image URLs for both local uploads and MinIO object storage.
   /// Dynamically maps localhost/LAN hosts to the active server host for web, desktop, and mobile.
@@ -376,12 +372,12 @@ class ApiService {
             }),
           )
           .timeout(
-            const Duration(seconds: 15),
+            const Duration(seconds: 60),
             onTimeout: () {
-              debugPrint('[MEDAL] LOGIN TIMEOUT after 15s');
+              debugPrint('[MEDAL] LOGIN TIMEOUT after 60s');
               throw ApiException(
                 0,
-                'Server is taking too long to respond. Make sure the backend is running and your phone and PC are on the same Wi-Fi.',
+                'Server is taking longer than usual to respond. Please try again.',
               );
             },
           );
@@ -496,6 +492,40 @@ class ApiService {
     required String email,
   }) async {
     final uri = Uri.parse('$baseUrl/forgot-password');
+    final response = await http.post(
+      uri,
+      headers: _headers(withAuth: false),
+      body: jsonEncode({
+        'email': email.trim(),
+      }),
+    );
+    final data = _handleResponse(response);
+    return data as Map<String, dynamic>;
+  }
+
+  /// POST /verify-otp
+  Future<Map<String, dynamic>> verifyOtp({
+    required String email,
+    required String otp,
+  }) async {
+    final uri = Uri.parse('$baseUrl/verify-otp');
+    final response = await http.post(
+      uri,
+      headers: _headers(withAuth: false),
+      body: jsonEncode({
+        'email': email.trim(),
+        'otp': otp.trim(),
+      }),
+    );
+    final data = _handleResponse(response);
+    return data as Map<String, dynamic>;
+  }
+
+  /// POST /resend-otp
+  Future<Map<String, dynamic>> resendOtp({
+    required String email,
+  }) async {
+    final uri = Uri.parse('$baseUrl/resend-otp');
     final response = await http.post(
       uri,
       headers: _headers(withAuth: false),

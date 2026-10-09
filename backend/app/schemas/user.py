@@ -63,6 +63,25 @@ class ForgotPasswordResponse(BaseModel):
     reset_token: str | None = None
 
 
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+
+class VerifyOtpResponse(BaseModel):
+    message: str
+    reset_token: str
+
+
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+
+
+class ResendOtpResponse(BaseModel):
+    message: str
+    cooldown_seconds: int | None = None
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
@@ -70,3 +89,4 @@ class ResetPasswordRequest(BaseModel):
 
 class ResetPasswordResponse(BaseModel):
     message: str
+

@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Welcome back, ${ApiService().currentUser?['full_name'] ?? 'Citizen'}!'),
-          backgroundColor: const Color(0xFF2321BC),
+          backgroundColor: const Color(0xFF0467B6),
         ),
       );
 
@@ -139,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 10),
               const Icon(
                 Icons.workspace_premium,
-                color: Color(0xFF2321BC),
+                color: Color(0xFF0467B6),
                 size: 50,
               ),
               const SizedBox(height: 10),
@@ -196,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF2321BC), width: 1.5),
+                          borderSide: const BorderSide(color: Color(0xFF0467B6), width: 1.5),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -231,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF2321BC), width: 1.5),
+                          borderSide: const BorderSide(color: Color(0xFF0467B6), width: 1.5),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -257,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text(
                           "Forgot Password?",
                           style: TextStyle(
-                            color: Color(0xFF2321BC),
+                            color: Color(0xFF0467B6),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -272,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2321BC),
+                          backgroundColor: const Color(0xFF0467B6),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -315,7 +315,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text(
                         "Create an account",
                         style: TextStyle(
-                          color: Color(0xFF2321BC),
+                          color: Color(0xFF0467B6),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -325,11 +325,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () {
                         Navigator.pushNamed(context, AppRoutes.institution);
                       },
-                      icon: const Icon(Icons.account_balance, size: 18, color: Color(0xFF2321BC)),
+                      icon: const Icon(Icons.account_balance, size: 18, color: Color(0xFF0467B6)),
                       label: const Text(
                         "Institution / Official Portal",
                         style: TextStyle(
-                          color: Color(0xFF2321BC),
+                          color: Color(0xFF0467B6),
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),

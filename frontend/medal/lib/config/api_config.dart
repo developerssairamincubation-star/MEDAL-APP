@@ -17,10 +17,13 @@
 /// ★ CHANGE ONLY THIS VALUE when your PC's Wi-Fi IP changes.
 ///   Run: Get-NetIPAddress -AddressFamily IPv4 in PowerShell
 ///   then look for the Wi-Fi row.
-const String kPcWifiIp = '172.16.125.17';
+const String kPcWifiIp = '172.16.125.26';
 
 /// Backend port — matches uvicorn startup port
 const int kBackendPort = 8000;
+
+/// Production backend URL (Render)
+const String kRenderUrl = 'https://medal-app.onrender.com';
 
 /// ── Computed URLs (do not edit below unless changing architecture) ─────────
 
@@ -35,5 +38,5 @@ const String kLocalhostUrl = 'http://127.0.0.1:$kBackendPort';
 
 /// ── Active base URL (imported by ApiService) ──────────────────────────────
 /// Switch between the constants above to match your environment.
-/// Default: physical Android phone on LAN.
-const String kActiveBaseUrl = kAndroidLanUrl;
+/// Active: Live Render production backend.
+const String kActiveBaseUrl = kRenderUrl;

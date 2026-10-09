@@ -59,7 +59,7 @@ desktop.ini
 # =========================
 frontend_backup/
 frontend/medal/lib/pro.zip
-
+*.apk
 
 # Kotlin / Android generated files
 **/.kotlin/

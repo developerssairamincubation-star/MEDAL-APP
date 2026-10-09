@@ -31,6 +31,7 @@ if config.config_file_name is not None:
 from app.database.database import Base
 from app.models.user import User
 from app.models.complaint import Complaint
+from app.models.otp import PasswordResetOTP
 
 target_metadata = Base.metadata
 
