@@ -144,14 +144,14 @@ class _MainScreenState
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: currentIndex == 2 ? const Color(0xFFF8FAFC) : const Color(0xFF2321BC),
+                      color: currentIndex == 2 ? const Color(0xFFF8FAFC) : const Color(0xFF0467B6),
                       shape: BoxShape.circle,
                       border: currentIndex == 2
-                          ? Border.all(color: const Color(0xFF2321BC), width: 3.5)
+                          ? Border.all(color: const Color(0xFF0467B6), width: 3.5)
                           : null,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2321BC).withValues(alpha: 0.35),
+                          color: const Color(0xFF0467B6).withValues(alpha: 0.35),
                           blurRadius: 14,
                           offset: const Offset(0, 6),
                         ),
@@ -159,7 +159,7 @@ class _MainScreenState
                     ),
                     child: Icon(
                       currentIndex == 2 ? Icons.close : Icons.add,
-                      color: currentIndex == 2 ? const Color(0xFF2321BC) : Colors.white,
+                      color: currentIndex == 2 ? const Color(0xFF0467B6) : Colors.white,
                       size: 28,
                     ),
                   ),
@@ -180,7 +180,7 @@ class _MainScreenState
     bool isTwoLine = false,
   }) {
     final isSelected = currentIndex == index;
-    const activeColor = Color(0xFF2321BC);
+    const activeColor = Color(0xFF0467B6);
     const inactiveColor = Color(0xFF5D6478);
 
     return InkWell(
@@ -195,7 +195,7 @@ class _MainScreenState
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: isSelected
             ? BoxDecoration(
-                color: const Color(0xFFEEF0FD),
+                color: const Color(0xFFE8F4FD),
                 borderRadius: BorderRadius.circular(12),
               )
             : null,

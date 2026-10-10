@@ -210,7 +210,7 @@ class _FeedScreenState extends State<FeedScreen> {
     } else if (clean == "ML") {
       return {
         "bg": const Color(0xFFDBEAFE),
-        "text": const Color(0xFF2321BC),
+        "text": const Color(0xFF0467B6),
       };
     } else if (clean == "OI") {
       return {
@@ -236,8 +236,8 @@ class _FeedScreenState extends State<FeedScreen> {
 
     // Default pleasant pastel
     return {
-      "bg": const Color(0xFFE0E7FF),
-      "text": const Color(0xFF4338CA),
+      "bg": const Color(0xFFE8F4FD),
+      "text": const Color(0xFF0467B6),
     };
   }
 
@@ -253,7 +253,7 @@ class _FeedScreenState extends State<FeedScreen> {
         return const Color(0xFF991B1B);
       case 'submitted':
       default:
-        return const Color(0xFF4338CA);
+        return const Color(0xFF0467B6);
     }
   }
 
@@ -303,8 +303,8 @@ class _FeedScreenState extends State<FeedScreen> {
       } else {
         sdgName = sdgText.split(':').first.trim();
       }
-      bgColor = const Color(0xFFE0E7FF);
-      textColor = const Color(0xFF4338CA);
+      bgColor = const Color(0xFFE8F4FD);
+      textColor = const Color(0xFF0467B6);
       icon = Icons.eco;
     }
 
@@ -364,7 +364,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? const Color(0xFF4338CA)
+                            ? const Color(0xFF0467B6)
                             : const Color(0xFFEEF2F6),
                         borderRadius: BorderRadius.circular(24),
                       ),
@@ -388,10 +388,10 @@ class _FeedScreenState extends State<FeedScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => _fetchFeed(reset: true),
-              color: const Color(0xFF4338CA),
+              color: const Color(0xFF0467B6),
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF4338CA)),
+                      child: CircularProgressIndicator(color: Color(0xFF0467B6)),
                     )
                   : _errorMessage != null
                       ? Center(
@@ -409,7 +409,7 @@ class _FeedScreenState extends State<FeedScreen> {
                               ElevatedButton(
                                 onPressed: () => _fetchFeed(reset: true),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF4338CA),
+                                  backgroundColor: const Color(0xFF0467B6),
                                 ),
                                 child: const Text("Retry", style: TextStyle(color: Colors.white)),
                               ),
@@ -454,7 +454,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                         height: 24,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2.5,
-                                          color: Color(0xFF4338CA),
+                                          color: Color(0xFF0467B6),
                                         ),
                                       ),
                                     ),
@@ -693,7 +693,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   Text(
                     "@elenarodriguez\n@Jane_doe\n@Marcus_Chen",
                     style: TextStyle(
-                      color: Color(0xFF4338CA),
+                      color: Color(0xFF0467B6),
                       fontSize: 12,
                       height: 1.35,
                       fontWeight: FontWeight.w500,
@@ -750,7 +750,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       const Icon(
                         Icons.location_on_outlined,
                         size: 16,
-                        color: Color(0xFF4338CA),
+                        color: Color(0xFF0467B6),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -759,7 +759,7 @@ class _FeedScreenState extends State<FeedScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: Color(0xFF4338CA),
+                            color: Color(0xFF0467B6),
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -810,7 +810,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       child: Text(
                         "Upvote ($upvotesCount)",
                         style: TextStyle(
-                          color: const Color(0xFF4338CA),
+                          color: const Color(0xFF0467B6),
                           fontSize: 12,
                           fontWeight: isUpvoted ? FontWeight.w700 : FontWeight.w500,
                         ),
@@ -908,7 +908,7 @@ class _FeedScreenState extends State<FeedScreen> {
                               ? "Reposted to your network!"
                               : "Repost removed."),
                           duration: const Duration(seconds: 1),
-                          backgroundColor: const Color(0xFF4338CA),
+                          backgroundColor: const Color(0xFF0467B6),
                         ),
                       );
                     },
@@ -916,7 +916,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       child: Text(
                         "Repost ($repostsCount)",
                         style: TextStyle(
-                          color: isReposted ? const Color(0xFF4338CA) : const Color(0xFF64748B),
+                          color: isReposted ? const Color(0xFF0467B6) : const Color(0xFF64748B),
                           fontSize: 12,
                           fontWeight: isReposted ? FontWeight.w700 : FontWeight.w500,
                         ),
@@ -981,7 +981,7 @@ class _FeedScreenState extends State<FeedScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Report deleted successfully."),
-              backgroundColor: Color(0xFF4338CA),
+              backgroundColor: Color(0xFF0467B6),
             ),
           );
         }

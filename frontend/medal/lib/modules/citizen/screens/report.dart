@@ -314,7 +314,7 @@ class _ReportScreenState extends State<ReportScreen> {
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF2321BC)),
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF0467B6)),
               title: const Text('Take Photo with Camera'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -322,7 +322,7 @@ class _ReportScreenState extends State<ReportScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF2321BC)),
+              leading: const Icon(Icons.photo_library, color: Color(0xFF0467B6)),
               title: const Text('Choose from Gallery'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -353,7 +353,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 height: 100,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFF2321BC), Color(0xFF3730A3)],
+                    colors: [Color(0xFF0467B6), Color(0xFF111C2D)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -368,7 +368,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                     child: const Icon(
                       Icons.close,
-                      color: Color(0xFF2321BC),
+                      color: Color(0xFF0467B6),
                       size: 26,
                     ),
                   ),
@@ -406,7 +406,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       height: 48,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2321BC),
+                          backgroundColor: const Color(0xFF0467B6),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -570,7 +570,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF2321BC);
+    const primaryColor = Color(0xFF0467B6);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -1160,12 +1160,12 @@ class _ReportScreenState extends State<ReportScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFF6366F1), Color(0xFF2321BC)],
+                                colors: [Color(0xFF1A82D2), Color(0xFF0467B6)],
                               ),
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF2321BC).withValues(alpha: 0.25),
+                                  color: const Color(0xFF0467B6).withValues(alpha: 0.25),
                                   blurRadius: 4,
                                   offset: const Offset(0, 1),
                                 ),

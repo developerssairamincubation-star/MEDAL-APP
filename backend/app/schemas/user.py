@@ -61,6 +61,7 @@ class ForgotPasswordRequest(BaseModel):
 class ForgotPasswordResponse(BaseModel):
     message: str
     reset_token: str | None = None
+    delivery_status: str = "sent"
 
 
 class VerifyOtpRequest(BaseModel):

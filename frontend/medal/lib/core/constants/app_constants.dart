@@ -20,8 +20,8 @@ abstract final class AppConstants {
   static const double pagePadding = 24.0;
 
   // ── Brand Colors (quick-access for non-themed contexts) ──────
-  static const Color brandPrimary = Color(0xFF2321BC);
-  static const Color brandPrimaryLight = Color(0xFFEEF0FD);
+  static const Color brandPrimary = Color(0xFF0467B6);
+  static const Color brandPrimaryLight = Color(0xFFE8F4FD);
   static const Color brandDark = Color(0xFF111C2D);
   static const Color brandSecondary = Color(0xFF5D6478);
   static const Color brandBorder = Color(0xFFC6C5D7);

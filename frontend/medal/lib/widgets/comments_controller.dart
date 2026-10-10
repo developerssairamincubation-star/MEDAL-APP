@@ -260,7 +260,7 @@ Map<String, Color> getCommentAvatarColors(String initials) {
   } else if (clean == "ML") {
     return {
       "bg": const Color(0xFFDBEAFE),
-      "text": const Color(0xFF2321BC),
+      "text": const Color(0xFF0467B6),
     };
   } else if (clean == "OI") {
     return {
@@ -269,8 +269,8 @@ Map<String, Color> getCommentAvatarColors(String initials) {
     };
   }
   return {
-    "bg": const Color(0xFFE0E7FF),
-    "text": const Color(0xFF4338CA),
+    "bg": const Color(0xFFE8F4FD),
+    "text": const Color(0xFF0467B6),
   };
 }
 
@@ -304,7 +304,7 @@ Widget buildFormattedCommentText(String text) {
         TextSpan(
           text: "$word ",
           style: const TextStyle(
-            color: Color(0xFF4338CA),
+            color: Color(0xFF0467B6),
             fontWeight: FontWeight.w600,
             fontSize: 12.5,
           ),
@@ -776,7 +776,7 @@ class ThreadedCommentNodeWidget extends StatelessWidget {
                         child: Icon(
                           Icons.arrow_drop_up,
                           size: 20,
-                          color: userVote == 1 ? const Color(0xFF4338CA) : const Color(0xFF64748B),
+                          color: userVote == 1 ? const Color(0xFF0467B6) : const Color(0xFF64748B),
                         ),
                       ),
 
@@ -785,7 +785,7 @@ class ThreadedCommentNodeWidget extends StatelessWidget {
                         "$votesDisplay",
                         style: TextStyle(
                           fontSize: 11.5,
-                          color: userVote == 1 ? const Color(0xFF4338CA) : const Color(0xFF64748B),
+                          color: userVote == 1 ? const Color(0xFF0467B6) : const Color(0xFF64748B),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -826,7 +826,7 @@ class ThreadedCommentNodeWidget extends StatelessWidget {
                               "Reply",
                               style: TextStyle(
                                 fontSize: 11.5,
-                                color: Color(0xFF4338CA),
+                                color: Color(0xFF0467B6),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),

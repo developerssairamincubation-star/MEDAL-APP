@@ -36,7 +36,8 @@ class ApiService {
   ApiService._internal();
 
   /// Backend API Base URL — driven by lib/config/api_config.dart.
-  String baseUrl = kActiveBaseUrl;
+  /// On Web/Desktop, defaults to kLocalhostUrl. On Android/iOS, uses kActiveBaseUrl (kAndroidLanUrl).
+  String baseUrl = kIsWeb ? kLocalhostUrl : kActiveBaseUrl;
 
   /// Resolves image URLs for both local uploads and MinIO object storage.
   /// Dynamically maps localhost/LAN hosts to the active server host for web, desktop, and mobile.

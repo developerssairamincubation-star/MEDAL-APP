@@ -12,7 +12,7 @@ import io
 import uuid
 import httpx
 
-LAN_IP = "172.16.125.17"
+LAN_IP = "172.16.124.42"
 API_BASE = f"http://{LAN_IP}:8000"
 MINIO_BASE = f"http://{LAN_IP}:9000"
 

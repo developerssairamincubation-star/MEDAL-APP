@@ -43,7 +43,7 @@ class MedalAppBar extends StatelessWidget implements PreferredSizeWidget {
             children: [
               Icon(
                 Icons.military_tech_rounded,
-                color: Color(0xFF2321BC),
+                color: Color(0xFF0467B6),
                 size: 26,
               ),
               SizedBox(width: 8),

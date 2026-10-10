@@ -72,7 +72,7 @@ class LevelUpImpactPopup extends StatelessWidget {
             height: 120,
             width: double.infinity,
             decoration: const BoxDecoration(
-              color: Color(0xFF2321BC),
+              color: Color(0xFF0467B6),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
@@ -114,7 +114,7 @@ class LevelUpImpactPopup extends StatelessWidget {
               height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2321BC),
+                  backgroundColor: const Color(0xFF0467B6),
                 ),
                 onPressed: onExploreAcademy,
                 child: const Text(

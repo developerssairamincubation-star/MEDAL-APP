@@ -266,7 +266,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Comment deleted."),
-              backgroundColor: Color(0xFF4338CA),
+              backgroundColor: Color(0xFF0467B6),
               duration: Duration(seconds: 2),
             ),
           );
@@ -339,7 +339,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                       height: 24,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFF4338CA),
+                        color: Color(0xFF0467B6),
                       ),
                     ),
                   )
@@ -354,7 +354,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                             ),
                             TextButton(
                               onPressed: () => _controller.fetchComments(forceRefresh: true),
-                              child: const Text("Retry", style: TextStyle(color: Color(0xFF4338CA))),
+                              child: const Text("Retry", style: TextStyle(color: Color(0xFF0467B6))),
                             ),
                           ],
                         ),
@@ -491,7 +491,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                         icon: Icon(
                           Icons.sentiment_satisfied_outlined,
                           size: 18,
-                          color: _showEmojiStrip ? const Color(0xFF4338CA) : const Color(0xFF94A3B8),
+                          color: _showEmojiStrip ? const Color(0xFF0467B6) : const Color(0xFF94A3B8),
                         ),
                         tooltip: "Emoji",
                         padding: EdgeInsets.zero,
@@ -509,7 +509,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                         icon: Icon(
                           Icons.image_outlined,
                           size: 18,
-                          color: _selectedImage != null ? const Color(0xFF4338CA) : const Color(0xFF94A3B8),
+                          color: _selectedImage != null ? const Color(0xFF0467B6) : const Color(0xFF94A3B8),
                         ),
                         tooltip: "Attach image",
                         padding: EdgeInsets.zero,
@@ -527,7 +527,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Color(0xFF4338CA),
+                              color: Color(0xFF0467B6),
                             ),
                           ),
                         )
@@ -536,7 +536,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                           icon: const Icon(
                             Icons.send_rounded,
                             size: 18,
-                            color: Color(0xFF4338CA),
+                            color: Color(0xFF0467B6),
                           ),
                           tooltip: "Send",
                           padding: EdgeInsets.zero,
@@ -561,18 +561,18 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF),
+        color: const Color(0xFFE8F4FD),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          const Icon(Icons.reply, size: 14, color: Color(0xFF4338CA)),
+          const Icon(Icons.reply, size: 14, color: Color(0xFF0467B6)),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               "Replying to @$targetName",
               style: const TextStyle(
-                color: Color(0xFF4338CA),
+                color: Color(0xFF0467B6),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),

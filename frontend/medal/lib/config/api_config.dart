@@ -17,7 +17,7 @@
 /// ★ CHANGE ONLY THIS VALUE when your PC's Wi-Fi IP changes.
 ///   Run: Get-NetIPAddress -AddressFamily IPv4 in PowerShell
 ///   then look for the Wi-Fi row.
-const String kPcWifiIp = '172.16.125.26';
+const String kPcWifiIp = '172.16.124.42';
 
 /// Backend port — matches uvicorn startup port
 const int kBackendPort = 8000;
@@ -38,5 +38,5 @@ const String kLocalhostUrl = 'http://127.0.0.1:$kBackendPort';
 
 /// ── Active base URL (imported by ApiService) ──────────────────────────────
 /// Switch between the constants above to match your environment.
-/// Active: Live Render production backend.
-const String kActiveBaseUrl = kRenderUrl;
+/// Active: Physical Android phone on LAN connecting to local PC backend.
+const String kActiveBaseUrl = kAndroidLanUrl;

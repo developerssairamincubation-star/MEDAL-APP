@@ -145,7 +145,15 @@ class EmailService:
 
     def is_configured(self) -> bool:
         """Returns True if real SMTP credentials or HTTPS email API key are provided."""
-        return bool(self.resend_api_key or (self.smtp_user and self.smtp_password))
+        has_real_smtp = bool(
+            self.smtp_user
+            and self.smtp_password
+            and "your_email" not in self.smtp_user
+            and "your_16_char" not in self.smtp_password
+            and "example.com" not in self.smtp_user
+        )
+        has_resend = bool(self.resend_api_key and "your_api_key" not in self.resend_api_key)
+        return has_real_smtp or has_resend
 
     def is_production(self) -> bool:
         """Detects whether running in Render or explicit production environment."""
@@ -180,11 +188,11 @@ class EmailService:
                 )
             else:
                 logger.warning(
-                    "[EMAIL SERVICE - DEV SIMULATION] SMTP credentials not configured in local environment. "
-                    "Simulating email dispatch to %s (no real email will be sent).",
+                    "[EMAIL SERVICE - DEV SIMULATION] Real email delivery unavailable: SMTP credentials not configured in backend/.env. "
+                    "Operating in development-only OTP simulation mode for recipient %s (no real email will be sent).",
                     masked_recipient,
                 )
-                return True
+                return False
 
         text_content = (
             f"Hello,\n\n"
@@ -371,8 +379,12 @@ class EmailService:
                 with smtplib.SMTP_SSL(
                     self.smtp_host, self.smtp_port, context=context, timeout=self.timeout
                 ) as server:
+                    try:
+                        server.ehlo()
+                    except Exception:
+                        pass
                     logger.info("Authenticating with SMTP server as %s ...", mask_email(self.smtp_user))
-                    server.login(self.smtp_user, self.smtp_password)
+                    self._authenticate_smtp(server)
                     logger.info("SMTP authentication successful. Sending message...")
                     server.sendmail(self.from_email, [to_email], msg.as_string())
             else:
@@ -384,8 +396,13 @@ class EmailService:
                         logger.info("Initiating STARTTLS handshake...")
                         context = ssl.create_default_context()
                         server.starttls(context=context)
+                        # RFC 3207: Must re-issue EHLO over encrypted TLS channel
+                        try:
+                            server.ehlo()
+                        except Exception:
+                            pass
                     logger.info("Authenticating with SMTP server as %s ...", mask_email(self.smtp_user))
-                    server.login(self.smtp_user, self.smtp_password)
+                    self._authenticate_smtp(server)
                     logger.info("SMTP authentication successful. Sending message...")
                     server.sendmail(self.from_email, [to_email], msg.as_string())
 
@@ -402,6 +419,17 @@ class EmailService:
             )
             raise EmailDeliveryError(
                 "Email authentication failed. Please check the Gmail App Password in server configuration."
+            ) from e
+        except smtplib.SMTPServerDisconnected as e:
+            logger.error(
+                "SMTP Server Disconnected for recipient %s at %s:%s: %s",
+                masked_recipient,
+                self.smtp_host,
+                self.smtp_port,
+                e,
+            )
+            raise EmailDeliveryError(
+                f"SMTP connection closed unexpectedly by server ({self.smtp_host}:{self.smtp_port})."
             ) from e
         except (smtplib.SMTPConnectError, OSError) as e:
             err_str = str(e)
@@ -439,6 +467,27 @@ class EmailService:
             raise EmailDeliveryError(
                 f"SMTP delivery error: {str(e)}"
             ) from e
+
+    def _authenticate_smtp(self, server: smtplib.SMTP) -> None:
+        """
+        Authenticate with the SMTP server.
+        Uses a direct single-mechanism authentication (PLAIN or LOGIN) when supported
+        to prevent Python's multi-mechanism fallback loop from masking Google 535
+        rejection errors as socket disconnects.
+        """
+        auth_features = getattr(server, "esmtp_features", {}) or {}
+        auth_mechanisms = auth_features.get("auth", "")
+
+        if isinstance(auth_mechanisms, str) and "PLAIN" in auth_mechanisms.upper():
+            server.user = self.smtp_user
+            server.password = self.smtp_password
+            server.auth("PLAIN", server.auth_plain)
+        elif isinstance(auth_mechanisms, str) and "LOGIN" in auth_mechanisms.upper():
+            server.user = self.smtp_user
+            server.password = self.smtp_password
+            server.auth("LOGIN", server.auth_login)
+        else:
+            server.login(self.smtp_user, self.smtp_password)
 
     def _send_via_https_api(
         self,

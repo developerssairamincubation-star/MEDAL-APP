@@ -142,7 +142,7 @@ void main() {
       'role': 'citizen',
       'full_name': 'Bob Davis',
       'username': 'Bob Davis',
-      'profile_image_url': 'http://172.16.125.17:8000/media/bob.jpg',
+      'profile_image_url': 'http://172.16.125.26:8000/media/bob.jpg',
     });
 
     // 1. Root comment (Bob Davis, id 100)

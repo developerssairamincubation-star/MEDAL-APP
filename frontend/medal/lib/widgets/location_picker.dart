@@ -71,7 +71,7 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget>
   String? _errorMessage;
 
   // Primary MEDAL colors
-  static const Color primaryColor = Color(0xFF2321BC);
+  static const Color primaryColor = Color(0xFF0467B6);
 
   @override
   void initState() {

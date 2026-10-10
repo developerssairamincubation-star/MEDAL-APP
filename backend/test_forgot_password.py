@@ -80,8 +80,12 @@ def run_tests():
         print("  -> PASS: Initial login successful")
 
         # -------------------------------------------------------------
-        # STEP 1: Forgot Password for registered account
+        # STEPS 1 - 13: Core OTP Lifecycle & Security Tests
+        # (Mocked dispatch so unit tests don't send live emails or fail on external credentials)
         # -------------------------------------------------------------
+        otp_patcher = patch.object(EmailService, "send_password_reset_otp", return_value=True)
+        otp_patcher.start()
+
         print("\n[TEST 1] Initiating forgot password for registered email...")
         fp_res = client.post("/forgot-password", json={"email": test_email})
         assert fp_res.status_code == 200, f"Expected 200, got {fp_res.status_code}: {fp_res.text}"
@@ -262,6 +266,9 @@ def run_tests():
         assert fake_token_res.status_code == 400
         print("  -> PASS: Invalid token rejected with 400 Bad Request")
 
+        # Stop patcher so subsequent tests can specifically test real/mocked email delivery
+        otp_patcher.stop()
+
         # -------------------------------------------------------------
         # STEP 14: Mocked Real SMTP Success Flow
         # -------------------------------------------------------------
@@ -375,12 +382,13 @@ def run_tests():
             "full_name": "Resend User",
         })
         # Initial request
-        r1 = client.post("/resend-otp", json={"email": resend_user})
-        assert r1.status_code == 200
-        assert r1.json()["cooldown_seconds"] == 60
-        # Immediate second request hits cooldown
-        r2 = client.post("/resend-otp", json={"email": resend_user})
-        assert r2.status_code == 429
+        with patch.object(EmailService, "send_password_reset_otp", return_value=True):
+            r1 = client.post("/resend-otp", json={"email": resend_user})
+            assert r1.status_code == 200
+            assert r1.json()["cooldown_seconds"] == 60
+            # Immediate second request hits cooldown
+            r2 = client.post("/resend-otp", json={"email": resend_user})
+            assert r2.status_code == 429
         print("  -> PASS: /resend-otp works and enforces cooldown")
 
         # -------------------------------------------------------------

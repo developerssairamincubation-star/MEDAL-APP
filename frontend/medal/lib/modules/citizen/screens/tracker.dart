@@ -58,7 +58,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
         return Colors.red;
       case 'submitted':
       default:
-        return const Color(0xFF2321BC);
+        return const Color(0xFF0467B6);
     }
   }
 
@@ -93,7 +93,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
       appBar: const MedalAppBar(),
       body: RefreshIndicator(
         onRefresh: _fetchComplaints,
-        color: const Color(0xFF2321BC),
+        color: const Color(0xFF0467B6),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -135,7 +135,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(
-                        child: CircularProgressIndicator(color: Color(0xFF2321BC)),
+                        child: CircularProgressIndicator(color: Color(0xFF0467B6)),
                       )
                     : _errorMessage != null
                         ? Center(
@@ -153,7 +153,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
                                 ElevatedButton(
                                   onPressed: _fetchComplaints,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2321BC),
+                                    backgroundColor: const Color(0xFF0467B6),
                                   ),
                                   child: const Text("Retry", style: TextStyle(color: Colors.white)),
                                 ),
@@ -231,13 +231,13 @@ class _TrackerScreenState extends State<TrackerScreen> {
                                                   Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                                     decoration: BoxDecoration(
-                                                      color: const Color(0xFF2321BC).withValues(alpha: 0.1),
+                                                      color: const Color(0xFF0467B6).withValues(alpha: 0.1),
                                                       borderRadius: BorderRadius.circular(20),
                                                     ),
                                                     child: Text(
                                                       category,
                                                       style: const TextStyle(
-                                                        color: Color(0xFF2321BC),
+                                                        color: Color(0xFF0467B6),
                                                         fontSize: 12,
                                                         fontWeight: FontWeight.bold,
                                                       ),
@@ -332,16 +332,16 @@ class _TrackerScreenState extends State<TrackerScreen> {
                                                         decoration: BoxDecoration(
                                                           color: const Color(0xFFEBF4FA),
                                                           borderRadius: BorderRadius.circular(8),
-                                                          border: Border.all(color: const Color(0xFF2321BC).withValues(alpha: 0.3)),
+                                                          border: Border.all(color: const Color(0xFF0467B6).withValues(alpha: 0.3)),
                                                         ),
                                                         child: const Row(
                                                           mainAxisSize: MainAxisSize.min,
                                                           children: [
-                                                            Icon(Icons.photo_camera, size: 12, color: Color(0xFF2321BC)),
+                                                            Icon(Icons.photo_camera, size: 12, color: Color(0xFF0467B6)),
                                                             SizedBox(width: 4),
                                                             Text(
                                                               "Photo Attached",
-                                                              style: TextStyle(fontSize: 11, color: Color(0xFF2321BC), fontWeight: FontWeight.w500),
+                                                              style: TextStyle(fontSize: 11, color: Color(0xFF0467B6), fontWeight: FontWeight.w500),
                                                             ),
                                                           ],
                                                         ),

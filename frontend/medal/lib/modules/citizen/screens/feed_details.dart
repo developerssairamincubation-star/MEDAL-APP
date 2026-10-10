@@ -143,7 +143,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
             content: Text(nowReposted
                 ? 'Reposted! This report now appears on your profile.'
                 : 'Repost removed.'),
-            backgroundColor: const Color(0xFF2321BC),
+            backgroundColor: const Color(0xFF0467B6),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -206,7 +206,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Report deleted successfully."),
-              backgroundColor: Color(0xFF4338CA),
+              backgroundColor: Color(0xFF0467B6),
             ),
           );
           Navigator.pop(context, true);
@@ -277,7 +277,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
         return Colors.grey.shade600;
       case 'submitted':
       default:
-        return const Color(0xFF2321BC);
+        return const Color(0xFF0467B6);
     }
   }
 
@@ -464,7 +464,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF2321BC),
+                                        color: Color(0xFF0467B6),
                                       ),
                                     ),
                                   ),
@@ -476,7 +476,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF2321BC),
+                                    color: Color(0xFF0467B6),
                                   ),
                                 ),
                               ),
@@ -598,7 +598,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                       const Icon(
                         Icons.location_on,
                         size: 15,
-                        color: Color(0xFF2321BC),
+                        color: Color(0xFF0467B6),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -606,7 +606,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                           location,
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF2321BC),
+                            color: Color(0xFF0467B6),
                             fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
@@ -672,7 +672,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                               Icon(
                                 _hasUpvoted ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
                                 size: 16,
-                                color: _hasUpvoted ? const Color(0xFF2321BC) : const Color(0xFF555E8A),
+                                color: _hasUpvoted ? const Color(0xFF0467B6) : const Color(0xFF555E8A),
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -680,7 +680,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: _hasUpvoted ? FontWeight.w700 : FontWeight.w600,
-                                  color: _hasUpvoted ? const Color(0xFF2321BC) : const Color(0xFF555E8A),
+                                  color: _hasUpvoted ? const Color(0xFF0467B6) : const Color(0xFF555E8A),
                                 ),
                               ),
                             ],
@@ -734,7 +734,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                               ? const Center(
                                   child: SizedBox(
                                     width: 16, height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2321BC)),
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0467B6)),
                                   ),
                                 )
                               : Row(
@@ -743,7 +743,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                     Icon(
                                       _hasReposted ? Icons.repeat_one : Icons.repeat,
                                       size: 16,
-                                      color: _hasReposted ? const Color(0xFF2321BC) : const Color(0xFF555E8A),
+                                      color: _hasReposted ? const Color(0xFF0467B6) : const Color(0xFF555E8A),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -751,7 +751,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: _hasReposted ? FontWeight.w700 : FontWeight.w600,
-                                        color: _hasReposted ? const Color(0xFF2321BC) : const Color(0xFF555E8A),
+                                        color: _hasReposted ? const Color(0xFF0467B6) : const Color(0xFF555E8A),
                                       ),
                                     ),
                                   ],
@@ -830,7 +830,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                     children: [
                       const CircleAvatar(
                         radius: 15,
-                        backgroundColor: Color(0xFF2321BC),
+                        backgroundColor: Color(0xFF0467B6),
                         child: Icon(Icons.person, color: Colors.white, size: 17),
                       ),
                       const SizedBox(width: 10),

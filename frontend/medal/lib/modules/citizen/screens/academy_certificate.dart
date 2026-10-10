@@ -6,7 +6,7 @@ import 'package:medal/widgets/medal_app_bar.dart';
 class AcademyCertificates extends StatelessWidget {
   const AcademyCertificates({super.key});
 
-  static const Color primaryIndigo = Color(0xFF2321BC);
+  static const Color primaryIndigo = Color(0xFF0467B6);
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +118,7 @@ class AcademyCertificates extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                     child: const LinearProgressIndicator(
                       value: 0.68,
-                      backgroundColor: Color(0xFFEEF2FF),
+                      backgroundColor: Color(0xFFE8F4FD),
                       valueColor: AlwaysStoppedAnimation<Color>(primaryIndigo),
                       minHeight: 6,
                     ),
@@ -268,7 +268,7 @@ class AcademyCertificates extends StatelessWidget {
                       return Container(
                         height: 150,
                         width: double.infinity,
-                        color: const Color(0xFFEEF2FF),
+                        color: const Color(0xFFE8F4FD),
                         child: const Center(
                           child: Icon(Icons.edit_note, size: 48, color: primaryIndigo),
                         ),

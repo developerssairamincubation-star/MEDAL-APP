@@ -18,7 +18,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _user;
   bool _isUploadingPhoto = false;
 
-  static const Color primaryIndigo = Color(0xFF2321BC);
+  static const Color primaryIndigo = Color(0xFF0467B6);
   static const Color darkNavy = Color(0xFF111C2D);
   static const Color slateBlue = Color(0xFF5D6478);
   static const Color lavenderBorder = Color(0xFFC6C5D7);
@@ -517,7 +517,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEEF0FD),
+                              color: const Color(0xFFE8F4FD),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: lavenderBorder.withValues(alpha: 0.6)),
                             ),
@@ -790,7 +790,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     completedDate: "COMPLETED MAY 2024",
                     title: "Advanced Grievance\nResolution",
                     certificateNo: "MED-8829-XR4",
-                    badgeColor: const Color(0xFFEEF2FF),
+                    badgeColor: const Color(0xFFE8F4FD),
                     badgeIcon: Icons.verified,
                     iconColor: primaryIndigo,
                   ),

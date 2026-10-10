@@ -191,14 +191,25 @@ def forgot_password(
 
     user = db.query(User).filter(User.email == normalized_email).first()
 
-    # Generic privacy-preserving message
-    generic_message = "If this email is registered, a 6-digit verification code has been sent."
+    # Privacy-preserving response when configured vs explicit dev mode notification
+    is_configured = email_service.is_configured()
+    if is_configured:
+        generic_message = "If this email is registered, a 6-digit verification code has been sent."
+        delivery_status = "sent"
+    else:
+        generic_message = (
+            "[DEV MODE] Email provider not configured in backend/.env. "
+            "Simulated OTP generated for local testing (no real email was sent). "
+            "Configure SMTP_USER and SMTP_PASSWORD in backend/.env for real email delivery."
+        )
+        delivery_status = "dev_simulation"
 
     if not user:
         logger.info("Email %s not found in registered users. Returning generic privacy response.", masked)
         return {
             "message": generic_message,
             "reset_token": None,
+            "delivery_status": delivery_status,
         }
 
     if not user.is_active:
@@ -206,6 +217,7 @@ def forgot_password(
         return {
             "message": generic_message,
             "reset_token": None,
+            "delivery_status": delivery_status,
         }
 
     logger.info("Registered user found (ID: %s) for email %s. Verifying cooldown...", user.id, masked)
@@ -254,12 +266,18 @@ def forgot_password(
     logger.info("New OTP record stored in database for %s. Initiating email dispatch...", masked)
 
     try:
-        email_service.send_password_reset_otp(
+        delivered = email_service.send_password_reset_otp(
             to_email=normalized_email,
             otp=otp,
             expires_in_minutes=10,
         )
-        logger.info("Password reset OTP successfully dispatched for %s", masked)
+        if delivered:
+            logger.info("Password reset OTP successfully dispatched via email for %s", masked)
+        else:
+            logger.warning(
+                "Password reset OTP generated in development simulation mode for %s (no real email delivered).",
+                masked,
+            )
     except EmailDeliveryError as e:
         logger.error("Email delivery failed for %s: %s. Rolling back OTP record.", masked, e)
         # Safely clean up OTP record if email delivery failed
@@ -289,6 +307,7 @@ def forgot_password(
     return {
         "message": generic_message,
         "reset_token": None,
+        "delivery_status": delivery_status,
     }
 
 
