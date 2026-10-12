@@ -450,6 +450,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Future<void> _handleCancelReporting() async {
     final shouldExit = await showCancelReportingDialog(context);
+    if (!mounted) return;
     if (shouldExit == true) {
       if (widget.onCancelReporting != null) {
         widget.onCancelReporting!();
