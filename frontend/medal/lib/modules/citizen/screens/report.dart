@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,8 +7,122 @@ import 'package:medal/modules/citizen/screens/components.dart';
 import 'package:medal/widgets/location_picker.dart';
 import 'package:medal/widgets/medal_app_bar.dart';
 
+
+/// Displays the "Cancel Reporting" confirmation modal dialog.
+/// Returns true if the user confirmed "Yes" (exit), false if "No" (stay).
+Future<bool?> showCancelReportingDialog(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header Banner with plain gradient & circular close icon
+            Container(
+              width: double.infinity,
+              height: 100,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0467B6), Color(0xFF111C2D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Center(
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: Color(0xFF0467B6),
+                    size: 26,
+                  ),
+                ),
+              ),
+            ),
+
+            // Body content
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+              child: Column(
+                children: [
+                  const Text(
+                    "Cancel Reporting",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Are you sure to exit the reporting page? The changes you have made will not be saved.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF64748B),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // "No" primary action button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0467B6),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text(
+                        "No",
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // "Yes" secondary text button
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text(
+                      "Yes",
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class ReportScreen extends StatefulWidget {
-  const ReportScreen({super.key});
+  final VoidCallback? onCancelReporting;
+  const ReportScreen({super.key, this.onCancelReporting});
 
   @override
   State<ReportScreen> createState() => _ReportScreenState();
@@ -335,122 +448,23 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  void _showCancelReportingDialog() {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        clipBehavior: Clip.antiAlias,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header Banner with circuit gradient & circular close icon
-              Container(
-                width: double.infinity,
-                height: 100,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF0467B6), Color(0xFF111C2D)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Color(0xFF0467B6),
-                      size: 26,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Body content
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Cancel Reporting",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      "Are you sure to exit the reporting page? The changes you have made will not be saved.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF64748B),
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // "No" primary action button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0467B6),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text(
-                          "No",
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // "Yes" secondary text button
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const MainScreen(initialIndex: 0),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                      child: const Text(
-                        "Yes",
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+  Future<void> _handleCancelReporting() async {
+    final shouldExit = await showCancelReportingDialog(context);
+    if (shouldExit == true) {
+      if (widget.onCancelReporting != null) {
+        widget.onCancelReporting!();
+      } else if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MainScreen(initialIndex: 0),
           ),
-        ),
-      ),
-    );
+          (route) => false,
+        );
+      }
+    }
   }
 
   Future<void> _handleSubmit() async {
@@ -580,7 +594,7 @@ class _ReportScreenState extends State<ReportScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             InkWell(
-              onTap: _showCancelReportingDialog,
+              onTap: _handleCancelReporting,
               borderRadius: BorderRadius.circular(20),
               child: const Padding(
                 padding: EdgeInsets.only(right: 12, top: 4, bottom: 4),
@@ -606,10 +620,10 @@ class _ReportScreenState extends State<ReportScreen> {
         ),
       ),
       body: PopScope(
-        canPop: false,
+        canPop: widget.onCancelReporting != null,
         onPopInvokedWithResult: (didPop, result) {
-          if (!didPop) {
-            _showCancelReportingDialog();
+          if (!didPop && widget.onCancelReporting == null) {
+            _handleCancelReporting();
           }
         },
         child: SingleChildScrollView(

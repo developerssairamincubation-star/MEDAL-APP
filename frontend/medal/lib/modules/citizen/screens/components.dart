@@ -52,120 +52,156 @@ class _MainScreenState
     }
   }
 
-  final List<Widget> pages = const [
-    FeedScreen(),
-    TrackerScreen(),
-    ReportScreen(),
-    AcademyScreen(),
-    ProfileScreen(),
-  ];
+  Widget _buildPage(int index) {
+    switch (index) {
+      case 0:
+        return const FeedScreen();
+      case 1:
+        return const TrackerScreen();
+      case 2:
+        return ReportScreen(
+          onCancelReporting: () {
+            setState(() {
+              currentIndex = 0;
+            });
+          },
+        );
+      case 3:
+        return const AcademyScreen();
+      case 4:
+        return const ProfileScreen();
+      default:
+        return const FeedScreen();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: pages[currentIndex],
-      bottomNavigationBar: Container(
-        height: 72,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(
-              color: Color(0xFFF1F5F9),
-              width: 1.0,
-            ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 10,
-              offset: Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  // 1. FEED TAB
-                  _buildNavItem(
-                    index: 0,
-                    icon: Icons.feed_outlined,
-                    label: "FEED",
-                    hasActivePill: true,
-                  ),
-
-                  // 2. TRACKER TAB
-                  _buildNavItem(
-                    index: 1,
-                    icon: Icons.military_tech_outlined,
-                    label: "TRACKER",
-                  ),
-
-                  // Center Spacer for Floating Button
-                  const SizedBox(width: 56),
-
-                  // 3. ACADEMY TAB
-                  _buildNavItem(
-                    index: 3,
-                    icon: Icons.school_outlined,
-                    label: "ACADEMY",
-                  ),
-
-                  // 4. PROFILE TAB
-                  _buildNavItem(
-                    index: 4,
-                    icon: Icons.person_outline_rounded,
-                    label: "PROFILE",
-                  ),
-                ],
+    return PopScope(
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (currentIndex == 2) {
+          final shouldExit = await showCancelReportingDialog(context);
+          if (shouldExit == true) {
+            setState(() {
+              currentIndex = 0;
+            });
+          }
+        } else {
+          setState(() {
+            currentIndex = 0;
+          });
+        }
+      },
+      child: Scaffold(
+        body: _buildPage(currentIndex),
+        bottomNavigationBar: Container(
+          height: 72,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(
+                color: Color(0xFFF1F5F9),
+                width: 1.0,
               ),
-
-              // Floating Center Action Button (+ or ✕)
-              Positioned(
-                top: -18,
-                child: GestureDetector(
-                  onTap: () {
-                    if (currentIndex == 2) {
-                      setState(() {
-                        currentIndex = 0;
-                      });
-                    } else {
-                      setState(() {
-                        currentIndex = 2;
-                      });
-                    }
-                  },
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: currentIndex == 2 ? const Color(0xFFF8FAFC) : const Color(0xFF0467B6),
-                      shape: BoxShape.circle,
-                      border: currentIndex == 2
-                          ? Border.all(color: const Color(0xFF0467B6), width: 3.5)
-                          : null,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0467B6).withValues(alpha: 0.35),
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 10,
+                offset: Offset(0, -2),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    // 1. FEED TAB
+                    _buildNavItem(
+                      index: 0,
+                      icon: Icons.feed_outlined,
+                      label: "FEED",
+                      hasActivePill: true,
                     ),
-                    child: Icon(
-                      currentIndex == 2 ? Icons.close : Icons.add,
-                      color: currentIndex == 2 ? const Color(0xFF0467B6) : Colors.white,
-                      size: 28,
+
+                    // 2. TRACKER TAB
+                    _buildNavItem(
+                      index: 1,
+                      icon: Icons.military_tech_outlined,
+                      label: "TRACKER",
+                    ),
+
+                    // Center Spacer for Floating Button
+                    const SizedBox(width: 56),
+
+                    // 3. ACADEMY TAB
+                    _buildNavItem(
+                      index: 3,
+                      icon: Icons.school_outlined,
+                      label: "ACADEMY",
+                    ),
+
+                    // 4. PROFILE TAB
+                    _buildNavItem(
+                      index: 4,
+                      icon: Icons.person_outline_rounded,
+                      label: "PROFILE",
+                    ),
+                  ],
+                ),
+
+                // Floating Center Action Button (+ or ✕)
+                Positioned(
+                  top: -18,
+                  child: GestureDetector(
+                    onTap: () async {
+                      if (currentIndex == 2) {
+                        final shouldExit = await showCancelReportingDialog(context);
+                        if (shouldExit == true) {
+                          setState(() {
+                            currentIndex = 0;
+                          });
+                        }
+                      } else {
+                        setState(() {
+                          currentIndex = 2;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: currentIndex == 2 ? const Color(0xFFF8FAFC) : const Color(0xFF0467B6),
+                        shape: BoxShape.circle,
+                        border: currentIndex == 2
+                            ? Border.all(color: const Color(0xFF0467B6), width: 3.5)
+                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0467B6).withValues(alpha: 0.35),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        currentIndex == 2 ? Icons.close : Icons.add,
+                        color: currentIndex == 2 ? const Color(0xFF0467B6) : Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -184,10 +220,19 @@ class _MainScreenState
     const inactiveColor = Color(0xFF5D6478);
 
     return InkWell(
-      onTap: () {
-        setState(() {
-          currentIndex = index;
-        });
+      onTap: () async {
+        if (currentIndex == 2 && index != 2) {
+          final shouldExit = await showCancelReportingDialog(context);
+          if (shouldExit == true) {
+            setState(() {
+              currentIndex = index;
+            });
+          }
+        } else {
+          setState(() {
+            currentIndex = index;
+          });
+        }
       },
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
