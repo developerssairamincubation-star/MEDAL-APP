@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/citizen/screens/components.dart';
-import 'package:medal/modules/citizen/authentication/register.dart';
 import 'package:medal/modules/citizen/authentication/forgot_password.dart';
 import 'package:medal/routes/app_routes.dart';
+import 'package:medal/modules/authority/screens/auth/registration_role_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -308,7 +308,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const RegisterScreen(),
+                            builder: (context) => const RegistrationRoleSelectionScreen(),
                           ),
                         );
                       },
@@ -321,6 +321,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, AppRoutes.authorityLogin);
+                      },
+                      icon: const Icon(Icons.security_rounded, size: 18, color: Color(0xFF0467B6)),
+                      label: const Text(
+                        "Authority Portal (Municipal Desk)",
+                        style: TextStyle(
+                          color: Color(0xFF0467B6),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFC6C5D7)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     OutlinedButton.icon(
                       onPressed: () {
                         Navigator.pushNamed(context, AppRoutes.institution);
