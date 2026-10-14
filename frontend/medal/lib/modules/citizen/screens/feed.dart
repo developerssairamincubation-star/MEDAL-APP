@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/widgets/medal_app_bar.dart';
+import 'package:medal/widgets/comment_bottom_sheet.dart';
 import 'feed_details.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -528,7 +529,10 @@ class _FeedScreenState extends State<FeedScreen> {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => FeedDetailScreen(feedData: item),
+                  builder: (_) => FeedDetailScreen(
+                    feedData: item,
+                    initialShowComments: false,
+                  ),
                 ),
               );
               if (mounted) {
@@ -826,15 +830,23 @@ class _FeedScreenState extends State<FeedScreen> {
                   color: const Color(0xFFEEF2F6),
                 ),
 
-                // Comment button (opens post in separate page)
+                // Comment button (opens separate comment window as earlier)
                 Expanded(
                   child: InkWell(
                     onTap: () async {
-                      await Navigator.push(
+                      final id = item['id'] as int?;
+                      if (id == null) return;
+                      await CommentBottomSheet.show(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => FeedDetailScreen(feedData: item),
-                        ),
+                        complaintId: id,
+                        initialCount: commentsCount,
+                        onCommentCountChanged: (newCount) {
+                          if (mounted) {
+                            setState(() {
+                              item['comments_count'] = newCount;
+                            });
+                          }
+                        },
                       );
                       if (mounted) _fetchFeed();
                     },

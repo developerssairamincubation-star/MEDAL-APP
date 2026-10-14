@@ -24,18 +24,43 @@ class ComplaintCommentsController extends ChangeNotifier {
   String? _errorMessage;
   bool _hasFetched = false;
 
+  /// Tracks which comment IDs have their replies expanded.
+  /// By default, replies are collapsed until the user clicks into that comment / views replies.
+  final Set<int> _expandedParentIds = {};
   final Set<int> _collapsedParentIds = {};
+  /// Tracks local heart-like state: commentId -> isLiked
+  final Map<int, bool> _likedComments = {};
+  /// Tracks local like count overrides
+  final Map<int, int> _likeCounts = {};
+  /// Tracks user votes: commentId -> vote value (1, -1, 0)
   final Map<int, int> _userVotes = {};
 
   List<Map<String, dynamic>> get comments => _comments;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasFetched => _hasFetched;
+  Set<int> get expandedParentIds => _expandedParentIds;
   Set<int> get collapsedParentIds => _collapsedParentIds;
   Map<int, int> get userVotes => _userVotes;
 
   int get activeCommentCount =>
       _comments.where((c) => c['is_deleted'] != true).length;
+
+  bool isLiked(int commentId) => _likedComments[commentId] ?? false;
+
+  int getLikeCount(int commentId) {
+    return _likeCounts.containsKey(commentId)
+        ? _likeCounts[commentId]!
+        : (_comments.firstWhere((c) => c['id'] == commentId, orElse: () => {})['likes_count'] as int? ?? 0);
+  }
+
+  void toggleLike(int commentId) {
+    final wasLiked = _likedComments[commentId] ?? false;
+    final current = getLikeCount(commentId);
+    _likedComments[commentId] = !wasLiked;
+    _likeCounts[commentId] = wasLiked ? (current - 1).clamp(0, 9999) : current + 1;
+    notifyListeners();
+  }
 
   /// Builds a fully-threaded hierarchy tree where each reply is nested directly
   /// under the specific comment it responds to (root -> reply -> reply to reply).
@@ -141,7 +166,7 @@ class ComplaintCommentsController extends ChangeNotifier {
     _comments.add(newComment);
     _hasFetched = true;
     if (parentCommentId != null) {
-      _collapsedParentIds.remove(parentCommentId);
+      expand(parentCommentId);
     }
     notifyListeners();
     return newComment;
@@ -176,20 +201,53 @@ class ComplaintCommentsController extends ChangeNotifier {
     _hasFetched = true;
     _isLoading = false;
     _errorMessage = null;
+    expandAll();
     notifyListeners();
   }
 
-  void toggleCollapse(int parentId) {
-    if (_collapsedParentIds.contains(parentId)) {
-      _collapsedParentIds.remove(parentId);
-    } else {
+  bool isExpanded(int parentId) => _expandedParentIds.contains(parentId);
+
+  void toggleExpand(int parentId) {
+    if (_expandedParentIds.contains(parentId)) {
+      _expandedParentIds.remove(parentId);
       _collapsedParentIds.add(parentId);
+    } else {
+      _expandedParentIds.add(parentId);
+      _collapsedParentIds.remove(parentId);
     }
     notifyListeners();
   }
 
+  void expand(int parentId) {
+    _expandedParentIds.add(parentId);
+    _collapsedParentIds.remove(parentId);
+    notifyListeners();
+  }
+
+  void collapse(int parentId) {
+    _expandedParentIds.remove(parentId);
+    _collapsedParentIds.add(parentId);
+    notifyListeners();
+  }
+
+  void expandAll() {
+    for (final c in _comments) {
+      final id = c['id'] as int?;
+      if (id != null) {
+        _expandedParentIds.add(id);
+        _collapsedParentIds.remove(id);
+      }
+    }
+    notifyListeners();
+  }
+
+  void toggleCollapse(int parentId) {
+    toggleExpand(parentId);
+  }
+
   void toggleVote(int commentId, int vote) {
-    if (_userVotes[commentId] == vote) {
+    final current = _userVotes[commentId] ?? 0;
+    if (current == vote) {
       _userVotes[commentId] = 0;
     } else {
       _userVotes[commentId] = vote;
@@ -232,101 +290,78 @@ class CommentThreadNode {
 
 String getCurrentUserInitials() {
   final user = ApiService().currentUser;
-  final name = (user?['full_name'] as String?) ?? 'Mukil K';
+  final name = (user?['full_name'] as String?) ?? 'U';
   final parts = name.trim().split(RegExp(r'\s+'));
   if (parts.length > 1 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
     return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
-  return name.isNotEmpty ? name[0].toUpperCase() : 'MK';
+  return name.isNotEmpty ? name[0].toUpperCase() : 'U';
 }
 
+/// Returns a deterministic background+text color pair from a hash of initials.
 Map<String, Color> getCommentAvatarColors(String initials) {
-  final clean = initials.toUpperCase();
-  if (clean == "LG") {
-    return {
-      "bg": const Color(0xFFE2F952),
-      "text": const Color(0xFF4D7C0F),
-    };
-  } else if (clean == "RG") {
-    return {
-      "bg": const Color(0xFFBAE6FD),
-      "text": const Color(0xFF0369A1),
-    };
-  } else if (clean == "MK" || clean == "JD") {
-    return {
-      "bg": const Color(0xFFF3E8FF),
-      "text": const Color(0xFF7C3AED),
-    };
-  } else if (clean == "ML") {
-    return {
-      "bg": const Color(0xFFDBEAFE),
-      "text": const Color(0xFF0467B6),
-    };
-  } else if (clean == "OI") {
-    return {
-      "bg": const Color(0xFFFCE7F3),
-      "text": const Color(0xFF9333EA),
-    };
-  }
-  return {
-    "bg": const Color(0xFFE8F4FD),
-    "text": const Color(0xFF0467B6),
-  };
+  const palettes = [
+    {'bg': Color(0xFFDBEAFE), 'text': Color(0xFF1D4ED8)},
+    {'bg': Color(0xFFDCFCE7), 'text': Color(0xFF15803D)},
+    {'bg': Color(0xFFFEF9C3), 'text': Color(0xFFB45309)},
+    {'bg': Color(0xFFFCE7F3), 'text': Color(0xFF9333EA)},
+    {'bg': Color(0xFFFFEDD5), 'text': Color(0xFFC2410C)},
+    {'bg': Color(0xFFE0E7FF), 'text': Color(0xFF4338CA)},
+    {'bg': Color(0xFFCCFBF1), 'text': Color(0xFF0F766E)},
+  ];
+  final hash = initials.codeUnits.fold(0, (a, b) => a + b);
+  return palettes[hash % palettes.length];
 }
 
+/// Formats readable relative timestamps: 'just now', '25 secs ago', '2 mins ago', '1 hour ago'
 String formatCommentTimestamp(dynamic dateStr) {
-  if (dateStr == null) return "24m ago";
+  if (dateStr == null) return 'just now';
+  final s = dateStr.toString().trim();
+  if (s.contains('ago') || s.contains('mins') || s.contains('secs') || s.contains('hours')) {
+    return s;
+  }
   try {
-    final dt = DateTime.parse(dateStr.toString()).toLocal();
+    final dt = DateTime.parse(s).toLocal();
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) {
-      return "${diff.inMinutes.clamp(1, 60)}m ago";
-    } else if (diff.inHours < 24) {
-      return "${diff.inHours}h ago";
-    } else if (diff.inDays < 7) {
-      return "${diff.inDays}d ago";
-    } else {
-      return "${dt.day}/${dt.month}/${dt.year}";
-    }
+    if (diff.inSeconds < 10) return 'just now';
+    if (diff.inSeconds < 60) return '${diff.inSeconds} secs ago';
+    if (diff.inMinutes == 1) return '1 min ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} mins ago';
+    if (diff.inHours == 1) return '1 hour ago';
+    if (diff.inHours < 24) return '${diff.inHours} hours ago';
+    if (diff.inDays == 1) return 'yesterday';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    return '${dt.day}/${dt.month}';
   } catch (_) {
-    return "24m ago";
+    return s.isNotEmpty ? s : 'just now';
   }
 }
 
-Widget buildFormattedCommentText(String text) {
-  final words = text.split(" ");
+Widget buildFormattedCommentText(String text, {double fontSize = 14}) {
+  final words = text.split(' ');
   final List<InlineSpan> spans = [];
-
-  for (int i = 0; i < words.length; i++) {
-    final word = words[i];
-    if (word.startsWith("@")) {
-      spans.add(
-        TextSpan(
-          text: "$word ",
-          style: const TextStyle(
-            color: Color(0xFF0467B6),
-            fontWeight: FontWeight.w600,
-            fontSize: 12.5,
-          ),
+  for (final word in words) {
+    if (word.startsWith('@')) {
+      spans.add(TextSpan(
+        text: '$word ',
+        style: TextStyle(
+          color: const Color(0xFF0467B6),
+          fontWeight: FontWeight.w600,
+          fontSize: fontSize,
         ),
-      );
+      ));
     } else {
-      spans.add(
-        TextSpan(
-          text: "$word ",
-          style: const TextStyle(
-            color: Color(0xFF1E293B),
-            fontSize: 12.5,
-            height: 1.35,
-          ),
+      spans.add(TextSpan(
+        text: '$word ',
+        style: TextStyle(
+          color: const Color(0xFF0F172A),
+          fontSize: fontSize,
+          height: 1.45,
         ),
-      );
+      ));
     }
   }
-
-  return RichText(
-    text: TextSpan(children: spans),
-  );
+  return RichText(text: TextSpan(children: spans));
 }
 
 bool isCurrentUserCommentAuthor(Map<String, dynamic> comment) {
@@ -541,8 +576,12 @@ void showCommentActionMenu({
   );
 }
 
-/// Recursive threaded comment tile rendering multi-level nested replies
-/// with tree branch lines, collapse control, voting, and long-press action.
+// ─────────────────────────────────────────────────────────────────────────────
+// X-style threaded comment widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// X-style recursive threaded comment tile.
+/// Shows a vertical thread line beneath root-comment avatars connecting to replies.
 class ThreadedCommentNodeWidget extends StatelessWidget {
   final CommentThreadNode node;
   final ComplaintCommentsController controller;
@@ -564,107 +603,83 @@ class ThreadedCommentNodeWidget extends StatelessWidget {
     final comment = node.comment;
     final commentId = comment['id'] as int? ?? 0;
     final isRoot = node.depth == 0;
-    final isCollapsed = controller.collapsedParentIds.contains(commentId);
     final hasChildren = node.children.isNotEmpty;
+    final isExpanded = controller.isExpanded(commentId);
 
-    final commentCard = _buildCommentCard(context, comment, isRoot);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildCommentCard(context, comment, isRoot, hasChildren, isExpanded),
 
-    if (isRoot) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          commentCard,
-          if (hasChildren && !isCollapsed) ...[
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(left: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (int i = 0; i < node.children.length; i++) ...[
-                    ThreadedCommentNodeWidget(
-                      node: node.children[i],
-                      controller: controller,
-                      onReply: onReply,
-                      onDelete: onDelete,
-                      isLast: i == node.children.length - 1,
-                    ),
-                    if (i < node.children.length - 1) const SizedBox(height: 8),
-                  ],
+        // Replies Section: Shown ONLY when clicking inside comment or "View replies"
+        if (hasChildren && isExpanded) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 36),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (int i = 0; i < node.children.length; i++) ...[
+                  ThreadedCommentNodeWidget(
+                    node: node.children[i],
+                    controller: controller,
+                    onReply: onReply,
+                    onDelete: onDelete,
+                    isLast: i == node.children.length - 1,
+                  ),
+                  if (i < node.children.length - 1) const SizedBox(height: 10),
                 ],
-              ),
+              ],
             ),
-          ],
+          ),
         ],
-      );
-    } else {
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Thread branch connector
-            CustomPaint(
-              size: const Size(18, double.infinity),
-              painter: ThreadBranchPainter(
-                isLast: isLast,
-                curveY: 15.0,
-              ),
-            ),
-            const SizedBox(width: 4),
-            // Reply content and deeper children
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  commentCard,
-                  if (hasChildren && !isCollapsed) ...[
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (int i = 0; i < node.children.length; i++) ...[
-                            ThreadedCommentNodeWidget(
-                              node: node.children[i],
-                              controller: controller,
-                              onReply: onReply,
-                              onDelete: onDelete,
-                              isLast: i == node.children.length - 1,
-                            ),
-                            if (i < node.children.length - 1) const SizedBox(height: 8),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+      ],
+    );
   }
 
-  Widget _buildCommentCard(BuildContext context, Map<String, dynamic> comment, bool isRoot) {
+  Widget _buildCommentCard(
+    BuildContext context,
+    Map<String, dynamic> comment,
+    bool isRoot,
+    bool hasChildren,
+    bool isExpanded,
+  ) {
     final commentId = comment['id'] as int? ?? 0;
-    final initials = (comment['user_initials'] ?? (isRoot ? 'LG' : 'RG')).toString();
     final authorName = (comment['user_name'] ?? comment['username'] ?? (isRoot ? 'Lisa Godwin' : 'Ramya Govindhan')).toString();
+    final initials = (comment['user_initials'] ?? (authorName.split(' ').where((s) => s.isNotEmpty).map((p) => p[0].toUpperCase()).take(2).join())).toString();
     final timestamp = formatCommentTimestamp(comment['created_at']);
     final commentText = (comment['comment'] ?? comment['content'] ?? '').toString();
     final isDeleted = comment['is_deleted'] == true;
-    final userVote = controller.userVotes[commentId] ?? 0;
-    final baseVotes = (commentId == 3 || commentId == 101) ? 11 : 0;
-    final votesDisplay = (baseVotes + userVote).clamp(0, 999);
-    final hasChildren = node.children.isNotEmpty;
-    final isCollapsed = controller.collapsedParentIds.contains(commentId);
 
-    final avatarSize = isRoot ? 32.0 : 26.0;
-    final avatarFontSize = isRoot ? 12.0 : 10.5;
+    final avatarSize = isRoot ? 34.0 : 28.0;
+    final avatarFontSize = isRoot ? 12.5 : 10.5;
+
+    // Upvote calculation
+    final userVote = controller.userVotes[commentId] ?? 0;
+    final rawUpvotes = comment['upvotes_count'] as int? ??
+        comment['votes_count'] as int? ??
+        comment['votes'] as int? ??
+        ((authorName.contains('Chia Sen') || commentId == 101) ? 9 :
+         (authorName.contains('Lisa Godwin') || commentId == 3) ? 11 :
+         (authorName.contains('Steve Mark') || authorName.contains('Liya Fatima')) ? 7 : 0);
+    final votesDisplay = (rawUpvotes + (userVote == 1 ? 1 : (userVote == -1 ? -1 : 0))).clamp(0, 9999);
+
+    // Like calculation
+    final isLiked = controller.isLiked(commentId);
+    final rawLikes = comment['likes_count'] as int? ??
+        ((authorName.contains('Steve Mark')) ? 2 : 0);
+    final likeCount = controller.getLikeCount(commentId) > 0
+        ? controller.getLikeCount(commentId)
+        : (rawLikes + (isLiked ? 1 : 0));
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onTap: () {
+        // Tapping inside comment section toggles replies if this comment has replies
+        if (hasChildren) {
+          controller.toggleExpand(commentId);
+        }
+      },
       onLongPress: () {
         if (isDeleted) return;
         if (isCurrentUserCommentAuthor(comment)) {
@@ -678,33 +693,39 @@ class ThreadedCommentNodeWidget extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar
+          // Left: User Avatar (clean avatar, no thread lines)
           buildCommentAvatarWidget(
-            initials: initials,
+            initials: initials.isNotEmpty ? initials : (isRoot ? 'LG' : 'RG'),
             size: avatarSize,
             profileImageUrl: comment['profile_image_url'] as String?,
             userId: comment['user_id'],
             fontSize: avatarFontSize,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
 
-          // Details column
+          // Right Column: Author info, content, action bar, replies toggle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Author & Timestamp
+                // Header Row: Author Name, dot, Timestamp, and 3-dot overflow menu
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      authorName,
-                      style: TextStyle(
-                        color: const Color(0xFF1E293B),
-                        fontWeight: FontWeight.w700,
-                        fontSize: isRoot ? 13 : 12,
+                    Flexible(
+                      child: Text(
+                        authorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: const Color(0xFF0F1419),
+                          fontWeight: FontWeight.w700,
+                          fontSize: isRoot ? 13.5 : 12.5,
+                          letterSpacing: -0.1,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                     const Text(
                       "•",
                       style: TextStyle(
@@ -712,128 +733,236 @@ class ThreadedCommentNodeWidget extends StatelessWidget {
                         fontSize: 11,
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                     Text(
                       timestamp,
                       style: TextStyle(
                         color: const Color(0xFF64748B),
-                        fontSize: isRoot ? 11.5 : 11,
+                        fontSize: isRoot ? 12 : 11,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
+                    const Spacer(),
+                    // Three dots menu button
+                    if (!isDeleted)
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (isCurrentUserCommentAuthor(comment)) {
+                            showCommentActionMenu(
+                              context: context,
+                              comment: comment,
+                              onDelete: onDelete,
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Comment options"),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          }
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          child: Icon(
+                            Icons.more_horiz,
+                            size: 16,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
 
-                // Body text or deleted note
+                // Comment Body Text
                 if (isDeleted)
-                  const Text(
-                    "This comment was deleted",
-                    style: TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 2),
+                    child: Text(
+                      "This comment was deleted",
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 12.5,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   )
                 else
-                  buildFormattedCommentText(commentText),
+                  buildFormattedCommentText(
+                    commentText,
+                    fontSize: isRoot ? 13.5 : 12.5,
+                  ),
 
-                const SizedBox(height: 5),
+                const SizedBox(height: 6),
 
-                // Toolbar (Collapse toggle + Upvote + Downvote + Reply)
-                // Note: NO visible Delete button! Delete is triggered via onLongPress
+                // Action Bar (Upvote, Reply, Heart Like, Share)
                 if (!isDeleted)
-                  Row(
-                    children: [
-                      // Collapse control if this comment has children
-                      if (hasChildren)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, bottom: 2),
+                    child: Row(
+                      children: [
+                        // 1. Upvote ▲
                         GestureDetector(
-                          onTap: () => controller.toggleCollapse(commentId),
-                          child: Container(
-                            width: 16,
-                            height: 16,
-                            margin: const EdgeInsets.only(right: 6),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xFFCBD5E1),
-                                width: 1.2,
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            controller.toggleVote(
+                              commentId,
+                              userVote == 1 ? 0 : 1,
+                            );
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.arrow_drop_up,
+                                size: 22,
+                                color: userVote == 1
+                                    ? const Color(0xFF0467B6)
+                                    : const Color(0xFF64748B),
                               ),
-                              color: Colors.white,
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(
-                              isCollapsed ? Icons.add : Icons.remove,
-                              size: 10,
-                              color: const Color(0xFF64748B),
-                            ),
+                              if (votesDisplay > 0) ...[
+                                const SizedBox(width: 1),
+                                Text(
+                                  "$votesDisplay",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: userVote == 1
+                                        ? const Color(0xFF0467B6)
+                                        : const Color(0xFF64748B),
+                                    fontWeight: userVote == 1 ? FontWeight.w700 : FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
 
-                      // Upvote arrow ▲
-                      GestureDetector(
-                        onTap: () => controller.toggleVote(commentId, userVote == 1 ? 0 : 1),
-                        child: Icon(
-                          Icons.arrow_drop_up,
-                          size: 20,
-                          color: userVote == 1 ? const Color(0xFF0467B6) : const Color(0xFF64748B),
-                        ),
-                      ),
+                        const SizedBox(width: 22),
 
-                      // Vote count
-                      Text(
-                        "$votesDisplay",
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: userVote == 1 ? const Color(0xFF0467B6) : const Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-
-                      // Downvote arrow ▼
-                      GestureDetector(
-                        onTap: () => controller.toggleVote(commentId, userVote == -1 ? 0 : -1),
-                        child: Icon(
-                          Icons.arrow_drop_down,
-                          size: 20,
-                          color: userVote == -1 ? Colors.redAccent : const Color(0xFF64748B),
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      // Reply action with replies count
-                      GestureDetector(
-                        onTap: () => onReply(comment),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.chat_bubble_outline,
-                              size: 12.5,
-                              color: Color(0xFF64748B),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "${node.children.length}",
-                              style: const TextStyle(
-                                fontSize: 11.5,
+                        // 2. Reply 💬
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            controller.expand(commentId);
+                            onReply(comment);
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.chat_bubble_outline,
+                                size: 14,
                                 color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              "Reply",
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: Color(0xFF0467B6),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                              if (node.children.isNotEmpty) ...[
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${node.children.length}",
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF64748B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
+
+                        const SizedBox(width: 22),
+
+                        // 3. Heart Like ♡ / ❤️
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => controller.toggleLike(commentId),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isLiked ? Icons.favorite : Icons.favorite_border,
+                                size: 15,
+                                color: isLiked
+                                    ? const Color(0xFFE11D48)
+                                    : const Color(0xFF64748B),
+                              ),
+                              if (likeCount > 0) ...[
+                                const SizedBox(width: 4),
+                                Text(
+                                  "$likeCount",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isLiked
+                                        ? const Color(0xFFE11D48)
+                                        : const Color(0xFF64748B),
+                                    fontWeight: isLiked ? FontWeight.w700 : FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(width: 22),
+
+                        // 4. Share 📤
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Comment link copied!"),
+                                duration: Duration(seconds: 1),
+                                backgroundColor: Color(0xFF0467B6),
+                              ),
+                            );
+                          },
+                          child: const Icon(
+                            Icons.share_outlined,
+                            size: 14,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // "View X replies" / "Hide replies" Expand/Collapse Toggle Button
+                if (hasChildren)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => controller.toggleExpand(commentId),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 1,
+                            color: const Color(0xFFCBD5E1),
+                            margin: const EdgeInsets.only(right: 6),
+                          ),
+                          Icon(
+                            isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                            size: 16,
+                            color: const Color(0xFF0467B6),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isExpanded
+                                ? "Hide replies"
+                                : "View ${node.children.length} ${node.children.length == 1 ? 'reply' : 'replies'}",
+                            style: const TextStyle(
+                              color: Color(0xFF0467B6),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
               ],
             ),

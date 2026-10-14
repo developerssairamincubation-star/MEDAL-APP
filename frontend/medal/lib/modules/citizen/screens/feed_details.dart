@@ -3,12 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/citizen/screens/common_button.dart';
 import 'package:medal/widgets/comment_bottom_sheet.dart';
-import 'package:medal/widgets/post_comment_section.dart';
 
 class FeedDetailScreen extends StatefulWidget {
   final Map<String, dynamic>? feedData;
+  final bool initialShowComments;
 
-  const FeedDetailScreen({super.key, this.feedData});
+  const FeedDetailScreen({
+    super.key,
+    this.feedData,
+    this.initialShowComments = false,
+  });
 
   @override
   State<FeedDetailScreen> createState() => _FeedDetailScreenState();
@@ -46,7 +50,14 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
 
     _loadUpvoteStatus();
     _loadRepostStatus();
+
+    if (widget.initialShowComments) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _handleOpenComments();
+      });
+    }
   }
+
 
   Future<void> _loadUpvoteStatus() async {
     final id = _data['id'] as int?;
@@ -262,6 +273,8 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
       },
     );
   }
+
+
 
 
 
@@ -701,7 +714,11 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.chat_bubble_outline, size: 16, color: Color(0xFF555E8A)),
+                              const Icon(
+                                Icons.chat_bubble_outline,
+                                size: 16,
+                                color: Color(0xFF555E8A),
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 'Comment ($_comments)',
@@ -761,39 +778,6 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                     ),
                   ],
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            /// 3. COMMENTS & DISCUSSION SECTION
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x06000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: PostCommentSection(
-                complaintId: _data['id'] as int? ?? 0,
-                initialCommentCount: _comments,
-                onCommentCountChanged: (newCount) {
-                  setState(() {
-                    _comments = newCount;
-                    _data['comments_count'] = newCount;
-                    if (widget.feedData != null) {
-                      widget.feedData!['comments_count'] = newCount;
-                    }
-                  });
-                },
-                onShowAllPressed: _handleOpenComments,
               ),
             ),
 
