@@ -32,6 +32,7 @@ from app.database.database import Base
 from app.models.user import User
 from app.models.complaint import Complaint
 from app.models.otp import PasswordResetOTP
+from app.models.authority_application import AuthorityApplication
 
 target_metadata = Base.metadata
 

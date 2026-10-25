@@ -26,7 +26,7 @@ from app.services.storage import BaseStorageService, get_storage_service
 router = APIRouter(prefix="/complaints", tags=["Complaints"])
 
 
-VALID_STATUSES = {"submitted", "under_review", "in_progress", "resolved", "rejected"}
+VALID_STATUSES = {"submitted", "under_review", "assigned", "in_progress", "resolved", "rejected"}
 VALID_CATEGORIES = {
     "road", "garbage", "waste", "water", "streetlight", "drainage",
     "health", "education", "sanitation", "infrastructure", "environment", "other"
@@ -482,7 +482,14 @@ def get_complaint_stats(
     complaints = db.query(Complaint).all()
     total = len(complaints)
 
-    counts = {"submitted": 0, "under_review": 0, "in_progress": 0, "resolved": 0, "rejected": 0}
+    counts = {
+        "submitted": 0,
+        "under_review": 0,
+        "assigned": 0,
+        "in_progress": 0,
+        "resolved": 0,
+        "rejected": 0,
+    }
     by_cat: dict[str, int] = {}
 
     for c in complaints:
@@ -496,6 +503,7 @@ def get_complaint_stats(
         total_reports=total,
         submitted=counts["submitted"],
         under_review=counts["under_review"],
+        assigned=counts["assigned"],
         in_progress=counts["in_progress"],
         resolved=counts["resolved"],
         rejected=counts["rejected"],
@@ -534,12 +542,18 @@ def update_complaint_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("official", "admin")),
 ):
-    """Update status of a complaint (Officials and Admins only)."""
-    target_status = status_update.status.lower()
+    """Update status, officer notes, and rejection reason of a complaint (Officials and Admins only)."""
+    target_status = status_update.status.lower().strip()
     if target_status not in VALID_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid status '{status_update.status}'. Allowed statuses: {', '.join(sorted(VALID_STATUSES))}",
+        )
+
+    if target_status == "submitted":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot revert complaint status back to 'submitted'",
         )
 
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
@@ -548,6 +562,37 @@ def update_complaint_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Complaint not found",
         )
+
+    # Validation for rejection reason
+    cleaned_rejection_reason = (
+        status_update.rejection_reason.strip()
+        if status_update.rejection_reason is not None
+        else None
+    )
+
+    if target_status == "rejected":
+        if cleaned_rejection_reason:
+            complaint.rejection_reason = cleaned_rejection_reason
+        elif not complaint.rejection_reason:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A rejection reason must be provided when rejecting a complaint",
+            )
+        # Note: If cleaned_rejection_reason is empty/None but complaint already has one,
+        # we preserve the existing rejection_reason (do not overwrite with empty).
+    else:
+        # Status is not 'rejected'
+        if cleaned_rejection_reason:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Rejection reason can only be provided when status is 'rejected'",
+            )
+
+    # Optional officer note update
+    if status_update.officer_notes is not None:
+        cleaned_notes = status_update.officer_notes.strip()
+        if cleaned_notes:
+            complaint.officer_notes = cleaned_notes
 
     complaint.status = target_status
     db.commit()
@@ -599,6 +644,10 @@ def update_complaint(
         complaint.impact_level = complaint_in.impact_level
     if complaint_in.equity_classification is not None:
         complaint.equity_classification = complaint_in.equity_classification
+    if complaint_in.officer_notes is not None:
+        complaint.officer_notes = complaint_in.officer_notes
+    if complaint_in.rejection_reason is not None:
+        complaint.rejection_reason = complaint_in.rejection_reason
 
     db.commit()
     db.refresh(complaint)
@@ -688,6 +737,7 @@ def add_complaint_comment(
         user_id=current_user.id,
         parent_comment_id=comment_in.parent_comment_id,
         comment=text_clean,
+        image_url=comment_in.image_url,
     )
     db.add(new_comment)
     db.commit()
@@ -707,6 +757,7 @@ def add_complaint_comment(
         profile_image_url=current_user.profile_image_url,
         comment=new_comment.comment,
         content=new_comment.comment,
+        image_url=new_comment.image_url,
         created_at=new_comment.created_at,
         parent_comment_id=new_comment.parent_comment_id,
     )
@@ -742,12 +793,14 @@ def list_complaint_comments(
             initials = "D"
             comment_text = "This comment was deleted"
             avatar_url = None
+            comment_image_url = None
         else:
             user_name = comm.user.full_name if comm.user else "Citizen"
             name_parts = user_name.split()
             initials = "".join([p[0].upper() for p in name_parts[:2]]) if name_parts else "C"
             comment_text = comm.comment
             avatar_url = comm.user.profile_image_url if comm.user else None
+            comment_image_url = comm.image_url
 
         results.append(
             CommentResponse(
@@ -760,6 +813,7 @@ def list_complaint_comments(
                 profile_image_url=avatar_url,
                 comment=comment_text,
                 content=comment_text,
+                image_url=comment_image_url,
                 created_at=comm.created_at,
                 parent_comment_id=comm.parent_comment_id,
                 is_deleted=comm.is_deleted,

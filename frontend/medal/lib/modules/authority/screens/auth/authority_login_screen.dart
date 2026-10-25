@@ -2,7 +2,9 @@
 // Dedicated login screen for Municipal & Public Department Authorities.
 
 import 'package:flutter/material.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../admin/admin_authority_applications_list_screen.dart';
 import '../dashboard/authority_main_screen.dart';
 import 'authority_register_screen.dart';
 
@@ -26,7 +28,9 @@ class _AuthorityLoginScreenState extends State<AuthorityLoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
+    if (_isLoading) return;
+
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
@@ -41,15 +45,100 @@ class _AuthorityLoginScreenState extends State<AuthorityLoginScreen> {
     }
 
     setState(() => _isLoading = true);
-    Future.delayed(const Duration(milliseconds: 600), () {
+
+    try {
+      final res = await ApiService().login(email: email, password: password);
+      final user = res['data'] as Map<String, dynamic>?;
+      final role = (user?['role'] ?? ApiService().userRole).toString().trim().toLowerCase();
+
+      // Enforce backend role: only official or admin may access Authority Dashboard
+      if (role != 'official' && role != 'admin') {
+        // Clear saved session immediately so unauthorized role is not retained
+        await ApiService().logout();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Access denied: This portal is restricted to Municipal Authorities and Officials.'),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
       if (!mounted) return;
-      setState(() => _isLoading = false);
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const AuthorityMainScreen()),
-        (route) => false,
+
+      final officerName = user?['full_name']?.toString() ?? 'Officer';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Welcome, $officerName! Authority session verified.'),
+          backgroundColor: MedalTheme.primary,
+          duration: const Duration(seconds: 3),
+        ),
       );
-    });
+
+      if (role == 'admin') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminAuthorityApplicationsListScreen()),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthorityMainScreen()),
+          (route) => false,
+        );
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      String msg;
+      switch (e.statusCode) {
+        case 0:
+          msg = e.message.isNotEmpty
+              ? e.message
+              : 'Cannot connect to MEDAL server. Please check your network connection.';
+          break;
+        case 401:
+          msg = 'Invalid official email or password. Please try again.';
+          break;
+        case 403:
+          msg = e.message.isNotEmpty
+              ? e.message
+              : 'Access denied: Your account does not have Authority access.';
+          break;
+        case 400:
+          msg = e.message.isNotEmpty ? e.message : 'Invalid request. Please check your credentials.';
+          break;
+        case 500:
+        case 502:
+        case 503:
+          msg = 'Server error (${e.statusCode}). Please try again later.';
+          break;
+        default:
+          msg = e.message.isNotEmpty ? e.message : 'Login failed. Please try again.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('An unexpected error occurred: $e'),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _handleDemoLogin() {
@@ -62,14 +151,6 @@ class _AuthorityLoginScreenState extends State<AuthorityLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MedalTheme.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: MedalTheme.darkNavy, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

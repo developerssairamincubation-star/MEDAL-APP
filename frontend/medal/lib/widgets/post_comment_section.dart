@@ -152,10 +152,21 @@ class _PostCommentSectionState extends State<PostCommentSection> {
     setState(() => _isSubmitting = true);
 
     try {
+      String? imageUrl;
+      if (_selectedImage != null) {
+        final bytes = await _selectedImage!.readAsBytes();
+        imageUrl = await ApiService().uploadEvidence(
+          fileBytes: bytes,
+          filename: _selectedImage!.name,
+          mimeType: _selectedImage!.mimeType,
+        );
+      }
+
       final parentId = _replyingTo != null ? (_replyingTo!['id'] as int?) : null;
       await _controller.addComment(
-        content.isNotEmpty ? content : "[Image Attachment]",
+        content.isNotEmpty ? content : "[Photo]",
         parentCommentId: parentId,
+        imageUrl: imageUrl,
       );
 
       _textController.clear();

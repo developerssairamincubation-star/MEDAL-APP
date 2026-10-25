@@ -4,6 +4,8 @@ import 'package:medal/modules/citizen/screens/components.dart';
 import 'package:medal/modules/citizen/authentication/forgot_password.dart';
 import 'package:medal/routes/app_routes.dart';
 import 'package:medal/modules/authority/screens/auth/registration_role_selection_screen.dart';
+import 'package:medal/modules/authority/screens/admin/admin_authority_applications_list_screen.dart';
+import 'package:medal/modules/authority/screens/dashboard/authority_main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -56,13 +58,32 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const MainScreen(showAcademyPopup: true),
-        ),
-        (route) => false,
-      );
+      final userRole = (ApiService().userRole).toLowerCase().trim();
+      if (userRole == 'admin') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AdminAuthorityApplicationsListScreen(),
+          ),
+          (route) => false,
+        );
+      } else if (userRole == 'official') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AuthorityMainScreen(),
+          ),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MainScreen(showAcademyPopup: true),
+          ),
+          (route) => false,
+        );
+      }
     } on ApiException catch (e) {
       debugPrint('[MEDAL] LOGIN API EXCEPTION: statusCode=${e.statusCode} message=${e.message}');
       if (!mounted) return;
@@ -350,6 +371,29 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: const Icon(Icons.account_balance, size: 18, color: Color(0xFF0467B6)),
                       label: const Text(
                         "Institution / Official Portal",
+                        style: TextStyle(
+                          color: Color(0xFF0467B6),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFC6C5D7)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      key: const Key('citizen_screen_admin_login_button'),
+                      onPressed: () {
+                        Navigator.pushNamed(context, AppRoutes.adminLogin);
+                      },
+                      icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Color(0xFF0467B6)),
+                      label: const Text(
+                        "Admin Portal (Verification Desk)",
                         style: TextStyle(
                           color: Color(0xFF0467B6),
                           fontWeight: FontWeight.w600,

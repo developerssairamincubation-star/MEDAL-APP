@@ -177,6 +177,37 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                         ),
                       ],
                     ),
+                  const SizedBox(height: 28),
+
+                  // Dedicated Admin Login Option
+                  FadeTransition(
+                    opacity: _card2FadeAnimation,
+                    child: Center(
+                      child: TextButton.icon(
+                        key: const Key('admin_login_option'),
+                        onPressed: () {
+                          Navigator.of(context).pushNamed(AppRoutes.adminLogin);
+                        },
+                        icon: const Icon(
+                          Icons.admin_panel_settings_outlined,
+                          size: 18,
+                          color: MedalTheme.primary,
+                        ),
+                        label: const Text(
+                          'System Administrator Login',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: MedalTheme.primary,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

@@ -9,6 +9,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routers.auth import router as auth_router
 from app.routers.complaint import router as complaint_router
+from app.routers.authority import router as authority_router
+from app.routers.admin import router as admin_router
 
 app = FastAPI(title="MEDAL API", version="1.0.0")
 
@@ -28,6 +30,8 @@ app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 app.include_router(auth_router)
 app.include_router(complaint_router)
+app.include_router(authority_router)
+app.include_router(admin_router)
 
 
 @app.get("/")

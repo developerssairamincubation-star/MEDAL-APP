@@ -35,9 +35,16 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
+  static bool get isDesktopOrWeb {
+    if (kIsWeb) return true;
+    return defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+  }
+
   /// Backend API Base URL — driven by lib/config/api_config.dart.
-  /// On Web/Desktop, defaults to kLocalhostUrl. On Android/iOS, uses kActiveBaseUrl (kAndroidLanUrl).
-  String baseUrl = kIsWeb ? kLocalhostUrl : kActiveBaseUrl;
+  /// Web/Desktop defaults to kLocalhostUrl, Android/iOS uses kActiveBaseUrl.
+  String baseUrl = isDesktopOrWeb ? kLocalhostUrl : kActiveBaseUrl;
 
   /// Resolves image URLs for both local uploads and MinIO object storage.
   /// Dynamically maps localhost/LAN hosts to the active server host for web, desktop, and mobile.
@@ -111,11 +118,32 @@ class ApiService {
 
   String? _token;
   Map<String, dynamic>? _currentUser;
+  String? _cachedRole;
 
   String? get token => _token;
   Map<String, dynamic>? get currentUser => _currentUser;
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
-  String get userRole => _currentUser?['role']?.toString() ?? 'citizen';
+
+  String get userRole {
+    if (_currentUser != null && _currentUser!['role'] != null) {
+      return _currentUser!['role'].toString().trim().toLowerCase();
+    }
+    if (_token != null) {
+      try {
+        final parts = _token!.split('.');
+        if (parts.length == 3) {
+          final payload = jsonDecode(_decodeBase64(parts[1]));
+          if (payload is Map && payload['role'] != null) {
+            return payload['role'].toString().trim().toLowerCase();
+          }
+        }
+      } catch (_) {}
+    }
+    if (_cachedRole != null && _cachedRole!.isNotEmpty) {
+      return _cachedRole!.trim().toLowerCase();
+    }
+    return 'citizen';
+  }
 
   int? get currentUserId {
     if (_currentUser != null && _currentUser!['id'] != null) {
@@ -139,12 +167,14 @@ class ApiService {
   Future<void> setAuth(String token, Map<String, dynamic> user) async {
     _token = token;
     _currentUser = user;
+    _cachedRole = user['role']?.toString();
     await _persistSession();
   }
 
   Future<void> logout() async {
     _token = null;
     _currentUser = null;
+    _cachedRole = null;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_kAuthTokenKey);
@@ -240,6 +270,7 @@ class ApiService {
 
       // Restore session in memory
       _token = savedToken;
+      _cachedRole = savedRole;
       if (savedUserStr != null && savedUserStr.isNotEmpty) {
         try {
           _currentUser = jsonDecode(savedUserStr) as Map<String, dynamic>;
@@ -247,12 +278,18 @@ class ApiService {
           _currentUser = null;
         }
       }
+      if (_currentUser == null) {
+        _currentUser = {'role': savedRole};
+      } else if (_currentUser!['role'] == null) {
+        _currentUser!['role'] = savedRole;
+      }
 
       // Verify token with backend /me endpoint if server is reachable
       try {
         final verifiedUser = await getMe().timeout(const Duration(seconds: 4));
         _currentUser = verifiedUser;
         final updatedRole = verifiedUser['role']?.toString() ?? savedRole;
+        _cachedRole = updatedRole;
         await prefs.setString(_kAuthUserKey, jsonEncode(verifiedUser));
         await prefs.setString(_kAuthRoleKey, updatedRole);
         return SessionRestoreResult(
@@ -375,12 +412,12 @@ class ApiService {
             }),
           )
           .timeout(
-            const Duration(seconds: 60),
+            const Duration(seconds: 15),
             onTimeout: () {
-              debugPrint('[MEDAL] LOGIN TIMEOUT after 60s');
+              debugPrint('[MEDAL] LOGIN TIMEOUT after 15s');
               throw ApiException(
                 0,
-                'Server is taking longer than usual to respond. Please try again.',
+                'Connection to MEDAL server timed out ($baseUrl). Please check that your backend is running and reachable.',
               );
             },
           );
@@ -390,21 +427,22 @@ class ApiService {
       debugPrint('[MEDAL] LOGIN NETWORK ERROR: $e');
       throw ApiException(
         0,
-        'Cannot connect to the MEDAL server. Make sure the backend is running on 0.0.0.0:8000 and your phone is on the same Wi-Fi.',
+        'Cannot connect to the MEDAL server ($baseUrl). Make sure the backend is running on 0.0.0.0:8000, your phone is on the same Wi-Fi, and Windows Firewall permits connections.',
       );
     }
 
-    debugPrint('[MEDAL] RESPONSE STATUS: ${response.statusCode}');
-    debugPrint('[MEDAL] RESPONSE BODY: ${response.body}');
+    debugPrint('[MEDAL] RESPONSE STATUS: ${response.statusCode} from ${uri.host}');
 
     final data = _handleResponse(response) as Map<String, dynamic>;
     if (data.containsKey('access_token')) {
       _token = data['access_token'];
       if (data.containsKey('data')) {
         _currentUser = Map<String, dynamic>.from(data['data']);
+        _cachedRole = _currentUser?['role']?.toString();
       }
+      _cachedRole ??= userRole;
       await _persistSession();
-      debugPrint('[MEDAL] LOGIN SUCCESS — user=${_currentUser?['email']}');
+      debugPrint('[MEDAL] LOGIN SUCCESS — user=${_currentUser?['email']} role=$userRole');
     }
     return data;
   }
@@ -416,6 +454,9 @@ class ApiService {
     final response = await http.get(uri, headers: _headers());
     final data = _handleResponse(response) as Map<String, dynamic>;
     _currentUser = data;
+    if (data['role'] != null) {
+      _cachedRole = data['role']?.toString();
+    }
     await _persistSession();
     return data;
   }
@@ -567,6 +608,8 @@ class ApiService {
     }
     final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : '';
     switch (ext) {
+      case 'pdf':
+        return MediaType('application', 'pdf');
       case 'png':
         return MediaType('image', 'png');
       case 'webp':
@@ -814,12 +857,24 @@ class ApiService {
   }
 
   /// PATCH /complaints/{id}/status
-  Future<Map<String, dynamic>> updateComplaintStatus(int id, String status) async {
+  Future<Map<String, dynamic>> updateComplaintStatus(
+    int id,
+    String status, {
+    String? officerNotes,
+    String? rejectionReason,
+  }) async {
     final uri = Uri.parse('$baseUrl/complaints/$id/status');
+    final Map<String, dynamic> body = {'status': status};
+    if (officerNotes != null && officerNotes.trim().isNotEmpty) {
+      body['officer_notes'] = officerNotes.trim();
+    }
+    if (rejectionReason != null && rejectionReason.trim().isNotEmpty) {
+      body['rejection_reason'] = rejectionReason.trim();
+    }
     final response = await http.patch(
       uri,
       headers: _headers(),
-      body: jsonEncode({'status': status}),
+      body: jsonEncode(body),
     );
     final data = _handleResponse(response);
     return data as Map<String, dynamic>;
@@ -846,6 +901,7 @@ class ApiService {
     int complaintId,
     String comment, {
     int? parentCommentId,
+    String? imageUrl,
   }) async {
     final uri = Uri.parse('$baseUrl/complaints/$complaintId/comments');
     final Map<String, dynamic> payload = {
@@ -854,6 +910,9 @@ class ApiService {
     };
     if (parentCommentId != null) {
       payload['parent_comment_id'] = parentCommentId;
+    }
+    if (imageUrl != null && imageUrl.trim().isNotEmpty) {
+      payload['image_url'] = imageUrl.trim();
     }
     final response = await http.post(
       uri,
@@ -878,6 +937,184 @@ class ApiService {
     final response = await http.delete(uri, headers: _headers());
     final data = _handleResponse(response);
     return data is Map<String, dynamic> ? data : {'message': 'Complaint deleted successfully'};
+  }
+
+  // ── Authority Onboarding Endpoints ──────────────────────────────
+
+  /// POST /authority/upload-document
+  Future<Map<String, dynamic>> uploadAuthorityDocument({
+    required List<int> fileBytes,
+    required String filename,
+    String? mimeType,
+  }) async {
+    final uri = Uri.parse('$baseUrl/authority/upload-document');
+    final request = http.MultipartRequest('POST', uri);
+
+    String safeFilename = filename.trim().isNotEmpty ? filename.trim() : 'document.pdf';
+    final mediaType = _resolveMediaType(safeFilename, mimeType);
+
+    final multipartFile = http.MultipartFile.fromBytes(
+      'file',
+      fileBytes,
+      filename: safeFilename,
+      contentType: mediaType,
+    );
+    request.files.add(multipartFile);
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    final data = _handleResponse(response) as Map<String, dynamic>;
+    return data;
+  }
+
+  /// POST /authority/register
+  Future<Map<String, dynamic>> registerAuthority({
+    required String fullName,
+    required String officialEmail,
+    required String password,
+    String? officialPhone,
+    required String designation,
+    required String department,
+    required String jurisdiction,
+    String? identityNumber,
+    String clearanceLevel = 'Level 2 (Inspection & Resolution Lead)',
+    required String aadhaarDocumentUrl,
+    required String employmentDocumentUrl,
+  }) async {
+    final uri = Uri.parse('$baseUrl/authority/register');
+    final response = await http.post(
+      uri,
+      headers: _headers(withAuth: false),
+      body: jsonEncode({
+        'full_name': fullName.trim(),
+        'official_email': officialEmail.trim(),
+        'password': password,
+        'official_phone': officialPhone?.trim().isNotEmpty == true ? officialPhone!.trim() : null,
+        'designation': designation.trim(),
+        'department': department.trim(),
+        'jurisdiction': jurisdiction.trim(),
+        'identity_number': identityNumber?.trim().isNotEmpty == true ? identityNumber!.trim() : null,
+        'clearance_level': clearanceLevel.trim(),
+        'aadhaar_document_url': aadhaarDocumentUrl.trim(),
+        'employment_document_url': employmentDocumentUrl.trim(),
+      }),
+    );
+    final data = _handleResponse(response);
+    return data as Map<String, dynamic>;
+  }
+
+  /// GET /authority/application-status
+  Future<Map<String, dynamic>> getAuthorityApplicationStatus(String email) async {
+    final uri = Uri.parse('$baseUrl/authority/application-status?email=${Uri.encodeComponent(email.trim())}');
+    final response = await http.get(uri, headers: _headers(withAuth: false));
+    final data = _handleResponse(response);
+    return data as Map<String, dynamic>;
+  }
+
+  // ── Admin Verification & Approval Endpoints ─────────────────────
+
+  /// GET /admin/authority-applications
+  Future<List<Map<String, dynamic>>> getAuthorityApplications({String? status}) async {
+    final query = status != null && status.isNotEmpty ? '?status=${Uri.encodeComponent(status)}' : '';
+    final uri = Uri.parse('$baseUrl/admin/authority-applications$query');
+    try {
+      final response = await http
+          .get(uri, headers: _headers())
+          .timeout(const Duration(seconds: 15));
+      final data = _handleResponse(response);
+      if (data is List) {
+        return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+      }
+      return [];
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[MEDAL] GET AUTHORITY APPLICATIONS NETWORK ERROR: $e');
+      throw ApiException(
+        0,
+        'Cannot connect to the MEDAL server ($baseUrl). Please check that your server is running and reachable.',
+      );
+    }
+  }
+
+  /// GET /admin/authority-applications/{id}
+  Future<Map<String, dynamic>> getAuthorityApplication(int id) async {
+    final uri = Uri.parse('$baseUrl/admin/authority-applications/$id');
+    try {
+      final response = await http
+          .get(uri, headers: _headers())
+          .timeout(const Duration(seconds: 15));
+      final data = _handleResponse(response);
+      return data as Map<String, dynamic>;
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[MEDAL] GET AUTHORITY APPLICATION DETAIL NETWORK ERROR: $e');
+      throw ApiException(
+        0,
+        'Cannot connect to the MEDAL server ($baseUrl). Please check that your server is running and reachable.',
+      );
+    }
+  }
+
+  /// POST /admin/authority-applications/{id}/approve
+  Future<Map<String, dynamic>> approveAuthorityApplication(
+    int id, {
+    String? clearanceLevel,
+  }) async {
+    final uri = Uri.parse('$baseUrl/admin/authority-applications/$id/approve');
+    final payload = <String, dynamic>{};
+    if (clearanceLevel != null && clearanceLevel.trim().isNotEmpty) {
+      payload['clearance_level'] = clearanceLevel.trim();
+    }
+    try {
+      final response = await http
+          .post(
+            uri,
+            headers: _headers(),
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
+      final data = _handleResponse(response);
+      return data as Map<String, dynamic>;
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[MEDAL] APPROVE AUTHORITY APPLICATION NETWORK ERROR: $e');
+      throw ApiException(
+        0,
+        'Cannot connect to the MEDAL server ($baseUrl). Please check your connection.',
+      );
+    }
+  }
+
+  /// POST /admin/authority-applications/{id}/reject
+  Future<Map<String, dynamic>> rejectAuthorityApplication(
+    int id, {
+    required String reason,
+  }) async {
+    final uri = Uri.parse('$baseUrl/admin/authority-applications/$id/reject');
+    try {
+      final response = await http
+          .post(
+            uri,
+            headers: _headers(),
+            body: jsonEncode({
+              'reason': reason.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+      final data = _handleResponse(response);
+      return data as Map<String, dynamic>;
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[MEDAL] REJECT AUTHORITY APPLICATION NETWORK ERROR: $e');
+      throw ApiException(
+        0,
+        'Cannot connect to the MEDAL server ($baseUrl). Please check your connection.',
+      );
+    }
   }
 }
 

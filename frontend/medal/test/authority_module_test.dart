@@ -8,6 +8,8 @@ import 'package:medal/modules/authority/screens/auth/registration_role_selection
 import 'package:medal/modules/authority/screens/auth/authority_register_screen.dart';
 import 'package:medal/modules/authority/screens/auth/authority_login_screen.dart';
 import 'package:medal/modules/authority/screens/dashboard/authority_main_screen.dart';
+import 'package:medal/modules/authority/screens/dashboard/authority_post_detail_screen.dart';
+import 'package:medal/modules/authority/screens/dashboard/authority_comment_thread_screen.dart';
 import 'package:medal/modules/authority/screens/complaints/authority_complaints_screen.dart';
 import 'package:medal/modules/authority/screens/complaints/authority_complaint_detail_screen.dart';
 import 'package:medal/modules/authority/screens/academy/authority_academy_screen.dart';
@@ -164,10 +166,11 @@ void main() {
     expect(find.text('Reject'), findsOneWidget);
     expect(find.text('Redirect'), findsOneWidget);
 
-    // Tap Reject button -> requires reason dialog
+    // Scroll to and tap Reject button -> requires reason dialog
+    await tester.ensureVisible(find.text('Reject'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Reject'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
 
     expect(find.text('Reject Complaint'), findsOneWidget);
     expect(find.text('A detailed reason is mandatory when rejecting a citizen grievance.'),
@@ -175,8 +178,7 @@ void main() {
 
     // Dismiss dialog
     await tester.tap(find.text('Cancel'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
 
     expect(find.text('A detailed reason is mandatory when rejecting a citizen grievance.'),
         findsNothing);
@@ -223,10 +225,11 @@ void main() {
     );
     await tester.pump();
 
-    // Tap Redirect button
+    // Scroll to and tap Redirect button
+    await tester.ensureVisible(find.text('Redirect'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Redirect'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
 
     expect(find.text('Redirect Complaint'), findsOneWidget);
     expect(find.text('Target Authority / Department'), findsOneWidget);
@@ -234,13 +237,12 @@ void main() {
 
     // Cancel dialog
     await tester.tap(find.text('Cancel'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
 
     expect(find.text('Redirection Reason (Mandatory)'), findsNothing);
   });
 
-  testWidgets('AuthorityProfileScreen opens Logout confirmation dialog',
+  testWidgets('AuthorityProfileScreen opens Logout confirmation dialog and respects No / Yes',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -254,17 +256,135 @@ void main() {
     await tester.tap(find.text('Sign Out'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sign Out of Authority'), findsOneWidget);
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.descendant(of: find.byType(Dialog), matching: find.text('Log Out')), findsOneWidget);
     expect(
-        find.text(
-            'Are you sure you want to end your official session? You will need to sign in again with your official credentials.'),
+        find.descendant(
+          of: find.byType(Dialog),
+          matching: find.text('Are you sure\nyou want to log out?'),
+        ),
         findsOneWidget);
+    expect(find.descendant(of: find.byType(Dialog), matching: find.text('No')), findsOneWidget);
+    expect(find.descendant(of: find.byType(Dialog), matching: find.text('Yes')), findsOneWidget);
 
-    // Tap Cancel
-    await tester.tap(find.text('Cancel'));
+    // Tap No -> closes dialog, remains on profile
+    await tester.tap(find.descendant(of: find.byType(Dialog), matching: find.text('No')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sign Out of Authority'), findsNothing);
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.byType(AuthorityProfileScreen), findsOneWidget);
+
+    // Open again and tap Yes -> logs out
+    await tester.tap(find.text('Sign Out'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsOneWidget);
+    await tester.tap(find.descendant(of: find.byType(Dialog), matching: find.text('Yes')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsNothing);
+  });
+
+  testWidgets('AuthorityComplaintDetailScreen back button exits directly when no unsaved changes',
+      (WidgetTester tester) async {
+    final complaint = MockAuthorityRepository.complaints.first;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => Navigator.push(
+                ctx,
+                MaterialPageRoute(
+                  builder: (_) => AuthorityComplaintDetailScreen(complaint: complaint),
+                ),
+              ),
+              child: const Text('Open Detail'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open Detail'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AuthorityComplaintDetailScreen), findsOneWidget);
+
+    // System back navigation with NO unsaved changes
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    await navigator.maybePop();
+    await tester.pumpAndSettle();
+
+    // Should pop directly without showing Cancel Reporting dialog
+    expect(find.text('CANCEL REPORTING'), findsNothing);
+    expect(find.byType(AuthorityComplaintDetailScreen), findsNothing);
+  });
+
+  testWidgets('AuthorityComplaintDetailScreen shows Cancel Reporting on unsaved note and respects No / Yes',
+      (WidgetTester tester) async {
+    final complaint = MockAuthorityRepository.complaints.first;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => Navigator.push(
+                ctx,
+                MaterialPageRoute(
+                  builder: (_) => AuthorityComplaintDetailScreen(complaint: complaint),
+                ),
+              ),
+              child: const Text('Open Detail'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open Detail'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AuthorityComplaintDetailScreen), findsOneWidget);
+
+    // Add note to create unsaved changes
+    await tester.enterText(find.byType(TextField).first, 'New progress notes on canal waste');
+    await tester.pumpAndSettle();
+
+    // System back navigation with unsaved changes
+    final navigator2 = tester.state<NavigatorState>(find.byType(Navigator));
+    await navigator2.maybePop();
+    await tester.pumpAndSettle();
+
+    // Cancel Reporting dialog should appear
+    expect(find.text('CANCEL REPORTING'), findsOneWidget);
+    expect(
+      find.text(
+        'Are you sure to exit the reporting page?\nThe changes you have made will not be\nsaved.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('No'), findsOneWidget);
+    expect(find.text('Yes'), findsOneWidget);
+
+    // Tap No -> dialog closes, user remains on report page with text intact
+    await tester.tap(find.text('No'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CANCEL REPORTING'), findsNothing);
+    expect(find.byType(AuthorityComplaintDetailScreen), findsOneWidget);
+    expect(find.text('New progress notes on canal waste'), findsOneWidget);
+
+    // Tap back button again via system back navigation
+    await navigator2.maybePop();
+    await tester.pumpAndSettle();
+
+    expect(find.text('CANCEL REPORTING'), findsOneWidget);
+
+    // Tap Yes -> dialog closes, changes discarded, user exits
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CANCEL REPORTING'), findsNothing);
+    expect(find.byType(AuthorityComplaintDetailScreen), findsNothing);
   });
 
   testWidgets('AuthorityAcademyScreen shows certificates and opens preview dialog',
@@ -289,5 +409,298 @@ void main() {
 
     expect(find.text('Certificate of Completion'), findsOneWidget);
     expect(find.text('Download PDF Certificate'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Dashboard post tap navigates to Post Details, and tapping comment opens Comment Thread',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AuthorityMainScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Dashboard post is visible
+    expect(
+      find.text(
+        'Critical waste management failure observed at the canal junction. Local community impact rising due to blockage.',
+      ),
+      findsOneWidget,
+    );
+
+    // Tap on the post card
+    await tester.tap(
+      find.text(
+        'Critical waste management failure observed at the canal junction. Local community impact rising due to blockage.',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify AuthorityPostDetailScreen is opened (NOT AuthorityComplaintDetailScreen)
+    expect(find.byType(AuthorityPostDetailScreen), findsOneWidget);
+    expect(find.byType(AuthorityComplaintDetailScreen), findsNothing);
+
+    // Verify Post Details elements
+    expect(find.text('Authorities assigned:'), findsOneWidget);
+    expect(find.text('@elenarodriguez'), findsOneWidget);
+    expect(find.text('Lisa Godwin'), findsOneWidget);
+    expect(find.text('Kevin Xanty'), findsOneWidget);
+    expect(find.text('Divya ken'), findsOneWidget);
+
+    // Scroll to and tap on Kevin Xanty's comment to open Comment Thread
+    await tester.ensureVisible(find.text('Kevin Xanty'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kevin Xanty'));
+    await tester.pumpAndSettle();
+
+    // Verify AuthorityCommentThreadScreen is opened
+    expect(find.byType(AuthorityCommentThreadScreen), findsOneWidget);
+    expect(find.text('Chia Sen'), findsOneWidget);
+    expect(find.text('Steve Mark'), findsOneWidget);
+    expect(find.text('Liya Fatima'), findsOneWidget);
+
+    // System back navigation from Comment Thread back to Post Details
+    final threadNavigator = tester.state<NavigatorState>(find.byType(Navigator));
+    await threadNavigator.maybePop();
+    await tester.pumpAndSettle();
+
+    // Verify back to AuthorityPostDetailScreen
+    expect(find.byType(AuthorityPostDetailScreen), findsOneWidget);
+  });
+
+  testWidgets(
+      'AuthorityComplaintDetailScreen Submit Update saves changes, pops page, and updates parent state',
+      (WidgetTester tester) async {
+    final complaint = AuthorityComplaint(
+      id: 'CMP-2026-4401',
+      title: 'Critical Waste Management Failure',
+      description: 'Critical waste management failure observed at canal junction.',
+      category: 'Waste management',
+      ward: 'Ward 62',
+      address: 'Bharathiyar street',
+      latitude: 13.0827,
+      longitude: 80.2707,
+      status: AuthorityComplaintStatus.inProgress,
+      priority: AuthorityPriority.critical,
+      sdg: const SdgInfo(
+        number: 13,
+        title: 'Climate Action',
+        description: 'Take urgent action to combat climate change and its impacts.',
+        color: Color(0xFF3F7E44),
+      ),
+      evidenceImages: ['assets/images/sample_waste_canal.jpg'],
+      upvotes: 124,
+      commentsCount: 12,
+      reportedAt: DateTime.parse('2026-10-06 10:30:00'),
+      reportedBy: 'James Doe',
+      officerNotes: 'Initial note',
+    );
+
+    int savedId = 0;
+    String savedStatus = '';
+    String? savedNote;
+    bool callbackInvoked = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => Navigator.push(
+                ctx,
+                MaterialPageRoute(
+                  builder: (_) => AuthorityComplaintDetailScreen(
+                    complaint: complaint,
+                    onStatusChanged: () {
+                      callbackInvoked = true;
+                    },
+                    onSaveStatus: (cid, status, note) async {
+                      savedId = cid;
+                      savedStatus = status;
+                      savedNote = note;
+                    },
+                  ),
+                ),
+              ),
+              child: const Text('Open Complaint Detail'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Open screen
+    await tester.tap(find.text('Open Complaint Detail'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AuthorityComplaintDetailScreen), findsOneWidget);
+
+    // Select "Resolved" status pill
+    await tester.ensureVisible(find.text('Resolved'));
+    await tester.tap(find.text('Resolved'));
+    await tester.pumpAndSettle();
+
+    // Enter note
+    await tester.enterText(
+      find.byType(TextField).first,
+      'Canal cleared by sanitation team and inspected.',
+    );
+    await tester.pumpAndSettle();
+
+    // Tap "Submit Update"
+    await tester.ensureVisible(find.text('Submit Update'));
+    await tester.tap(find.text('Submit Update'));
+    await tester.pumpAndSettle();
+
+    // Verify backend call arguments
+    expect(savedId, equals(4401));
+    expect(savedStatus, equals('resolved'));
+    expect(savedNote, equals('Canal cleared by sanitation team and inspected.'));
+
+    // Verify callback was invoked and page popped
+    expect(callbackInvoked, isTrue);
+    expect(find.byType(AuthorityComplaintDetailScreen), findsNothing);
+    expect(complaint.status, equals(AuthorityComplaintStatus.completed));
+    expect(complaint.officerNotes, equals('Canal cleared by sanitation team and inspected.'));
+  });
+
+  testWidgets(
+      'AuthorityComplaintDetailScreen Submit Update failure keeps user on page with entered data preserved',
+      (WidgetTester tester) async {
+    final complaint = AuthorityComplaint(
+      id: 'CMP-2026-4401',
+      title: 'Critical Waste Management Failure',
+      description: 'Critical waste management failure observed at canal junction.',
+      category: 'Waste management',
+      ward: 'Ward 62',
+      address: 'Bharathiyar street',
+      latitude: 13.0827,
+      longitude: 80.2707,
+      status: AuthorityComplaintStatus.inProgress,
+      priority: AuthorityPriority.critical,
+      sdg: const SdgInfo(
+        number: 13,
+        title: 'Climate Action',
+        description: 'Take urgent action to combat climate change and its impacts.',
+        color: Color(0xFF3F7E44),
+      ),
+      evidenceImages: ['assets/images/sample_waste_canal.jpg'],
+      upvotes: 124,
+      commentsCount: 12,
+      reportedAt: DateTime.parse('2026-10-06 10:30:00'),
+      reportedBy: 'James Doe',
+      officerNotes: '',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => Navigator.push(
+                ctx,
+                MaterialPageRoute(
+                  builder: (_) => AuthorityComplaintDetailScreen(
+                    complaint: complaint,
+                    onSaveStatus: (cid, status, note) async {
+                      throw Exception('Database lock timeout. Status not saved.');
+                    },
+                  ),
+                ),
+              ),
+              child: const Text('Open Complaint Detail'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Complaint Detail'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AuthorityComplaintDetailScreen), findsOneWidget);
+
+    // Select "Assigned"
+    await tester.ensureVisible(find.text('Assigned'));
+    await tester.tap(find.text('Assigned'));
+    await tester.pumpAndSettle();
+
+    // Enter note
+    const inputNote = 'Assigning priority response crew';
+    await tester.enterText(find.byType(TextField).first, inputNote);
+    await tester.pumpAndSettle();
+
+    // Tap "Submit Update"
+    await tester.ensureVisible(find.text('Submit Update'));
+    await tester.tap(find.text('Submit Update'));
+    await tester.pumpAndSettle();
+
+    // Error message must be visible
+    expect(find.text('Database lock timeout. Status not saved.'), findsOneWidget);
+
+    // Detail page must REMAIN open
+    expect(find.byType(AuthorityComplaintDetailScreen), findsOneWidget);
+
+    // Entered text must be PRESERVED
+    expect(find.text(inputNote), findsOneWidget);
+
+    // Complaint object status was NOT mutated on failure
+    expect(complaint.status, equals(AuthorityComplaintStatus.inProgress));
+  });
+
+  testWidgets(
+      'Navigating from AuthorityComplaintsScreen to Detail, submitting update returns to Complaints with updated status',
+      (WidgetTester tester) async {
+    final firstComplaint = MockAuthorityRepository.complaints.first;
+    firstComplaint.status = AuthorityComplaintStatus.reviewing;
+
+    AuthorityComplaintDetailScreen.globalSaveStatusOverride =
+        (cid, status, note) async {};
+    addTearDown(() {
+      AuthorityComplaintDetailScreen.globalSaveStatusOverride = null;
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AuthorityComplaintsScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify initial screen is AuthorityComplaintsScreen
+    expect(find.byType(AuthorityComplaintsScreen), findsOneWidget);
+    expect(find.text(firstComplaint.title), findsWidgets);
+
+    // Tap on the complaint card
+    await tester.tap(find.text(firstComplaint.title).first);
+    await tester.pumpAndSettle();
+
+    // Verify AuthorityComplaintDetailScreen is pushed
+    expect(find.byType(AuthorityComplaintDetailScreen), findsOneWidget);
+
+    // Select "Resolved" status
+    await tester.ensureVisible(find.text('Resolved'));
+    await tester.tap(find.text('Resolved'));
+    await tester.pumpAndSettle();
+
+    // Enter an update note
+    await tester.enterText(
+      find.byType(TextField).first,
+      'Field inspection completed. Issue resolved.',
+    );
+    await tester.pumpAndSettle();
+
+    // Submit Update
+    await tester.ensureVisible(find.text('Submit Update'));
+    await tester.tap(find.text('Submit Update'));
+    await tester.pumpAndSettle();
+
+    // Verify returning to AuthorityComplaintsScreen (NOT Dashboard or other screen)
+    expect(find.byType(AuthorityComplaintDetailScreen), findsNothing);
+    expect(find.byType(AuthorityComplaintsScreen), findsOneWidget);
+
+    // Verify updated complaint status in the list
+    expect(firstComplaint.status, equals(AuthorityComplaintStatus.completed));
   });
 }

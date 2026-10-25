@@ -31,6 +31,8 @@ class ComplaintBase(BaseModel):
     sdg_alignment: Optional[str] = None
     impact_level: Optional[str] = None
     equity_classification: Optional[str] = None
+    officer_notes: Optional[str] = None
+    rejection_reason: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_location(self) -> "ComplaintBase":
@@ -65,10 +67,16 @@ class ComplaintUpdate(BaseModel):
     sdg_alignment: Optional[str] = None
     impact_level: Optional[str] = None
     equity_classification: Optional[str] = None
+    officer_notes: Optional[str] = None
+    rejection_reason: Optional[str] = None
 
 
 class ComplaintStatusUpdate(BaseModel):
     status: str
+    officer_notes: Optional[str] = Field(default=None, alias="officerNotes")
+    rejection_reason: Optional[str] = Field(default=None, alias="rejectionReason")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ComplaintResponse(ComplaintBase):
@@ -113,6 +121,7 @@ class ComplaintStatsResponse(BaseModel):
     total_reports: int
     submitted: int
     under_review: int
+    assigned: int = 0
     in_progress: int
     resolved: int
     rejected: int
@@ -123,6 +132,7 @@ class CommentCreate(BaseModel):
     comment: Optional[str] = None
     content: Optional[str] = None
     parent_comment_id: Optional[int] = None
+    image_url: Optional[str] = None
 
 
 class CommentResponse(BaseModel):
@@ -135,6 +145,7 @@ class CommentResponse(BaseModel):
     profile_image_url: Optional[str] = None
     comment: str
     content: Optional[str] = None
+    image_url: Optional[str] = None
     created_at: datetime
     parent_comment_id: Optional[int] = None
     is_deleted: bool = False

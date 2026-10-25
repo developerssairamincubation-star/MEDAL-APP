@@ -24,6 +24,8 @@ class Complaint(Base):
     sdg_alignment: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     impact_level: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     equity_classification: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    officer_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     citizen_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -78,6 +80,7 @@ class ComplaintComment(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     parent_comment_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("complaint_comments.id", ondelete="CASCADE"), nullable=True, index=True)
     comment: Mapped[str] = mapped_column(Text, nullable=False)
+    image_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

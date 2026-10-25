@@ -60,6 +60,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             sessionResult.role == 'principal' ||
             sessionResult.role == 'staff') {
           Navigator.of(context).pushReplacementNamed(AppRoutes.institution);
+        } else if (sessionResult.role == 'admin') {
+          Navigator.of(context).pushReplacementNamed(AppRoutes.adminApplicationsList);
+        } else if (sessionResult.role == 'official') {
+          Navigator.of(context).pushReplacementNamed(AppRoutes.authorityMain);
         } else {
           Navigator.of(context).pushReplacementNamed(AppRoutes.citizenMain);
         }

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:medal/core/services/api_service.dart';
 
@@ -156,11 +158,13 @@ class ComplaintCommentsController extends ChangeNotifier {
   Future<Map<String, dynamic>> addComment(
     String content, {
     int? parentCommentId,
+    String? imageUrl,
   }) async {
     final newComment = await ApiService().addComment(
       complaintId,
       content,
       parentCommentId: parentCommentId,
+      imageUrl: imageUrl,
     );
 
     _comments.add(newComment);
@@ -650,6 +654,7 @@ class ThreadedCommentNodeWidget extends StatelessWidget {
     final timestamp = formatCommentTimestamp(comment['created_at']);
     final commentText = (comment['comment'] ?? comment['content'] ?? '').toString();
     final isDeleted = comment['is_deleted'] == true;
+    final rawImageUrl = (comment['image_url'] ?? comment['image']) as String?;
 
     final avatarSize = isRoot ? 34.0 : 28.0;
     final avatarFontSize = isRoot ? 12.5 : 10.5;
@@ -794,6 +799,10 @@ class ThreadedCommentNodeWidget extends StatelessWidget {
                     commentText,
                     fontSize: isRoot ? 13.5 : 12.5,
                   ),
+
+                // Attached Comment Image
+                if (!isDeleted && rawImageUrl != null && rawImageUrl.trim().isNotEmpty)
+                  _buildCommentAttachment(rawImageUrl, isRoot: isRoot),
 
                 const SizedBox(height: 6),
 
@@ -968,6 +977,81 @@ class ThreadedCommentNodeWidget extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCommentAttachment(String rawUrl, {bool isRoot = true}) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return const SizedBox.shrink();
+
+    Widget imageWidget;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      imageWidget = Image.network(
+        ApiService().resolveImageUrl(trimmed),
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            height: isRoot ? 140 : 110,
+            color: const Color(0xFFF1F5F9),
+            child: const Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF0467B6),
+                ),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: isRoot ? 120 : 100,
+          color: const Color(0xFFF1F5F9),
+          child: const Center(
+            child: Icon(Icons.broken_image_outlined, color: Color(0xFF94A3B8), size: 28),
+          ),
+        ),
+      );
+    } else if (!kIsWeb && File(trimmed).existsSync()) {
+      imageWidget = Image.file(
+        File(trimmed),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: isRoot ? 120 : 100,
+          color: const Color(0xFFF1F5F9),
+          child: const Center(
+            child: Icon(Icons.broken_image_outlined, color: Color(0xFF94A3B8), size: 28),
+          ),
+        ),
+      );
+    } else {
+      imageWidget = Image.asset(
+        trimmed,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: isRoot ? 120 : 100,
+          color: const Color(0xFFF1F5F9),
+          child: const Center(
+            child: Icon(Icons.broken_image_outlined, color: Color(0xFF94A3B8), size: 28),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: isRoot ? 180 : 140,
+            maxWidth: double.infinity,
+          ),
+          child: imageWidget,
+        ),
       ),
     );
   }

@@ -167,11 +167,22 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
     setState(() => _isSubmitting = true);
 
     try {
+      String? imageUrl;
+      if (_selectedImage != null) {
+        final bytes = await _selectedImage!.readAsBytes();
+        imageUrl = await ApiService().uploadEvidence(
+          fileBytes: bytes,
+          filename: _selectedImage!.name,
+          mimeType: _selectedImage!.mimeType,
+        );
+      }
+
       final parentId = _replyTarget != null ? (_replyTarget!['id'] as int?) : null;
 
       await _controller.addComment(
-        text.isNotEmpty ? text : "[Image Attachment]",
+        text.isNotEmpty ? text : "[Photo]",
         parentCommentId: parentId,
+        imageUrl: imageUrl,
       );
 
       _commentController.clear();

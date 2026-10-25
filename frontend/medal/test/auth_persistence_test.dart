@@ -154,5 +154,51 @@ void main() {
       expect(result.role, equals('principal'));
       expect(ApiService().userRole, equals('principal'));
     });
+
+    test('tryRestoreSession preserves official role architecture', () async {
+      final futureTimestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 3600;
+      final token = _createMockJwt(expSeconds: futureTimestamp, role: 'official');
+      final user = {
+        'id': 220,
+        'email': 'rajesh.varma@corporation.gov.in',
+        'full_name': 'Rajesh Varma',
+        'role': 'official',
+      };
+
+      SharedPreferences.setMockInitialValues({
+        'medal_auth_token': token,
+        'medal_auth_user': jsonEncode(user),
+        'medal_auth_role': 'official',
+      });
+
+      final result = await ApiService().tryRestoreSession();
+
+      expect(result.isValid, isTrue);
+      expect(result.role, equals('official'));
+      expect(ApiService().userRole, equals('official'));
+    });
+
+    test('tryRestoreSession preserves admin role architecture', () async {
+      final futureTimestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 3600;
+      final token = _createMockJwt(expSeconds: futureTimestamp, role: 'admin');
+      final user = {
+        'id': 1,
+        'email': 'admin@medal.gov.in',
+        'full_name': 'Municipal Commissioner',
+        'role': 'admin',
+      };
+
+      SharedPreferences.setMockInitialValues({
+        'medal_auth_token': token,
+        'medal_auth_user': jsonEncode(user),
+        'medal_auth_role': 'admin',
+      });
+
+      final result = await ApiService().tryRestoreSession();
+
+      expect(result.isValid, isTrue);
+      expect(result.role, equals('admin'));
+      expect(ApiService().userRole, equals('admin'));
+    });
   });
 }

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.otp import PasswordResetOTP
 from app.models.user import User
+from app.models.authority_application import AuthorityApplication
 from app.schemas.user import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
@@ -103,6 +104,12 @@ def get_current_user(
             detail="Inactive user",
         )
 
+    if user.role == "official" and user.approval_status != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authority account is not approved.",
+        )
+
     return user
 
 
@@ -161,6 +168,31 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Account is inactive",
         )
+
+    # Check authority approval status
+    if user.role == "official":
+        if user.approval_status == "pending":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your application is awaiting Admin approval.",
+            )
+        elif user.approval_status == "rejected":
+            app_record = (
+                db.query(AuthorityApplication)
+                .filter(AuthorityApplication.user_id == user.id)
+                .order_by(AuthorityApplication.id.desc())
+                .first()
+            )
+            reason_msg = f": {app_record.rejection_reason}" if app_record and app_record.rejection_reason else "."
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Your Authority application was rejected{reason_msg}",
+            )
+        elif user.approval_status != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Authority account not approved for portal access.",
+            )
 
     # Generate JWT access token
     access_token = create_access_token(

@@ -22,6 +22,11 @@ class UserResponse(BaseModel):
     phone: str | None = None
     profile_image_url: str | None = None
     role: str
+    approval_status: str = "approved"
+    designation: str | None = None
+    department: str | None = None
+    jurisdiction: str | None = None
+    clearance_level: str | None = None
     is_verified: bool
     is_active: bool
     created_at: datetime

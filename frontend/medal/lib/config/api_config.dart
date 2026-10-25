@@ -14,10 +14,12 @@
 //  Production server              →  https://your-domain.com
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:flutter/foundation.dart';
+
 /// ★ CHANGE ONLY THIS VALUE when your PC's Wi-Fi IP changes.
 ///   Run: Get-NetIPAddress -AddressFamily IPv4 in PowerShell
 ///   then look for the Wi-Fi row.
-const String kPcWifiIp = '172.16.124.42';
+const String kPcWifiIp = '10.70.114.158';
 
 /// Backend port — matches uvicorn startup port
 const int kBackendPort = 8000;
@@ -36,7 +38,13 @@ const String kAndroidEmulatorUrl = 'http://10.0.2.2:$kBackendPort';
 /// URL used by Flutter Web / Desktop running on the same machine
 const String kLocalhostUrl = 'http://127.0.0.1:$kBackendPort';
 
+/// Set to true when testing with physical phone on the same Wi-Fi LAN as PC.
+/// When true, physical Android builds will connect to kAndroidLanUrl.
+const bool kUseLocalLanForApk = true;
+
 /// ── Active base URL (imported by ApiService) ──────────────────────────────
 /// Switch between the constants above to match your environment.
-/// Active: Physical Android phone on LAN connecting to local PC backend.
-const String kActiveBaseUrl = kAndroidLanUrl;
+/// When kUseLocalLanForApk is true, uses kAndroidLanUrl (physical Android phone on LAN).
+/// Otherwise, in production release builds uses kRenderUrl.
+const String kActiveBaseUrl =
+    kUseLocalLanForApk ? kAndroidLanUrl : (kReleaseMode ? kRenderUrl : kAndroidLanUrl);

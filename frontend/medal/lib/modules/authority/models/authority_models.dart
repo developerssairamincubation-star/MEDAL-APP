@@ -48,6 +48,7 @@ class SdgInfo {
 
 class AuthorityComplaint {
   final String id;
+  final int? backendId;
   final String title;
   final String description;
   final String category;
@@ -70,6 +71,7 @@ class AuthorityComplaint {
 
   AuthorityComplaint({
     required this.id,
+    this.backendId,
     required this.title,
     required this.description,
     required this.category,
@@ -90,6 +92,17 @@ class AuthorityComplaint {
     this.redirectedDepartment,
     this.redirectionReason,
   });
+
+  int? get numericId {
+    if (backendId != null) return backendId;
+    final direct = int.tryParse(id.trim());
+    if (direct != null) return direct;
+    final clean = id.trim();
+    if (clean.contains('-')) {
+      return int.tryParse(clean.split('-').last);
+    }
+    return null;
+  }
 }
 
 class AuthorityCourse {
@@ -102,6 +115,11 @@ class AuthorityCourse {
   final String duration;
   final String level;
   final String instructor;
+  final String? badgeText;
+  final double? rating;
+  final String? imageAsset;
+  final String? buttonActionText;
+  final bool isFeatured;
 
   const AuthorityCourse({
     required this.id,
@@ -113,6 +131,11 @@ class AuthorityCourse {
     required this.duration,
     required this.level,
     required this.instructor,
+    this.badgeText,
+    this.rating,
+    this.imageAsset,
+    this.buttonActionText,
+    this.isFeatured = false,
   });
 }
 
@@ -123,6 +146,9 @@ class AuthorityCertificate {
   final String issueDate;
   final String credentialUrl;
   final String grade;
+  final String certificateNo;
+  final String completionDateText;
+  final String badgeType;
 
   const AuthorityCertificate({
     required this.id,
@@ -131,6 +157,9 @@ class AuthorityCertificate {
     required this.issueDate,
     required this.credentialUrl,
     required this.grade,
+    this.certificateNo = 'MED-8929-XR4',
+    this.completionDateText = 'COMPLETED MAY 2024',
+    this.badgeType = 'check',
   });
 }
 
@@ -142,6 +171,9 @@ class AuthorityNotificationItem {
   final bool isRead;
   final bool isUrgent;
   final String? relatedComplaintId;
+  final String? group;
+  final String? actionButtonText;
+  final String? iconType;
 
   const AuthorityNotificationItem({
     required this.id,
@@ -151,6 +183,9 @@ class AuthorityNotificationItem {
     this.isRead = false,
     this.isUrgent = false,
     this.relatedComplaintId,
+    this.group,
+    this.actionButtonText,
+    this.iconType,
   });
 }
 
@@ -164,6 +199,11 @@ class AuthorityProfileData {
   String phone;
   String employeeId;
   bool isVerified;
+  String position;
+  String secureContactPhone;
+  int points;
+  List<String> achievements;
+  List<String> works;
 
   AuthorityProfileData({
     required this.legalName,
@@ -175,106 +215,119 @@ class AuthorityProfileData {
     required this.phone,
     required this.employeeId,
     this.isVerified = true,
+    this.position = 'Citizen , certified user',
+    this.secureContactPhone = '+91 98451 22301',
+    this.points = 35,
+    this.achievements = const [],
+    this.works = const [],
   });
 }
 
 /// In-memory repository of mock authority data for Phase 1 UI.
 class MockAuthorityRepository {
   static final AuthorityProfileData currentOfficer = AuthorityProfileData(
-    legalName: 'Er. Rajesh Varma',
+    legalName: 'Lawrence Perker',
     maskedIdentityNumber: 'XXXX-XXXX-8921',
-    designation: 'Assistant Executive Engineer',
-    department: 'Water Supply & Public Works',
-    officialEmail: 'rajesh.varma@corporation.gov.in',
-    jurisdiction: 'Zone 5 - Ward 62, Greater Municipal Corp',
-    phone: '+91 98401 23456',
+    designation: 'Divisional Environmental Inspector',
+    department: 'Public Works & Sanitation',
+    officialEmail: 'lawrenceperker@medal.gov',
+    jurisdiction: 'Zone 4, Pine River Catchment, Municipal Office Complex, Sector 9',
+    phone: '9123456789',
     employeeId: 'EMP-GMC-2024-419',
     isVerified: true,
+    position: 'Citizen , certified user',
+    secureContactPhone: '+91 98451 22301',
+    points: 35,
+    achievements: ['Gold Medal Civic Service', 'Top SDG 13 Inspector'],
+    works: ['Pine River Canal Remediation', 'Sector 9 Lighting Upgrade'],
   );
 
   static final List<AuthorityComplaint> complaints = [
     AuthorityComplaint(
       id: 'CMP-2026-4401',
-      title: 'Major underground pipeline breach causing roadway flooding',
+      backendId: 4401,
+      title: 'Critical waste management failure',
       description:
-          'Continuous drinking water pipeline rupture on 4th Main Road outside Block B apartments. High pressure leakage is causing road depression and flooding ground floor properties. Immediate valve isolation and repair crew required.',
-      category: 'Water Supply',
+          'Critical waste management failure observed at the canal junction. Local community impact rising due to blockage.',
+      category: 'Waste management',
       ward: 'Ward 62',
-      address: '4th Main Road, Near Gandhi Park Junction, Ward 62',
+      address: 'Bharathiyar street',
       latitude: 13.0827,
       longitude: 80.2707,
       status: AuthorityComplaintStatus.inProgress,
       priority: AuthorityPriority.critical,
       sdg: const SdgInfo(
-        number: 6,
-        title: 'Clean Water & Sanitation',
-        description: 'Ensure availability and sustainable management of water and sanitation for all.',
-        color: Color(0xFF00AED9),
+        number: 13,
+        title: 'Climate Action',
+        description: 'Take urgent action to combat climate change and its impacts.',
+        color: Color(0xFFBE123C),
       ),
       evidenceImages: [
-        'assets/images/water_leak_1.jpg',
-        'assets/images/water_leak_2.jpg',
+        'assets/images/sample_waste_canal.jpg',
       ],
-      upvotes: 48,
-      commentsCount: 14,
-      reportedAt: DateTime.now().subtract(const Duration(hours: 3)),
-      reportedBy: 'Karthik S. (Resident)',
+      upvotes: 124,
+      commentsCount: 12,
+      reportedAt: DateTime.parse('2026-10-06 10:30:00'),
+      reportedBy: 'James Doe',
       officerNotes: 'Emergency field crew dispatched under Supervisor Mohan.',
     ),
     AuthorityComplaint(
       id: 'CMP-2026-4395',
-      title: 'Unattended municipal solid waste heap near primary school gate',
+      backendId: 4395,
+      title: 'Critical Road Management',
       description:
-          'Sanitation bins overflowing for the past 4 days. Waste spilled across pedestrian walkway adjacent to Government Primary School. Stray animals gathering and foul odor spreading across residential street.',
-      category: 'Sanitation & Waste',
+          'Critical road management failure observed at the Naidu street junction. Local community impact rising due to lack of observation and poor quality.',
+      category: 'Road Safety',
       ward: 'Ward 62',
-      address: '12th Cross Street, Bharathi Nagar, Ward 62',
+      address: 'Bharathiyar Street',
       latitude: 13.0841,
       longitude: 80.2719,
       status: AuthorityComplaintStatus.assigned,
       priority: AuthorityPriority.high,
       sdg: const SdgInfo(
-        number: 11,
-        title: 'Sustainable Cities & Communities',
+        number: 9,
+        title: 'Industry, Innovation & Infrastructure',
         description: 'Make cities and human settlements inclusive, safe, resilient, and sustainable.',
         color: Color(0xFFFD9D24),
       ),
       evidenceImages: [
-        'assets/images/waste_heap.jpg',
+        'assets/images/sample_pothole.jpg',
       ],
       upvotes: 35,
       commentsCount: 9,
-      reportedAt: DateTime.now().subtract(const Duration(hours: 7)),
+      reportedAt: DateTime.now().subtract(const Duration(hours: 12)),
       reportedBy: 'Deepa Narayanan',
     ),
     AuthorityComplaint(
       id: 'CMP-2026-4380',
-      title: 'Deep crater pothole dangerous for two-wheelers during night',
+      backendId: 4380,
+      title: 'Damaged Street Light',
       description:
-          'Deep asphalt damage approximately 2.5ft wide and 8 inches deep following heavy rainfall. Two accidents reported last evening. Barricading and cold-mix patch work required urgently.',
-      category: 'Roads & Infrastructure',
+          'A vital street light pillar at this intersection has suffered severe physical damage, resulting in physical danger.',
+      category: 'Road Safety',
       ward: 'Ward 62',
-      address: 'Radial Road underpass flyover ramp, Ward 62',
+      address: 'Bharathiyar Street',
       latitude: 13.0872,
       longitude: 80.2654,
       status: AuthorityComplaintStatus.reviewing,
       priority: AuthorityPriority.high,
       sdg: const SdgInfo(
-        number: 9,
-        title: 'Industry, Innovation & Infrastructure',
-        description: 'Build resilient infrastructure and foster sustainable civic development.',
-        color: Color(0xFFF36E25),
+        number: 11,
+        title: 'Sustainable Cities & Communities',
+        description: 'Safe and well-lit urban environments for citizen safety.',
+        color: Color(0xFFFD9D24),
       ),
       evidenceImages: [
-        'assets/images/pothole_crater.jpg',
+        'assets/images/sample_streetlight.jpg',
       ],
       upvotes: 52,
       commentsCount: 21,
-      reportedAt: DateTime.now().subtract(const Duration(hours: 14)),
+      reportedAt: DateTime.now().subtract(const Duration(days: 1)),
       reportedBy: 'Suresh Kumar',
     ),
     AuthorityComplaint(
       id: 'CMP-2026-4322',
+      backendId: 4322,
       title: 'High-mast street light cluster non-functional for 2 weeks',
       description:
           'Five consecutive pole lights along the main canal bank road remain blacked out after dark. Significant security concern for pedestrians and commuters heading to the transit hub.',
@@ -301,6 +354,7 @@ class MockAuthorityRepository {
     ),
     AuthorityComplaint(
       id: 'CMP-2026-4290',
+      backendId: 4290,
       title: 'Stormwater drain blockage and foul water backflow',
       description:
           'Plastic debris and silt buildup choking 100m section of open stormwater canal. Water overflowing onto footpath during morning rains.',
@@ -328,54 +382,107 @@ class MockAuthorityRepository {
     ),
   ];
 
+  static const AuthorityCourse featuredCourse = AuthorityCourse(
+    id: 'CRS-SEEK-01',
+    title: 'Social Emotional Education:\nKnowledge to Practice (SEEK)',
+    department: 'Education & Ethics',
+    totalModules: 10,
+    completedModules: 7,
+    progress: 0.68,
+    duration: '6.0 Hours',
+    level: 'Intermediate',
+    instructor: 'UNESCO MGIEP & MEdAL Academy',
+    badgeText: 'IN PROGRESS',
+    buttonActionText: 'Continue Learning',
+    isFeatured: true,
+  );
+
   static final List<AuthorityCourse> courses = [
     const AuthorityCourse(
       id: 'CRS-AUTH-101',
-      title: 'Urban Water Distribution & High-Pressure Leakage Protocols',
-      department: 'Water Supply & Sewerage',
+      title: 'Lorem ipsum dolor',
+      department: 'Environmental Management',
       totalModules: 8,
-      completedModules: 6,
-      progress: 0.75,
-      duration: '4.5 Hours',
-      level: 'Intermediate',
-      instructor: 'Ministry of Jal Shakti & MEdAL Academy',
+      completedModules: 3,
+      progress: 0.4,
+      duration: '4h',
+      level: 'All Levels',
+      instructor: 'MEdAL Academy',
+      rating: 4.9,
+      badgeText: 'SDG 15',
+      imageAsset: 'assets/images/sample_mountain.jpg',
+      buttonActionText: 'Start Course',
     ),
     const AuthorityCourse(
       id: 'CRS-AUTH-102',
-      title: 'Civic SLA Management & Escalation Framework',
-      department: 'Public Governance',
-      totalModules: 5,
-      completedModules: 5,
-      progress: 1.0,
-      duration: '3.0 Hours',
+      title: 'Lorem ipsum dolor',
+      department: 'Empathy & Civic Communication',
+      totalModules: 6,
+      completedModules: 0,
+      progress: 0.0,
+      duration: '6h',
       level: 'Advanced',
       instructor: 'National Institute of Urban Affairs',
+      rating: 4.7,
+      badgeText: 'EMPATHY',
+      imageAsset: 'assets/images/sample_chart.jpg',
+      buttonActionText: 'Enroll',
     ),
     const AuthorityCourse(
       id: 'CRS-AUTH-103',
-      title: 'Hazardous Waste Isolation & Rapid Municipal Remediation',
-      department: 'Sanitation & Health',
-      totalModules: 6,
-      completedModules: 2,
-      progress: 0.33,
-      duration: '5.0 Hours',
-      level: 'Specialist',
-      instructor: 'Central Pollution Control Board',
+      title: 'Lorem ipsum dolor',
+      department: 'Municipal Leadership',
+      totalModules: 5,
+      completedModules: 0,
+      progress: 0.0,
+      duration: '3h',
+      level: 'Leadership',
+      instructor: 'Central Governance Board',
+      rating: 4.8,
+      badgeText: 'LEADERSHIP',
+      imageAsset: 'assets/images/sample_team.jpg',
+      buttonActionText: 'Enroll',
     ),
     const AuthorityCourse(
       id: 'CRS-AUTH-104',
-      title: 'GIS-Based Spatial Civic Inspection & Road Asset Auditing',
-      department: 'Roads & Infrastructure',
-      totalModules: 10,
+      title: 'Lorem ipsum dolor',
+      department: 'Mindfulness & Focus',
+      totalModules: 8,
       completedModules: 0,
       progress: 0.0,
-      duration: '6.5 Hours',
-      level: 'All Levels',
-      instructor: 'MEdAL Geospatial Civic Cell',
+      duration: '5h',
+      level: 'Intermediate',
+      instructor: 'MEdAL Academy',
+      rating: 4.6,
+      badgeText: 'MINDFULNESS',
+      imageAsset: 'assets/images/sample_building.jpg',
+      buttonActionText: 'Start Course',
     ),
   ];
 
   static final List<AuthorityCertificate> certificates = [
+    const AuthorityCertificate(
+      id: 'CERT-AUTH-2024-084',
+      title: 'Advanced Grievance Resolution',
+      issuedBy: 'National Institute of Urban Affairs & MEdAL',
+      issueDate: '15 May 2024',
+      credentialUrl: 'https://medal.gov.in/verify/MED-8929-XR4',
+      grade: 'Distinction (96%)',
+      certificateNo: 'MED-8929-XR4',
+      completionDateText: 'COMPLETED MAY 2024',
+      badgeType: 'check',
+    ),
+    const AuthorityCertificate(
+      id: 'CERT-AUTH-2024-012',
+      title: 'SDG Alignment & Institutional Ethics',
+      issuedBy: 'Ministry of Housing and Urban Affairs & MEdAL Cell',
+      issueDate: '20 Feb 2024',
+      credentialUrl: 'https://medal.gov.in/verify/MED-1102-G12',
+      grade: 'Certified Officer',
+      certificateNo: 'MED-1102-G12',
+      completionDateText: 'COMPLETED FEB 2024',
+      badgeType: 'star',
+    ),
     const AuthorityCertificate(
       id: 'CERT-AUTH-2025-081',
       title: 'Civic SLA Management & Escalation Framework',
@@ -383,59 +490,75 @@ class MockAuthorityRepository {
       issueDate: '15 Nov 2025',
       credentialUrl: 'https://medal.gov.in/verify/CERT-AUTH-2025-081',
       grade: 'Distinction (94%)',
-    ),
-    const AuthorityCertificate(
-      id: 'CERT-AUTH-2025-042',
-      title: 'Municipal Digital Grievance Redressal Certification',
-      issuedBy: 'State E-Governance Mission & MEdAL Cell',
-      issueDate: '28 Aug 2025',
-      credentialUrl: 'https://medal.gov.in/verify/CERT-AUTH-2025-042',
-      grade: 'Executive Honors',
-    ),
-    const AuthorityCertificate(
-      id: 'CERT-AUTH-2024-911',
-      title: 'Public Works Environmental Quality & SDG Standards',
-      issuedBy: 'Ministry of Housing and Urban Affairs (MoHUA)',
-      issueDate: '10 Dec 2024',
-      credentialUrl: 'https://medal.gov.in/verify/CERT-AUTH-2024-911',
-      grade: 'Certified Auditor',
+      certificateNo: 'MED-5501-A90',
+      completionDateText: 'COMPLETED NOV 2023',
+      badgeType: 'check',
     ),
   ];
 
   static final List<AuthorityNotificationItem> notifications = [
     AuthorityNotificationItem(
+      id: 'NOTIF-TOP',
+      title: 'People tagged you',
+      body: 'John Doe, Red Swan and others tagged you',
+      timestamp: DateTime.now().subtract(const Duration(minutes: 15)),
+      isRead: false,
+      isUrgent: false,
+      iconType: 'check',
+      group: 'Header',
+    ),
+    AuthorityNotificationItem(
       id: 'NOTIF-1',
-      title: 'Critical Issue Assigned: Water Main Breach',
-      body: 'Complaint #CMP-2026-4401 in Ward 62 has been escalated and assigned to your department. SLA: 24h response required.',
-      timestamp: DateTime.now().subtract(const Duration(minutes: 25)),
+      title: 'Course 20% pending , we would love to see your progress',
+      body: 'Course 20% pending , we would love to see your progress',
+      timestamp: DateTime.now().subtract(const Duration(days: 2)),
       isRead: false,
       isUrgent: true,
-      relatedComplaintId: 'CMP-2026-4401',
+      iconType: 'academy',
+      group: 'Last 7 days',
+      actionButtonText: 'View',
     ),
     AuthorityNotificationItem(
       id: 'NOTIF-2',
-      title: 'Community Escalation Threshold Crossed',
-      body: 'Complaint #CMP-2026-4380 (Pothole crater) has reached 50+ citizen upvotes in Ward 62.',
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      isRead: false,
-      isUrgent: true,
-      relatedComplaintId: 'CMP-2026-4380',
+      title: 'Redirected update',
+      body: 'View the redirected update on the complaint.',
+      timestamp: DateTime.now().subtract(const Duration(days: 4)),
+      isRead: true,
+      isUrgent: false,
+      iconType: 'redirect',
+      group: 'Last 7 days',
     ),
     AuthorityNotificationItem(
       id: 'NOTIF-3',
-      title: 'Admin Verification Notice',
-      body: 'Your municipal authority credentials and department jurisdiction were validated successfully by the Nodal Admin.',
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
+      title: 'Course 1 successfully completed , view the certificate',
+      body: 'Course 1 successfully completed , view the certificate',
+      timestamp: DateTime.now().subtract(const Duration(days: 12)),
       isRead: true,
       isUrgent: false,
+      iconType: 'academy',
+      group: 'Last 30 days',
+      actionButtonText: 'View',
     ),
     AuthorityNotificationItem(
       id: 'NOTIF-4',
-      title: 'Monthly Ward Performance Report Ready',
-      body: 'Ward 62 closed 48 civic reports with a 91% resolution compliance rate for the previous cycle.',
-      timestamp: DateTime.now().subtract(const Duration(days: 3)),
+      title: 'Tagged you',
+      body: 'John Doe has tagged you',
+      timestamp: DateTime.now().subtract(const Duration(days: 18)),
       isRead: true,
       isUrgent: false,
+      iconType: 'tag',
+      group: 'Last 30 days',
+      actionButtonText: 'View',
+    ),
+    AuthorityNotificationItem(
+      id: 'NOTIF-5',
+      title: 'Communities update',
+      body: '30+ posts on the community',
+      timestamp: DateTime.now().subtract(const Duration(days: 25)),
+      isRead: true,
+      isUrgent: false,
+      iconType: 'community',
+      group: 'Last 30 days',
     ),
   ];
 }
