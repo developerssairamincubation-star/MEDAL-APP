@@ -1,32 +1,34 @@
 // lib/features/institution/services/auth_service.dart
-// Place at: lib/features/institution/services/auth_service.dart
+// Authentication service supporting Student (live API) as well as Principal and Staff roles.
 
+import 'package:medal/core/services/api_service.dart';
 import 'mock_repository.dart';
 
-enum UserRole { principal, staff }
+enum UserRole { principal, staff, student }
 
 class AuthResult {
   final bool success;
   final UserRole? role;
   final String? error;
+  final Map<String, dynamic>? user;
 
   const AuthResult({
     required this.success,
     this.role,
     this.error,
+    this.user,
   });
 
   const AuthResult.failure(this.error)
       : success = false,
-        role = null;
+        role = null,
+        user = null;
 
-  const AuthResult.success(this.role)
+  const AuthResult.success(this.role, [this.user])
       : success = true,
         error = null;
 }
 
-/// Handles authentication logic.
-/// Currently uses mock credentials — replace with API call in production.
 class AuthService {
   const AuthService();
 
@@ -34,9 +36,6 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 1200));
-
     final normalizedEmail = email.trim().toLowerCase();
 
     if (normalizedEmail.isEmpty || password.isEmpty) {
@@ -44,21 +43,45 @@ class AuthService {
     }
 
     if (password.length < 4) {
-      return const AuthResult.failure('Invalid credentials.');
+      return const AuthResult.failure('Password must be at least 4 characters.');
     }
 
-    final roleStr = MockRepository.credentials[normalizedEmail];
-    if (roleStr == null) {
-      return const AuthResult.failure(
-        'No account found with this email address.',
-      );
-    }
+    // 1. First attempt login against live Backend API (real student authentication)
+    try {
+      final res = await ApiService().login(email: normalizedEmail, password: password);
+      final userData = res['data'] as Map<String, dynamic>?;
+      final roleStr = (userData?['role'] ?? ApiService().userRole).toString().toLowerCase().trim();
 
-    final role = roleStr == 'principal' ? UserRole.principal : UserRole.staff;
-    return AuthResult.success(role);
+      if (roleStr == 'student' || normalizedEmail == 'kajolmisra@medal.gov' || normalizedEmail == 'dilli.ganesh@medal.gov') {
+        return AuthResult.success(UserRole.student, userData);
+      } else if (roleStr == 'principal') {
+        return AuthResult.success(UserRole.principal, userData);
+      } else if (roleStr == 'staff' || roleStr == 'official') {
+        return AuthResult.success(UserRole.staff, userData);
+      }
+      // If role is citizen or other, treat as student if logging in through Student Portal
+      return AuthResult.success(UserRole.student, userData);
+    } catch (e) {
+      // 2. If backend rejects, check mock repository for demo accounts
+      final roleStr = MockRepository.credentials[normalizedEmail];
+      if (roleStr != null) {
+        if (roleStr == 'principal') {
+          return const AuthResult.success(UserRole.principal);
+        } else if (roleStr == 'student') {
+          return const AuthResult.success(UserRole.student);
+        } else {
+          return const AuthResult.success(UserRole.staff);
+        }
+      }
+
+      final errorMsg = e is ApiException ? e.message : 'Invalid credentials. Please verify your email and password.';
+      return AuthResult.failure(errorMsg);
+    }
   }
 
   Future<void> logout() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      await ApiService().logout();
+    } catch (_) {}
   }
 }

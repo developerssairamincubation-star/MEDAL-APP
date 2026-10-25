@@ -1,5 +1,5 @@
-// lib/routes/app_routes.dart
-// Place at: lib/routes/app_routes.dart
+// lib/modules/institution/routes/app_routes.dart
+// Centralized GoRouter routing configuration for the Institution & Student Portal.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +8,17 @@ import 'package:go_router/go_router.dart';
 import '../features/institution/providers/auth_provider.dart';
 import '../features/institution/screens/splash_screen.dart';
 import '../features/institution/screens/auth/institution_login_screen.dart';
+import '../features/institution/screens/auth/student_register_screen.dart';
+
+import '../features/institution/screens/student/student_dashboard_screen.dart';
+import '../features/institution/screens/student/student_course_progress_screen.dart';
+import '../features/institution/screens/student/student_academy_screen.dart';
+import '../features/institution/screens/student/student_course_detail_screen.dart';
+import '../features/institution/screens/student/student_pending_courses_screen.dart';
+import '../features/institution/screens/student/student_profile_screen.dart';
+import '../features/institution/screens/student/student_edit_profile_screen.dart';
+import '../features/institution/screens/student/student_notifications_screen.dart';
+
 import '../features/institution/screens/principal/principal_dashboard_screen.dart';
 import '../features/institution/screens/principal/staff_list_screen.dart';
 import '../features/institution/screens/principal/add_staff_screen.dart';
@@ -19,11 +30,22 @@ import '../features/institution/screens/staff/invite_students_screen.dart';
 import '../features/institution/screens/staff/staff_profile_screen.dart';
 import '../features/institution/services/auth_service.dart';
 
-// ── Route Names (named constants to avoid typos) ──────────────────────────────
+// ── Route Names ─────────────────────────────────────────────────────────────
 
 abstract final class AppRoutes {
   static const String splash = '/';
   static const String login = '/login';
+
+  // Student Portal
+  static const String studentRegister = '/student/register';
+  static const String studentDashboard = '/student/dashboard';
+  static const String studentCourseProgress = '/student/course-progress';
+  static const String studentAcademy = '/student/academy';
+  static const String studentProfile = '/student/profile';
+  static const String studentEditProfile = '/student/edit-profile';
+  static const String studentPendingCourses = '/student/pending-courses';
+  static const String studentNotifications = '/student/notifications';
+  static const String studentCourseDetail = '/student/course-detail/:courseId';
 
   // Principal
   static const String principalDashboard = '/principal/dashboard';
@@ -39,7 +61,7 @@ abstract final class AppRoutes {
   static const String staffProfile = '/staff/profile';
 }
 
-// ── Router Provider ───────────────────────────────────────────────────────────
+// ── Router Provider ─────────────────────────────────────────────────────────
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -51,31 +73,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = authState.isAuthenticated;
       final isSplashRoute = state.matchedLocation == AppRoutes.splash;
       final isLoginRoute = state.matchedLocation == AppRoutes.login;
+      final isRegisterRoute = state.matchedLocation == AppRoutes.studentRegister;
 
-      // If on splash route, don't redirect yet (splash screen handles navigation after timer)
-      if (isSplashRoute) return null;
+      // Allow splash and registration without authentication
+      if (isSplashRoute || isRegisterRoute) return null;
 
       // If not authenticated and not on login → go to login
       if (!isAuthenticated && !isLoginRoute) return AppRoutes.login;
 
-      // If authenticated and on login → redirect to correct dashboard
+      // If authenticated and on login → redirect to appropriate role dashboard
       if (isAuthenticated && isLoginRoute) {
         if (authState.role == UserRole.principal) {
           return AppRoutes.principalDashboard;
+        } else if (authState.role == UserRole.staff) {
+          return AppRoutes.staffDashboard;
         } else {
-          return AppRoutes.staffDashboard;
-        }
-      }
-
-      // If authenticated and on wrong role's route, redirect
-      if (isAuthenticated && authState.role == UserRole.principal) {
-        if (state.matchedLocation.startsWith('/staff')) {
-          return AppRoutes.principalDashboard;
-        }
-      }
-      if (isAuthenticated && authState.role == UserRole.staff) {
-        if (state.matchedLocation.startsWith('/principal')) {
-          return AppRoutes.staffDashboard;
+          return AppRoutes.studentDashboard;
         }
       }
 
@@ -94,6 +107,57 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.login,
         name: 'login',
         builder: (context, state) => const InstitutionLoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentRegister,
+        name: 'studentRegister',
+        builder: (context, state) => const StudentRegisterScreen(),
+      ),
+
+      // ── Student Portal Routes ───────────────────────────────────
+      GoRoute(
+        path: AppRoutes.studentDashboard,
+        name: 'studentDashboard',
+        builder: (context, state) => const StudentDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentCourseProgress,
+        name: 'studentCourseProgress',
+        builder: (context, state) => const StudentCourseProgressScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentAcademy,
+        name: 'studentAcademy',
+        builder: (context, state) => const StudentAcademyScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentProfile,
+        name: 'studentProfile',
+        builder: (context, state) => const StudentProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentEditProfile,
+        name: 'studentEditProfile',
+        builder: (context, state) => const StudentEditProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentPendingCourses,
+        name: 'studentPendingCourses',
+        builder: (context, state) => const StudentPendingCoursesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentNotifications,
+        name: 'studentNotifications',
+        builder: (context, state) => const StudentNotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/student/course-detail/:courseId',
+        name: 'studentCourseDetail',
+        builder: (context, state) {
+          final idStr = state.pathParameters['courseId'] ?? '1';
+          final id = int.tryParse(idStr) ?? 1;
+          return StudentCourseDetailScreen(courseId: id);
+        },
       ),
 
       // ── Principal ──────────────────────────────────────────────

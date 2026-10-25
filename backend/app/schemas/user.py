@@ -13,6 +13,8 @@ class UserProfileUpdate(BaseModel):
     full_name: str | None = None
     phone: str | None = None
     profile_image_url: str | None = None
+    department: str | None = None
+    preferences: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -27,6 +29,9 @@ class UserResponse(BaseModel):
     department: str | None = None
     jurisdiction: str | None = None
     clearance_level: str | None = None
+    student_id: str | None = None
+    registration_number: str | None = None
+    preferences: str | None = None
     is_verified: bool
     is_active: bool
     created_at: datetime

@@ -30,6 +30,9 @@ class User(Base):
     department: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     jurisdiction: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     clearance_level: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    student_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    registration_number: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    preferences: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(

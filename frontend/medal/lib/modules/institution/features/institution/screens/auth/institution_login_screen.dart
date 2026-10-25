@@ -1,5 +1,5 @@
 // lib/features/institution/screens/auth/institution_login_screen.dart
-// Place at: lib/features/institution/screens/auth/institution_login_screen.dart
+// Student Login Screen matching Screenshot 1 pixel-for-pixel, with options for staff/principal login.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,14 +13,6 @@ import '../../widgets/medal_app_bar.dart';
 import '../../widgets/custom_action_button.dart';
 import '../../services/auth_service.dart';
 
-/// Institution Login Screen.
-/// Design matches Institution_login.png:
-/// - Lavender-grey background
-/// - White rounded card
-/// - MEdAL logo (icon + text) centered
-/// - Username (email) + Password fields
-/// - Forgot Password? link
-/// - Sign In button
 class InstitutionLoginScreen extends ConsumerStatefulWidget {
   const InstitutionLoginScreen({super.key});
 
@@ -57,10 +49,71 @@ class _InstitutionLoginScreenState
       final role = ref.read(authProvider).role;
       if (role == UserRole.principal) {
         context.go(AppRoutes.principalDashboard);
-      } else {
+      } else if (role == UserRole.staff) {
         context.go(AppRoutes.staffDashboard);
+      } else {
+        context.go(AppRoutes.studentDashboard);
       }
     }
+  }
+
+  void _showForgotPasswordDialog() {
+    final resetEmailController = TextEditingController(text: _emailController.text);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Reset Password',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Enter your registered student email address. A password reset link will be sent to your inbox.',
+              style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: resetEmailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                hintText: 'name@organization.com',
+                prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('If this email is registered, a password reset link has been dispatched.'),
+                  backgroundColor: AppTheme.primary,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Send Reset Link'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -68,13 +121,13 @@ class _InstitutionLoginScreenState
     final authState = ref.watch(authProvider);
     final size = MediaQuery.sizeOf(context);
 
-    // Listen for errors
+    // Listen for auth errors
     ref.listen<AuthState>(authProvider, (prev, next) {
       if (next.error != null && next.error != prev?.error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.error!),
-            backgroundColor: AppTheme.statusInactive,
+            backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
@@ -85,194 +138,262 @@ class _InstitutionLoginScreenState
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: const Color(0xFFF7F8FC),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: size.width * 0.06,
+              horizontal: size.width > 500 ? (size.width - 420) / 2 : size.width * 0.06,
             ),
             child: Column(
               children: [
-                SizedBox(height: size.height * 0.10),
+                SizedBox(height: size.height * 0.08),
+
                 // ── MEdAL Logo ──────────────────────────────────
                 const MedalLogoLarge(),
                 SizedBox(height: size.height * 0.04),
-                // ── Login Card ──────────────────────────────────
+
+                // ── Student Login Card (Screenshot 1) ───────────
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(28),
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppTheme.border.withValues(alpha: 0.5)),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E4EC)),
                     boxShadow: const [
                       BoxShadow(
-                        color: AppTheme.black05,
+                        color: Color(0x0A000000),
                         blurRadius: 20,
                         offset: Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Title
-                        Text(
-                          'Institution login',
-                          style: GoogleFonts.inter(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Welcome Back',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        // ── Username / Email ────────────────────
-                        _buildFieldLabel('Username'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autocorrect: false,
-                          decoration: InputDecoration(
-                            hintText: 'name@organization.com',
-                            prefixIcon: const Icon(
-                              Icons.email_outlined,
-                              color: AppTheme.textMuted,
-                              size: 20,
-                            ),
-                          ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Please enter your email';
-                            }
-                            if (!v.contains('@')) {
-                              return 'Enter a valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        // ── Password ────────────────────────────
-                        _buildFieldLabel('Password'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _handleSignIn(),
-                          decoration: InputDecoration(
-                            hintText: '••••••••',
-                            prefixIcon: const Icon(
-                              Icons.lock_outline_rounded,
-                              color: AppTheme.textMuted,
-                              size: 20,
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                color: AppTheme.textMuted,
-                                size: 20,
-                              ),
-                              onPressed: () => setState(
-                                () => _obscurePassword = !_obscurePassword,
-                              ),
-                            ),
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) {
-                              return 'Please enter your password';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        // ── Forgot Password ─────────────────────
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    'Password reset link sent to your email.',
-                                  ),
-                                  backgroundColor: AppTheme.primary,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              );
-                            },
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(0, 0),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              'Forgot Password?',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primary,
-                              ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Blue accent bar on top left (as in Screenshot 1)
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: Container(
+                          width: 100,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF0467B6),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              bottomRight: Radius.circular(4),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        // ── Sign In Button ──────────────────────
-                        CustomActionButton(
-                          label: 'Sign In',
-                          isLoading: authState.isLoading,
-                          onPressed: _handleSignIn,
-                        ),
-                        const SizedBox(height: 16),
-                        // ── Demo hint ───────────────────────────
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                      ),
+
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(26, 20, 26, 28),
+                        child: Form(
+                          key: _formKey,
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
+                              // Title
                               Text(
-                                'Demo Credentials',
+                                'Student login',
                                 style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.primary,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF0467B6),
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Text(
-                                'Principal: principal@medal.gov\nStaff: staff@medal.gov\n(any password)',
+                                'Welcome Back',
                                 style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: AppTheme.textSecondary,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF0467B6),
                                 ),
-                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 28),
+
+                              // ── Username / Email ────────────────────
+                              _buildFieldLabel('Username'),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                autocorrect: false,
+                                decoration: InputDecoration(
+                                  hintText: 'name@organization.com',
+                                  hintStyle: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: const Color(0xFF94A3B8),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  prefixIcon: const Icon(
+                                    Icons.email_outlined,
+                                    color: Color(0xFF64748B),
+                                    size: 20,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E4EC), width: 1),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Color(0xFF0467B6), width: 1.5),
+                                  ),
+                                ),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Please enter your username/email';
+                                  }
+                                  if (!v.contains('@')) {
+                                    return 'Enter a valid email';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 18),
+
+                              // ── Password ────────────────────────────
+                              _buildFieldLabel('Password'),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (_) => _handleSignIn(),
+                                decoration: InputDecoration(
+                                  hintText: '••••••••',
+                                  hintStyle: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: const Color(0xFF94A3B8),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  prefixIcon: const Icon(
+                                    Icons.lock_outline_rounded,
+                                    color: Color(0xFF64748B),
+                                    size: 20,
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: const Color(0xFF64748B),
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(
+                                      () => _obscurePassword = !_obscurePassword,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E4EC), width: 1),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Color(0xFF0467B6), width: 1.5),
+                                  ),
+                                ),
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) {
+                                    return 'Please enter your password';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 12),
+
+                              // ── Forgot Password Link ────────────────
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: GestureDetector(
+                                  onTap: _showForgotPasswordDialog,
+                                  child: Text(
+                                    'Forgot Password?',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF0467B6),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 22),
+
+                              // ── Sign In Button ──────────────────────
+                              CustomActionButton(
+                                label: 'Sign In',
+                                isLoading: authState.isLoading,
+                                onPressed: _handleSignIn,
+                              ),
+                              const SizedBox(height: 20),
+
+                              // ── Don't have an account ? Sign up ─────
+                              GestureDetector(
+                                onTap: () => context.push(AppRoutes.studentRegister),
+                                child: Text.rich(
+                                  TextSpan(
+                                    text: "Don't have a account ? ",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                    children: [
+                                      TextSpan(
+                                        text: 'Sign up',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF0467B6),
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Demo Hint / Role Switcher ───────────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0467B6).withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Demo Student: kajolmisra@medal.gov  |  Password: Password123!',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0467B6),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Faculty/Principal: principal@medal.gov (any password)',
+                        style: GoogleFonts.inter(
+                          fontSize: 10.5,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 SizedBox(height: size.height * 0.04),
@@ -291,8 +412,8 @@ class _InstitutionLoginScreenState
         label,
         style: GoogleFonts.inter(
           fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: AppTheme.textPrimary,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF0467B6),
         ),
       ),
     );

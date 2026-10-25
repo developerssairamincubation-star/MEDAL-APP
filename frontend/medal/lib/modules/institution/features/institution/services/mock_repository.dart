@@ -35,7 +35,7 @@ abstract final class MockRepository {
     Staff(
       id: 'usr_002',
       name: 'Sarah Jenkins',
-      email: 'kajolmisra@medal.gov',
+      email: 'sarah.jenkins@medal.gov',
       phone: '+91 93870 98213',
       department: 'Mathematics Department',
       jobTitle: 'Mathematics Department',
@@ -267,8 +267,10 @@ abstract final class MockRepository {
   // ── Credentials (for mock login) ──────────────────────────────
   static const Map<String, String> credentials = {
     'steverogers@medal.gov': 'principal',
-    'kajolmisra@medal.gov': 'staff',
     'principal@medal.gov': 'principal',
     'staff@medal.gov': 'staff',
+    'sarah.jenkins@medal.gov': 'staff',
+    'kajolmisra@medal.gov': 'student',
+    'dilli.ganesh@medal.gov': 'student',
   };
 }

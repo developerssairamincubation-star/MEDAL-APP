@@ -236,7 +236,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
   Widget _buildInstitutionCard(BuildContext context) {
     return RoleCard(
       title: 'Institution',
-      description: 'Sign in to your Principal or Staff account to manage courses, classes, and student invitations.',
+      description: 'Access the Student Portal for SEEK learning & certifications, or sign in to your Principal/Staff account.',
       icon: const Icon(
         Icons.school_rounded,
         color: MedalTheme.primary,

@@ -38,8 +38,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (authState.isAuthenticated) {
       if (authState.role == UserRole.principal) {
         context.go(AppRoutes.principalDashboard);
-      } else {
+      } else if (authState.role == UserRole.staff) {
         context.go(AppRoutes.staffDashboard);
+      } else {
+        context.go(AppRoutes.studentDashboard);
       }
     } else {
       context.go(AppRoutes.login);
