@@ -43,10 +43,10 @@ class ApiService {
   }
 
   /// Backend API Base URL — driven by lib/config/api_config.dart.
-  /// Web/Desktop defaults to kLocalhostUrl, Android/iOS uses kActiveBaseUrl.
-  String baseUrl = isDesktopOrWeb ? kLocalhostUrl : kActiveBaseUrl;
+  /// Uses production Render HTTPS URL by default, or environment override via APP_ENV.
+  String baseUrl = ApiConfig.baseUrl;
 
-  /// Resolves image URLs for both local uploads and MinIO object storage.
+  /// Resolves image URLs for both Cloudinary HTTPS, local uploads and MinIO object storage.
   /// Dynamically maps localhost/LAN hosts to the active server host for web, desktop, and mobile.
   String resolveImageUrl(String? url) {
     if (url == null || url.trim().isEmpty) return '';
@@ -71,8 +71,9 @@ class ApiService {
           uri.path.contains('/reports/') ||
           uri.path.contains('/profiles/')) {
         final port = uri.port > 0 ? uri.port : 9000;
+        final scheme = targetHost.contains('onrender.com') ? 'http' : targetScheme;
         return Uri(
-          scheme: targetScheme,
+          scheme: scheme,
           host: targetHost,
           port: port,
           path: uri.path,
@@ -357,15 +358,34 @@ class ApiService {
       logout();
     }
 
-    String errorMsg = response.statusCode >= 500
-        ? 'Service is temporarily unavailable. Please try again shortly.'
-        : 'An error occurred (${response.statusCode})';
+    String errorMsg = 'An error occurred (${response.statusCode})';
+    if (response.statusCode == 401) {
+      errorMsg = 'Incorrect email or password, or session has expired.';
+    } else if (response.statusCode == 403) {
+      errorMsg = 'Access denied. You do not have permission to perform this action.';
+    } else if (response.statusCode == 404) {
+      errorMsg = 'The requested resource was not found on the server.';
+    } else if (response.statusCode == 422) {
+      errorMsg = 'Validation failed. Please verify the submitted information.';
+    } else if (response.statusCode == 429) {
+      errorMsg = 'Too many requests. Please wait a moment before trying again.';
+    } else if (response.statusCode == 502 || response.statusCode == 503) {
+      errorMsg = 'MEDAL Cloud Service is temporarily unavailable or starting up. Please try again in a few moments.';
+    } else if (response.statusCode >= 500) {
+      errorMsg = 'Internal server error. Please try again shortly.';
+    }
+
     if (body is Map && body.containsKey('detail')) {
       final detail = body['detail'];
-      if (detail is String) {
-        errorMsg = detail;
+      if (detail is String && detail.trim().isNotEmpty) {
+        errorMsg = detail.trim();
       } else if (detail is List && detail.isNotEmpty) {
-        errorMsg = detail[0]['msg'] ?? detail.toString();
+        final firstError = detail[0];
+        if (firstError is Map && firstError.containsKey('msg')) {
+          errorMsg = firstError['msg']?.toString() ?? detail.toString();
+        } else {
+          errorMsg = detail.toString();
+        }
       }
     }
 
@@ -417,12 +437,14 @@ class ApiService {
             }),
           )
           .timeout(
-            const Duration(seconds: 15),
+            const Duration(seconds: 45),
             onTimeout: () {
-              debugPrint('[MEDAL] LOGIN TIMEOUT after 15s');
+              debugPrint('[MEDAL] LOGIN TIMEOUT after 45s');
               throw ApiException(
                 0,
-                'Connection to MEDAL server timed out ($baseUrl). Please check that your backend is running and reachable.',
+                uri.host.contains('onrender.com')
+                    ? 'Connection to MEDAL server timed out. The cloud server may be waking from sleep; please retry in a few moments.'
+                    : 'Connection to MEDAL server timed out ($baseUrl). Please check that your backend is running and reachable.',
               );
             },
           );
@@ -432,7 +454,9 @@ class ApiService {
       debugPrint('[MEDAL] LOGIN NETWORK ERROR: $e');
       throw ApiException(
         0,
-        'Cannot connect to the MEDAL server ($baseUrl). Make sure the backend is running on 0.0.0.0:8000, your phone is on the same Wi-Fi, and Windows Firewall permits connections.',
+        uri.host.contains('onrender.com')
+            ? 'Cannot connect to the MEDAL server ($baseUrl). Please check your internet connection and try again.'
+            : 'Cannot connect to the MEDAL server ($baseUrl). Make sure the backend is running on 0.0.0.0:8000, your phone is on the same Wi-Fi, and Windows Firewall permits connections.',
       );
     }
 
@@ -518,8 +542,15 @@ class ApiService {
       contentType: mediaType,
     );
     request.files.add(multipartFile);
-
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(
+      const Duration(seconds: 45),
+      onTimeout: () {
+        throw ApiException(
+          0,
+          'Profile photo upload timed out. Please check your network connection and try again.',
+        );
+      },
+    );
     final response = await http.Response.fromStream(streamedResponse);
     final data = _handleResponse(response) as Map<String, dynamic>;
 
@@ -659,8 +690,15 @@ class ApiService {
       contentType: mediaType,
     );
     request.files.add(multipartFile);
-
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(
+      const Duration(seconds: 45),
+      onTimeout: () {
+        throw ApiException(
+          0,
+          'Evidence upload timed out. Please check your network connection and try again.',
+        );
+      },
+    );
     final response = await http.Response.fromStream(streamedResponse);
     final data = _handleResponse(response) as Map<String, dynamic>;
     return data['image_url'] as String;
@@ -965,8 +1003,15 @@ class ApiService {
       contentType: mediaType,
     );
     request.files.add(multipartFile);
-
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(
+      const Duration(seconds: 45),
+      onTimeout: () {
+        throw ApiException(
+          0,
+          'Document upload timed out. Please check your network connection and try again.',
+        );
+      },
+    );
     final response = await http.Response.fromStream(streamedResponse);
     final data = _handleResponse(response) as Map<String, dynamic>;
     return data;

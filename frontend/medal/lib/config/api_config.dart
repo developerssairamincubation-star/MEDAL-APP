@@ -3,48 +3,104 @@
 // MEDAL — Central API Base URL Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// HOW TO FIND YOUR PC'S WI-FI IP (Windows PowerShell):
-//   Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\.' -and $_.IPAddress -notmatch '^169\.' }
-//   Look for the row where InterfaceAlias = "Wi-Fi"
-//
-// ── Deployment targets ───────────────────────────────────────────────────────
-//  Physical Android phone on LAN  →  http://<PC_WIFI_IP>:8000
-//  Android emulator               →  http://10.0.2.2:8000
-//  Web / Desktop (localhost)      →  http://127.0.0.1:8000
-//  Production server              →  https://your-domain.com
+// HOW TO SELECT ENVIRONMENTS:
+//   Production (default):
+//     flutter run (or flutter build apk --release)
+//   Physical Android Phone on Wi-Fi LAN:
+//     flutter run --dart-define=APP_ENV=lan
+//   Android Emulator (10.0.2.2):
+//     flutter run --dart-define=APP_ENV=emulator
+//   Localhost Desktop / Web:
+//     flutter run -d windows --dart-define=APP_ENV=local
+//   Custom Base URL:
+//     flutter run --dart-define=BASE_URL=https://your-custom-domain.com
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/foundation.dart';
 
-/// ★ CHANGE ONLY THIS VALUE when your PC's Wi-Fi IP changes.
-///   Run: Get-NetIPAddress -AddressFamily IPv4 in PowerShell
-///   then look for the Wi-Fi row.
-const String kPcWifiIp = '10.70.114.158';
+/// Production backend URL deployed on Render
+const String kRenderUrl = 'https://medal-backend.onrender.com';
 
-/// Backend port — matches uvicorn startup port
+/// Backend port — matches uvicorn startup port for local dev
 const int kBackendPort = 8000;
 
-/// Production backend URL (Render)
-const String kRenderUrl = 'https://medal-app.onrender.com';
-
-/// ── Computed URLs (do not edit below unless changing architecture) ─────────
+/// Local PC Wi-Fi IP for local physical device development
+const String kPcWifiIp = '10.70.114.158';
 
 /// URL used by physical Android device on the same Wi-Fi as the PC
 const String kAndroidLanUrl = 'http://$kPcWifiIp:$kBackendPort';
 
-/// URL used by Android emulator (10.0.2.2 maps to PC localhost)
+/// URL used by Android emulator (10.0.2.2 maps to host PC localhost)
 const String kAndroidEmulatorUrl = 'http://10.0.2.2:$kBackendPort';
 
 /// URL used by Flutter Web / Desktop running on the same machine
 const String kLocalhostUrl = 'http://127.0.0.1:$kBackendPort';
 
-/// Set to true when testing with physical phone on the same Wi-Fi LAN as PC.
-/// When true, physical Android builds will connect to kAndroidLanUrl.
-const bool kUseLocalLanForApk = true;
+/// Set to true ONLY if you explicitly want debug APK builds to force local LAN.
+/// Defaults to false so production Render URL is used reliably.
+const bool kUseLocalLanForApk = false;
 
-/// ── Active base URL (imported by ApiService) ──────────────────────────────
-/// Switch between the constants above to match your environment.
-/// When kUseLocalLanForApk is true, uses kAndroidLanUrl (physical Android phone on LAN).
-/// Otherwise, in production release builds uses kRenderUrl.
-const String kActiveBaseUrl =
-    kUseLocalLanForApk ? kAndroidLanUrl : (kReleaseMode ? kRenderUrl : kAndroidLanUrl);
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Centralized Environment-Aware API Configuration
+/// ─────────────────────────────────────────────────────────────────────────────
+class ApiConfig {
+  /// The official production Render backend URL
+  static const String productionUrl = kRenderUrl;
+
+  /// Active environment specified via `--dart-define=APP_ENV=...`
+  /// Supported values: 'production' (default), 'local', 'lan', 'emulator'.
+  static const String environment = String.fromEnvironment(
+    'APP_ENV',
+    defaultValue: 'production',
+  );
+
+  /// Custom base URL specified via `--dart-define=BASE_URL=...`
+  static const String customBaseUrl = String.fromEnvironment('BASE_URL');
+
+  /// Custom local URL specified via `--dart-define=LOCAL_API_URL=...`
+  static const String localApiUrl = String.fromEnvironment('LOCAL_API_URL');
+
+  /// Evaluates and returns the active API base URL.
+  static String get baseUrl {
+    // 1. Explicit BASE_URL override takes highest precedence
+    if (customBaseUrl.isNotEmpty) {
+      return customBaseUrl;
+    }
+
+    // 2. Legacy override flag if explicitly set to true
+    if (kUseLocalLanForApk && !kReleaseMode) {
+      return kAndroidLanUrl;
+    }
+
+    // 3. Resolve by environment
+    switch (environment.toLowerCase()) {
+      case 'lan':
+      case 'device':
+      case 'wifi':
+        return kAndroidLanUrl;
+
+      case 'emulator':
+        return kAndroidEmulatorUrl;
+
+      case 'local':
+      case 'desktop':
+        if (localApiUrl.isNotEmpty) return localApiUrl;
+        return kLocalhostUrl;
+
+      case 'production':
+      case 'prod':
+      default:
+        return productionUrl;
+    }
+  }
+
+  /// Whether current active configuration targets the production cloud service
+  static bool get isProduction =>
+      customBaseUrl.isNotEmpty
+          ? customBaseUrl.contains('onrender.com') || customBaseUrl.startsWith('https://')
+          : (environment.toLowerCase() == 'production' || environment.isEmpty);
+}
+
+/// Active base URL imported by ApiService and related components
+String get kActiveBaseUrl => ApiConfig.baseUrl;
+
