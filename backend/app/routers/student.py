@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, ConfigDict, EmailStr
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,11 @@ from app.database.database import get_db
 from app.models.user import User
 from app.models.student import StudentCourse, StudentEnrollment, StudentCertificate, StudentNotification
 from app.routers.auth import get_current_user
+from app.services.storage import BaseStorageService, get_storage_service
+from app.utils.file_validation import (
+    MAX_DOCUMENT_SIZE_BYTES,
+    validate_and_read_upload,
+)
 from app.utils.security import create_access_token, hash_password, verify_password
 
 logger = logging.getLogger("medal.student")
@@ -465,6 +470,35 @@ def get_student_certificates(
         }
         for c in certs
     ]
+
+
+@router.post("/certificates/upload", status_code=status.HTTP_201_CREATED)
+async def upload_certificate_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    storage: BaseStorageService = Depends(get_storage_service),
+):
+    """
+    Upload course completion certificate to Cloudinary under medal/certificates.
+    Supports PDF and certificate badge images up to 15MB.
+    """
+    contents, verified_mime, ext = await validate_and_read_upload(
+        file=file,
+        allowed_types={"image/*", "application/pdf"},
+        max_size_bytes=MAX_DOCUMENT_SIZE_BYTES,
+    )
+    res = await storage.upload_bytes(
+        data=contents,
+        filename=file.filename or f"certificate{ext}",
+        folder="medal/certificates",
+        content_type=verified_mime,
+    )
+    return {
+        "message": "Certificate uploaded successfully",
+        "download_url": res.secure_url,
+        "public_id": res.public_id,
+        "format": res.format,
+    }
 
 
 # ── 9. Notifications Screen ───────────────────────────────────────────

@@ -29,6 +29,8 @@ uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
+from app.services.storage import get_storage_service
+
 app.include_router(auth_router)
 app.include_router(complaint_router)
 app.include_router(authority_router)
@@ -43,5 +45,15 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    """Lightweight connectivity check — use this to verify backend is reachable from the phone."""
-    return {"status": "ok", "service": "MEDAL API"}
+    """Lightweight connectivity check — verifies backend and storage readiness."""
+    try:
+        storage = get_storage_service()
+        storage_health = storage.check_health()
+    except Exception as e:
+        storage_health = {"status": "unhealthy", "error": str(e)}
+
+    return {
+        "status": "ok" if storage_health.get("status") == "healthy" else "degraded",
+        "service": "MEDAL API",
+        "storage": storage_health,
+    }

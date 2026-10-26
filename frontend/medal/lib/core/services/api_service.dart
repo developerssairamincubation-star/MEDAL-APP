@@ -60,6 +60,11 @@ class ApiService {
       final uri = Uri.tryParse(trimmed);
       if (uri == null) return trimmed;
 
+      // Cloudinary or external CDN URLs are direct secure HTTPS URLs
+      if (uri.host.contains('cloudinary.com') || uri.host.contains('res.cloudinary.com')) {
+        return trimmed;
+      }
+
       // Check if this is a MinIO URL (port 9000 or contains /medal-evidence/, /reports/, or /profiles/)
       if (uri.port == 9000 ||
           uri.path.contains('medal-evidence') ||
@@ -486,7 +491,7 @@ class ApiService {
     return data;
   }
 
-  /// PUT /users/me/profile-photo (Upload and update citizen profile photo in MinIO)
+  /// PUT /users/me/profile-photo (Upload and update citizen profile photo in Cloudinary)
   Future<Map<String, dynamic>> updateProfilePhoto({
     required List<int> fileBytes,
     required String filename,

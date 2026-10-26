@@ -29,6 +29,7 @@ from app.schemas.user import (
 )
 from app.services.email import EmailDeliveryError, EmailService, get_email_service, mask_email
 from app.services.storage import BaseStorageService, get_storage_service
+from app.utils.file_validation import MAX_IMAGE_SIZE_BYTES, validate_and_read_upload
 from app.utils.security import (
     create_access_token,
     create_password_reset_token,
@@ -547,34 +548,43 @@ async def update_profile_photo(
     storage: BaseStorageService = Depends(get_storage_service),
 ):
     """
-    Upload and update authenticated user's profile photo in MinIO object storage.
-    Saves image under profiles/{user_id}/ and updates user's profile_image_url in PostgreSQL.
+    Upload and update authenticated user's profile photo in Cloudinary.
+    Saves image under medal/avatars/profiles/{user_id}/, cleans up old avatar,
+    and updates user's profile_image_url and profile_image_public_id in PostgreSQL.
     """
-    content_type = file.content_type
-    # If client sent generic application/octet-stream or empty content type, guess from filename
-    if not content_type or content_type in ("application/octet-stream", "application/octetstream", "binary/octet-stream"):
-        guessed_type, _ = mimetypes.guess_type(file.filename or "")
-        if guessed_type:
-            content_type = guessed_type
+    contents, verified_mime, ext = await validate_and_read_upload(
+        file=file,
+        allowed_types={"image/*"},
+        max_size_bytes=MAX_IMAGE_SIZE_BYTES,
+    )
 
-    if not content_type or not content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only image files are accepted for profile photo",
-        )
+    folder = f"medal/avatars/profiles/{current_user.id}"
+    upload_res = await storage.upload_bytes(
+        data=contents,
+        filename=file.filename or f"avatar{ext}",
+        folder=folder,
+        content_type=verified_mime,
+    )
 
-    folder = f"profiles/{current_user.id}"
-    file_url = await storage.upload_file(file, folder=folder)
+    # Clean up previous avatar from Cloudinary if it exists
+    old_public_id = current_user.profile_image_public_id
+    if old_public_id and old_public_id != upload_res.public_id:
+        try:
+            await storage.delete_asset(old_public_id)
+        except Exception as cleanup_err:
+            logger.warning("Could not delete old avatar %s: %s", old_public_id, cleanup_err)
 
-    current_user.profile_image_url = file_url
+    current_user.profile_image_url = upload_res.secure_url
+    current_user.profile_image_public_id = upload_res.public_id
     db.commit()
     db.refresh(current_user)
 
-    return {
-        "message": "Profile photo updated successfully",
-        "profile_image_url": file_url,
-        "data": current_user,
-    }
+    return ProfilePhotoResponse(
+        message="Profile photo updated successfully",
+        profile_image_url=upload_res.secure_url,
+        public_id=upload_res.public_id,
+        data=UserResponse.model_validate(current_user),
+    )
 
 
 def require_role(*allowed_roles: str):

@@ -30,7 +30,9 @@ class AuthorityApplication(Base):
         server_default="Level 2 (Inspection & Resolution Lead)",
     )
     aadhaar_document_url: Mapped[str] = mapped_column(String(1024), nullable=False)
+    aadhaar_public_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     employment_document_url: Mapped[str] = mapped_column(String(1024), nullable=False)
+    employment_public_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(
         String(32),
         nullable=False,

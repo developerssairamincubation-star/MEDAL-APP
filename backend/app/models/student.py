@@ -65,6 +65,7 @@ class StudentCertificate(Base):
     issuing_institution: Mapped[str] = mapped_column(String(128), default="Academic Excellence Academy", nullable=False)
     badge_type: Mapped[str] = mapped_column(String(64), default="verified", nullable=False)  # verified, star
     download_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    certificate_public_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

@@ -16,12 +16,18 @@ from app.schemas.complaint import (
     ComplaintStatsResponse,
     ComplaintStatusUpdate,
     ComplaintUpdate,
+    EvidenceUploadResponse,
     RepostResponse,
     SdgAnalysisResponse,
     UpvoteResponse,
 )
 from app.services.ai_sdg_service import AiSdgService
 from app.services.storage import BaseStorageService, get_storage_service
+from app.utils.file_validation import (
+    MAX_IMAGE_SIZE_BYTES,
+    detect_file_type_from_bytes,
+    validate_and_read_upload,
+)
 
 router = APIRouter(prefix="/complaints", tags=["Complaints"])
 
@@ -58,27 +64,36 @@ INFRASTRUCTURE_CATEGORIES = [
 import mimetypes
 
 
-@router.post("/upload-evidence", status_code=status.HTTP_200_OK)
+@router.post("/upload-evidence", response_model=EvidenceUploadResponse, status_code=status.HTTP_200_OK)
 async def upload_evidence(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     storage: BaseStorageService = Depends(get_storage_service),
 ):
-    """Upload an image evidence for a citizen report/complaint."""
-    content_type = file.content_type
-    # If client sent generic application/octet-stream or empty content type, guess from filename
-    if not content_type or content_type in ("application/octet-stream", "application/octetstream", "binary/octet-stream"):
-        guessed_type, _ = mimetypes.guess_type(file.filename or "")
-        if guessed_type:
-            content_type = guessed_type
+    """
+    Secure complaint evidence upload to Cloudinary.
+    Validates file size (max 10MB) and inspects magic bytes.
+    Saves under medal/complaints with safe, unguessable public IDs.
+    """
+    contents, verified_mime, ext = await validate_and_read_upload(
+        file=file,
+        allowed_types={"image/*"},
+        max_size_bytes=MAX_IMAGE_SIZE_BYTES,
+    )
 
-    if content_type and not content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only image files are accepted as evidence",
-        )
-    file_url = await storage.upload_file(file, folder="reports")
-    return {"image_url": file_url}
+    upload_result = await storage.upload_bytes(
+        data=contents,
+        filename=file.filename or f"evidence{ext}",
+        folder="medal/complaints",
+        content_type=verified_mime,
+    )
+
+    return EvidenceUploadResponse(
+        image_url=upload_result.secure_url,
+        public_id=upload_result.public_id,
+        format=upload_result.format,
+        bytes=upload_result.bytes,
+    )
 
 
 @router.post("/analyze-sdg", response_model=SdgAnalysisResponse, status_code=status.HTTP_200_OK)
@@ -166,6 +181,7 @@ def create_complaint(
         longitude=complaint_in.longitude,
         location_address=complaint_in.location_address,
         image_url=complaint_in.image_url,
+        image_public_id=complaint_in.image_public_id,
         sdg_alignment=complaint_in.sdg_alignment,
         impact_level=complaint_in.impact_level,
         equity_classification=complaint_in.equity_classification,
@@ -638,6 +654,8 @@ def update_complaint(
         complaint.location = complaint_in.location
     if complaint_in.image_url is not None:
         complaint.image_url = complaint_in.image_url
+    if complaint_in.image_public_id is not None:
+        complaint.image_public_id = complaint_in.image_public_id
     if complaint_in.sdg_alignment is not None:
         complaint.sdg_alignment = complaint_in.sdg_alignment
     if complaint_in.impact_level is not None:
@@ -656,10 +674,11 @@ def update_complaint(
 
 
 @router.delete("/{complaint_id}", status_code=status.HTTP_200_OK)
-def delete_complaint(
+async def delete_complaint(
     complaint_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    storage: BaseStorageService = Depends(get_storage_service),
 ):
     """Delete a complaint (Admin can delete any; Citizen can delete own if still in 'submitted' status)."""
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
@@ -682,6 +701,10 @@ def delete_complaint(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to delete this complaint",
         )
+
+    # Clean up Cloudinary asset if tracked
+    if complaint.image_public_id:
+        await storage.delete_asset(complaint.image_public_id)
 
     db.delete(complaint)
     db.commit()
@@ -738,6 +761,7 @@ def add_complaint_comment(
         parent_comment_id=comment_in.parent_comment_id,
         comment=text_clean,
         image_url=comment_in.image_url,
+        image_public_id=comment_in.image_public_id,
     )
     db.add(new_comment)
     db.commit()
@@ -758,6 +782,7 @@ def add_complaint_comment(
         comment=new_comment.comment,
         content=new_comment.comment,
         image_url=new_comment.image_url,
+        image_public_id=new_comment.image_public_id,
         created_at=new_comment.created_at,
         parent_comment_id=new_comment.parent_comment_id,
     )
@@ -814,6 +839,7 @@ def list_complaint_comments(
                 comment=comment_text,
                 content=comment_text,
                 image_url=comment_image_url,
+                image_public_id=comm.image_public_id,
                 created_at=comm.created_at,
                 parent_comment_id=comm.parent_comment_id,
                 is_deleted=comm.is_deleted,
@@ -823,11 +849,12 @@ def list_complaint_comments(
 
 
 @router.delete("/{complaint_id}/comments/{comment_id}", status_code=status.HTTP_200_OK)
-def delete_complaint_comment(
+async def delete_complaint_comment(
     complaint_id: int,
     comment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    storage: BaseStorageService = Depends(get_storage_service),
 ):
     """
     Delete a comment on a civic complaint.
@@ -837,7 +864,7 @@ def delete_complaint_comment(
     - If comment does not exist or belongs to another complaint, returns 404 Not Found.
     - If comment has replies: preserves thread integrity by soft-deleting
       ("This comment was deleted", is_deleted=True).
-    - If comment has no replies: completely removes from database.
+    - If comment has no replies: completely removes from database and cleans up stored image.
     """
     comment = db.query(ComplaintComment).filter(ComplaintComment.id == comment_id).first()
     if not comment:
@@ -874,7 +901,10 @@ def delete_complaint_comment(
             "has_replies": True,
         }
     else:
-        # Leaf comment: hard delete
+        # Leaf comment: clean up attached image if exists and hard delete
+        if comment.image_public_id:
+            await storage.delete_asset(comment.image_public_id)
+
         db.delete(comment)
         db.commit()
         return {

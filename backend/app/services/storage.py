@@ -1,26 +1,85 @@
-from abc import ABC, abstractmethod
+import asyncio
 import io
-import json
 import logging
+import mimetypes
 import os
+import time
 import uuid
-from typing import Optional
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional
 from dotenv import load_dotenv
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile, status
+
+from app.utils.file_validation import (
+    detect_file_type_from_bytes,
+    generate_safe_asset_id,
+    get_extension_for_mime,
+)
 
 load_dotenv()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("medal.storage")
+
+
+class UploadResult(str):
+    """
+    Structured upload result inheriting from str for 100% backward compatibility
+    with legacy callers that expect `file_url: str = await storage.upload_file(...)`.
+    Exposes asset metadata: `secure_url`, `public_id`, `resource_type`, `format`, `bytes`.
+    """
+    secure_url: str
+    public_id: str
+    resource_type: str
+    format: str
+    bytes: int
+    version: Optional[int]
+    access_mode: str
+
+    def __new__(
+        cls,
+        secure_url: str,
+        public_id: str = "",
+        resource_type: str = "image",
+        format: str = "",
+        bytes: int = 0,
+        version: Optional[int] = None,
+        access_mode: str = "public",
+    ):
+        obj = super().__new__(cls, secure_url)
+        obj.secure_url = secure_url
+        obj.public_id = public_id
+        obj.resource_type = resource_type
+        obj.format = format
+        obj.bytes = bytes
+        obj.version = version
+        obj.access_mode = access_mode
+        return obj
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "secure_url": self.secure_url,
+            "public_id": self.public_id,
+            "resource_type": self.resource_type,
+            "format": self.format,
+            "bytes": self.bytes,
+            "version": self.version,
+            "access_mode": self.access_mode,
+        }
 
 
 class BaseStorageService(ABC):
     """
-    Abstract storage interface. Allows seamlessly switching between
-    Local Disk, MinIO, AWS S3, Google Cloud Storage, or Firebase.
+    Abstract storage interface for MEDAL assets.
     """
 
     @abstractmethod
-    async def upload_file(self, file: UploadFile, folder: str = "reports") -> str:
-        """Upload a file from an UploadFile instance and return its accessible URL/path."""
+    async def upload_file(
+        self,
+        file: UploadFile,
+        folder: str = "medal/complaints",
+        is_private: bool = False,
+        custom_public_id: Optional[str] = None,
+    ) -> UploadResult:
+        """Upload a file from an UploadFile instance and return an UploadResult."""
         pass
 
     @abstractmethod
@@ -28,218 +87,379 @@ class BaseStorageService(ABC):
         self,
         data: bytes,
         filename: str,
+        folder: str = "medal/complaints",
         content_type: str = "image/jpeg",
-        folder: str = "reports",
-    ) -> str:
-        """Upload raw bytes and return its accessible URL/path."""
+        is_private: bool = False,
+        custom_public_id: Optional[str] = None,
+    ) -> UploadResult:
+        """Upload raw bytes and return an UploadResult."""
         pass
+
+    @abstractmethod
+    async def delete_asset(
+        self,
+        public_id: str,
+        resource_type: str = "image",
+        is_private: bool = False,
+    ) -> bool:
+        """Deletes an asset by public_id."""
+        pass
+
+    @abstractmethod
+    def generate_private_download_url(
+        self,
+        public_id: str,
+        resource_type: str = "image",
+        expires_in: int = 3600,
+    ) -> str:
+        """Generates a short-lived authorized URL for a private asset."""
+        pass
+
+    @abstractmethod
+    def check_health(self) -> Dict[str, Any]:
+        """Health check verifying storage readiness."""
+        pass
+
+
+class CloudinaryStorageService(BaseStorageService):
+    """
+    Cloudinary storage provider using official Cloudinary Python SDK.
+    Supports secure HTTPS uploads, structured asset IDs, private/authenticated delivery,
+    and automatic format/quality optimization.
+    """
+
+    def __init__(
+        self,
+        cloud_name: Optional[str] = None,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+    ):
+        load_dotenv()
+        self.cloud_name = cloud_name or os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
+        self.api_key = api_key or os.getenv("CLOUDINARY_API_KEY", "").strip()
+        self.api_secret = api_secret or os.getenv("CLOUDINARY_API_SECRET", "").strip()
+
+        if not self.cloud_name or not self.api_key or not self.api_secret:
+            missing = []
+            if not self.cloud_name:
+                missing.append("CLOUDINARY_CLOUD_NAME")
+            if not self.api_key:
+                missing.append("CLOUDINARY_API_KEY")
+            if not self.api_secret:
+                missing.append("CLOUDINARY_API_SECRET")
+            raise RuntimeError(
+                f"Cloudinary configuration incomplete. Missing required environment variables: {', '.join(missing)}"
+            )
+
+        try:
+            import cloudinary
+            import cloudinary.api
+            import cloudinary.uploader
+            import cloudinary.utils
+
+            self._cloudinary = cloudinary
+            self._uploader = cloudinary.uploader
+            self._api = cloudinary.api
+            self._utils = cloudinary.utils
+
+            self._cloudinary.config(
+                cloud_name=self.cloud_name,
+                api_key=self.api_key,
+                api_secret=self.api_secret,
+                secure=True,
+            )
+            logger.info("Cloudinary storage provider initialized successfully for cloud '%s'.", self.cloud_name)
+        except ImportError as exc:
+            raise RuntimeError(
+                "The 'cloudinary' package is not installed. Please install it with 'pip install cloudinary'."
+            ) from exc
+
+    def check_health(self) -> Dict[str, Any]:
+        """Validates configuration and verifies that credentials are ready."""
+        if not self.cloud_name or not self.api_key or not self.api_secret:
+            return {"status": "unhealthy", "provider": "cloudinary", "error": "Credentials missing"}
+        return {
+            "status": "healthy",
+            "provider": "cloudinary",
+            "cloud_name": self.cloud_name,
+            "secure": True,
+        }
+
+    def _determine_resource_type(self, ext: str, mime_type: str) -> str:
+        """Determines appropriate Cloudinary resource_type: image, raw, or auto."""
+        ext_lower = ext.lower()
+        if ext_lower in (".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff"):
+            return "image"
+        if mime_type.startswith("image/"):
+            return "image"
+        # Non-image files like PDFs, documents, text files are stored as raw
+        return "raw"
+
+    async def upload_file(
+        self,
+        file: UploadFile,
+        folder: str = "medal/complaints",
+        is_private: bool = False,
+        custom_public_id: Optional[str] = None,
+    ) -> UploadResult:
+        contents = await file.read()
+        filename = file.filename or "upload.jpg"
+        content_type = file.content_type or "image/jpeg"
+        await file.seek(0)
+
+        return await self.upload_bytes(
+            data=contents,
+            filename=filename,
+            folder=folder,
+            content_type=content_type,
+            is_private=is_private,
+            custom_public_id=custom_public_id,
+        )
+
+    async def upload_bytes(
+        self,
+        data: bytes,
+        filename: str,
+        folder: str = "medal/complaints",
+        content_type: str = "image/jpeg",
+        is_private: bool = False,
+        custom_public_id: Optional[str] = None,
+    ) -> UploadResult:
+        if len(data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot upload empty file.",
+            )
+
+        # Inspect bytes to detect real MIME type
+        detected_mime = detect_file_type_from_bytes(data)
+        actual_mime = detected_mime or content_type
+        ext = get_extension_for_mime(actual_mime)
+
+        clean_folder = folder.strip().strip("/")
+        if not custom_public_id:
+            safe_id = f"asset_{uuid.uuid4().hex}"
+            full_public_id = f"{clean_folder}/{safe_id}"
+        else:
+            full_public_id = f"{clean_folder}/{custom_public_id.strip('/')}"
+
+        resource_type = self._determine_resource_type(ext, actual_mime)
+
+        # Configure upload options
+        upload_options: Dict[str, Any] = {
+            "public_id": full_public_id,
+            "resource_type": resource_type,
+            "overwrite": True,
+            "unique_filename": False,
+            "use_filename": False,
+        }
+
+        # Apply authenticated / private delivery for sensitive docs
+        if is_private:
+            upload_options["type"] = "authenticated"
+            upload_options["access_mode"] = "authenticated"
+        else:
+            upload_options["type"] = "upload"
+
+        # Execute upload synchronously in thread pool to not block asyncio event loop
+        loop = asyncio.get_event_loop()
+        try:
+            stream = io.BytesIO(data)
+            response = await loop.run_in_executor(
+                None,
+                lambda: self._uploader.upload(stream, **upload_options),
+            )
+        except Exception as err:
+            logger.error("Cloudinary upload failed for public_id '%s': %s", full_public_id, err)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Cloud asset storage upload failed. Please try again.",
+            ) from err
+
+        secure_url = response.get("secure_url") or response.get("url")
+        public_id = response.get("public_id", full_public_id)
+        fmt = response.get("format", ext.lstrip("."))
+        bytes_count = response.get("bytes", len(data))
+        version = response.get("version")
+        access_mode = "authenticated" if is_private else "public"
+
+        return UploadResult(
+            secure_url=secure_url,
+            public_id=public_id,
+            resource_type=resource_type,
+            format=fmt,
+            bytes=bytes_count,
+            version=version,
+            access_mode=access_mode,
+        )
+
+    async def delete_asset(
+        self,
+        public_id: str,
+        resource_type: str = "image",
+        is_private: bool = False,
+    ) -> bool:
+        if not public_id:
+            return False
+
+        loop = asyncio.get_event_loop()
+        try:
+            destroy_options: Dict[str, Any] = {
+                "resource_type": resource_type,
+                "invalidate": True,
+            }
+            if is_private:
+                destroy_options["type"] = "authenticated"
+
+            res = await loop.run_in_executor(
+                None,
+                lambda: self._uploader.destroy(public_id, **destroy_options),
+            )
+            result_str = res.get("result", "")
+            return result_str in ("ok", "not found")
+        except Exception as err:
+            logger.warning("Failed to delete Cloudinary asset '%s': %s", public_id, err)
+            return False
+
+    def generate_private_download_url(
+        self,
+        public_id: str,
+        resource_type: str = "image",
+        expires_in: int = 3600,
+    ) -> str:
+        """
+        Generates a short-lived authenticated URL signed with Cloudinary API secret.
+        """
+        if not public_id:
+            return ""
+
+        # Auto-detect raw if resource_type is default "image" but public_id has non-image ext
+        if resource_type == "image" and any(public_id.lower().endswith(doc_ext) for doc_ext in (".pdf", ".doc", ".docx", ".txt")):
+            resource_type = "raw"
+
+        expires_at = int(time.time()) + expires_in
+        signed_url, _ = self._utils.cloudinary_url(
+            public_id,
+            sign_url=True,
+            type="authenticated",
+            resource_type=resource_type,
+            secure=True,
+            expires_at=expires_at,
+        )
+        return signed_url
 
 
 class LocalStorageService(BaseStorageService):
     """
-    Local filesystem storage provider for development and standalone environments.
+    Local filesystem storage provider for isolated offline testing.
     """
 
     def __init__(self, base_upload_dir: str = "uploads"):
         self.base_upload_dir = base_upload_dir
         os.makedirs(self.base_upload_dir, exist_ok=True)
 
-    async def upload_file(self, file: UploadFile, folder: str = "reports") -> str:
-        target_dir = os.path.join(self.base_upload_dir, folder)
-        os.makedirs(target_dir, exist_ok=True)
+    def check_health(self) -> Dict[str, Any]:
+        return {"status": "healthy", "provider": "local", "directory": self.base_upload_dir}
 
-        original_ext = os.path.splitext(file.filename or "")[1].lower()
-        if not original_ext:
-            if file.content_type == "image/png":
-                original_ext = ".png"
-            elif file.content_type == "image/webp":
-                original_ext = ".webp"
-            elif file.content_type == "image/gif":
-                original_ext = ".gif"
-            else:
-                original_ext = ".jpg"
-
-        unique_filename = f"{uuid.uuid4().hex}{original_ext}"
-        file_path = os.path.join(target_dir, unique_filename)
-
+    async def upload_file(
+        self,
+        file: UploadFile,
+        folder: str = "medal/complaints",
+        is_private: bool = False,
+        custom_public_id: Optional[str] = None,
+    ) -> UploadResult:
         contents = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(contents)
+        filename = file.filename or "upload.jpg"
+        content_type = file.content_type or "image/jpeg"
+        await file.seek(0)
 
-        # Return standardized URL path served via FastAPI static mount
-        return f"/uploads/{folder}/{unique_filename}"
+        return await self.upload_bytes(
+            data=contents,
+            filename=filename,
+            folder=folder,
+            content_type=content_type,
+            is_private=is_private,
+            custom_public_id=custom_public_id,
+        )
 
     async def upload_bytes(
         self,
         data: bytes,
         filename: str,
+        folder: str = "medal/complaints",
         content_type: str = "image/jpeg",
-        folder: str = "reports",
-    ) -> str:
-        target_dir = os.path.join(self.base_upload_dir, folder)
+        is_private: bool = False,
+        custom_public_id: Optional[str] = None,
+    ) -> UploadResult:
+        clean_folder = folder.strip().strip("/")
+        target_dir = os.path.join(self.base_upload_dir, clean_folder)
         os.makedirs(target_dir, exist_ok=True)
 
-        original_ext = os.path.splitext(filename)[1].lower()
-        if not original_ext:
-            original_ext = ".jpg"
+        detected_mime = detect_file_type_from_bytes(data)
+        actual_mime = detected_mime or content_type
+        ext = get_extension_for_mime(actual_mime)
 
-        unique_filename = f"{uuid.uuid4().hex}{original_ext}"
+        safe_id = custom_public_id or f"asset_{uuid.uuid4().hex}"
+        unique_filename = f"{safe_id}{ext}"
         file_path = os.path.join(target_dir, unique_filename)
 
         with open(file_path, "wb") as f:
             f.write(data)
 
-        return f"/uploads/{folder}/{unique_filename}"
+        public_id = f"{clean_folder}/{safe_id}"
+        secure_url = f"/uploads/{clean_folder}/{unique_filename}"
+        resource_type = "image" if actual_mime.startswith("image/") else "raw"
 
-
-class MinioStorageService(BaseStorageService):
-    """
-    MinIO S3-compatible Object Storage service for report evidence and assets.
-    """
-
-    def __init__(
-        self,
-        endpoint: Optional[str] = None,
-        access_key: Optional[str] = None,
-        secret_key: Optional[str] = None,
-        bucket_name: Optional[str] = None,
-        secure: Optional[bool] = None,
-        public_url: Optional[str] = None,
-    ):
-        try:
-            from minio import Minio
-            from minio.error import S3Error
-        except ImportError as e:
-            raise RuntimeError(
-                "MinIO package is not installed. Please install 'minio==7.2.15' in requirements.txt"
-            ) from e
-
-        self.endpoint = endpoint or os.getenv("MINIO_ENDPOINT", "localhost:9000")
-        self.access_key = access_key or os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-        self.secret_key = secret_key or os.getenv("MINIO_SECRET_KEY", "minioadminpassword")
-        self.bucket_name = bucket_name or os.getenv("MINIO_BUCKET_NAME", "medal-evidence")
-
-        secure_env = os.getenv("MINIO_SECURE", "False").strip().lower()
-        self.secure = secure if secure is not None else (secure_env in ("true", "1", "yes"))
-
-        # Base URL for public image access
-        raw_public_url = public_url or os.getenv("MINIO_PUBLIC_URL")
-        if raw_public_url:
-            self.public_url = raw_public_url.rstrip("/")
-        else:
-            protocol = "https" if self.secure else "http"
-            self.public_url = f"{protocol}://{self.endpoint}"
-
-        try:
-            self.client = Minio(
-                endpoint=self.endpoint,
-                access_key=self.access_key,
-                secret_key=self.secret_key,
-                secure=self.secure,
-            )
-            # Ensure the target bucket exists
-            self._ensure_bucket_exists()
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to initialize MinIO client at '{self.endpoint}': {e}"
-            ) from e
-
-    def _ensure_bucket_exists(self) -> None:
-        """Create bucket if it doesn't exist and set public-read policy for image evidence."""
-        if not self.client.bucket_exists(self.bucket_name):
-            self.client.make_bucket(self.bucket_name)
-            logger.info(f"Created MinIO bucket '{self.bucket_name}'")
-
-        # Set public read bucket policy so uploaded photos can be displayed by Flutter Image.network
-        policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Principal": {"AWS": ["*"]},
-                    "Action": ["s3:GetObject"],
-                    "Resource": [f"arn:aws:s3:::{self.bucket_name}/*"],
-                }
-            ],
-        }
-        try:
-            self.client.set_bucket_policy(self.bucket_name, json.dumps(policy))
-        except Exception as policy_err:
-            logger.warning(f"Could not apply public-read policy to bucket '{self.bucket_name}': {policy_err}")
-
-    async def upload_file(self, file: UploadFile, folder: str = "reports") -> str:
-        original_ext = os.path.splitext(file.filename or "")[1].lower()
-        if not original_ext:
-            if file.content_type == "image/png":
-                original_ext = ".png"
-            elif file.content_type == "image/webp":
-                original_ext = ".webp"
-            elif file.content_type == "image/gif":
-                original_ext = ".gif"
-            else:
-                original_ext = ".jpg"
-
-        unique_filename = f"{uuid.uuid4().hex}{original_ext}"
-        object_name = f"{folder}/{unique_filename}"
-
-        contents = await file.read()
-        content_type = file.content_type or "image/jpeg"
-        if content_type in ("application/octet-stream", "application/octetstream", "binary/octet-stream"):
-            import mimetypes
-            content_type = mimetypes.guess_type(unique_filename)[0] or "image/jpeg"
-
-        data_stream = io.BytesIO(contents)
-        self.client.put_object(
-            bucket_name=self.bucket_name,
-            object_name=object_name,
-            data=data_stream,
-            length=len(contents),
-            content_type=content_type,
+        return UploadResult(
+            secure_url=secure_url,
+            public_id=public_id,
+            resource_type=resource_type,
+            format=ext.lstrip("."),
+            bytes=len(data),
+            access_mode="private" if is_private else "public",
         )
 
-        return f"{self.public_url}/{self.bucket_name}/{object_name}"
-
-    async def upload_bytes(
+    async def delete_asset(
         self,
-        data: bytes,
-        filename: str,
-        content_type: str = "image/jpeg",
-        folder: str = "reports",
+        public_id: str,
+        resource_type: str = "image",
+        is_private: bool = False,
+    ) -> bool:
+        file_path = os.path.join(self.base_upload_dir, public_id)
+        for ext in (".jpg", ".jpeg", ".png", ".webp", ".pdf", ".bin"):
+            candidate = f"{file_path}{ext}"
+            if os.path.isfile(candidate):
+                try:
+                    os.remove(candidate)
+                    return True
+                except Exception:
+                    return False
+        return False
+
+    def generate_private_download_url(
+        self,
+        public_id: str,
+        resource_type: str = "image",
+        expires_in: int = 3600,
     ) -> str:
-        original_ext = os.path.splitext(filename)[1].lower()
-        if not original_ext:
-            original_ext = ".jpg"
-
-        unique_filename = f"{uuid.uuid4().hex}{original_ext}"
-        object_name = f"{folder}/{unique_filename}"
-
-        data_stream = io.BytesIO(data)
-        self.client.put_object(
-            bucket_name=self.bucket_name,
-            object_name=object_name,
-            data=data_stream,
-            length=len(data),
-            content_type=content_type,
-        )
-
-        return f"{self.public_url}/{self.bucket_name}/{object_name}"
+        return f"/uploads/{public_id}"
 
 
 def _create_storage_service() -> BaseStorageService:
     """Factory creating the storage service configured in environment."""
-    storage_type = os.getenv("STORAGE_TYPE", "local").strip().lower()
+    storage_type = os.getenv("STORAGE_TYPE", "cloudinary").strip().lower()
 
-    if storage_type == "minio":
-        return MinioStorageService()
+    if storage_type in ("cloudinary", "cloud"):
+        return CloudinaryStorageService()
     elif storage_type == "local":
+        logger.warning("Using LocalStorageService. Set STORAGE_TYPE=cloudinary for production cloud storage.")
         return LocalStorageService()
     else:
         raise ValueError(
-            f"Unsupported STORAGE_TYPE='{storage_type}'. Supported values are 'minio' and 'local'."
+            f"Unsupported STORAGE_TYPE='{storage_type}'. Supported values are 'cloudinary' and 'local'."
         )
 
 
-# Global storage service instance
 _storage_service: Optional[BaseStorageService] = None
 
 
@@ -249,3 +469,9 @@ def get_storage_service() -> BaseStorageService:
     if _storage_service is None:
         _storage_service = _create_storage_service()
     return _storage_service
+
+
+def reset_storage_service() -> None:
+    """Resets storage service singleton for testing."""
+    global _storage_service
+    _storage_service = None

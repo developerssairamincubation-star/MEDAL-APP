@@ -18,6 +18,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String, nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     profile_image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True, default=None)
+    profile_image_public_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default=None)
     role: Mapped[str] = mapped_column(String, nullable=False, default="citizen")
     approval_status: Mapped[str] = mapped_column(
         String(32),

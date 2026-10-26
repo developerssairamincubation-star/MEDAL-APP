@@ -13,9 +13,35 @@ from app.schemas.authority import (
     AuthorityApplicationResponse,
     RejectApplicationRequest,
 )
+from app.services.storage import BaseStorageService, get_storage_service
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 logger = logging.getLogger("medal.admin")
+
+
+def _enrich_application_with_signed_urls(
+    app: AuthorityApplication,
+    storage: BaseStorageService,
+) -> AuthorityApplicationResponse:
+    """Generates short-lived authorized access URLs for sensitive verification documents."""
+    resp = AuthorityApplicationResponse.model_validate(app)
+    if app.aadhaar_public_id:
+        signed_aadhaar = storage.generate_private_download_url(
+            app.aadhaar_public_id,
+            resource_type="image",
+            expires_in=3600,
+        )
+        if signed_aadhaar:
+            resp.aadhaar_document_url = signed_aadhaar
+    if app.employment_public_id:
+        signed_emp = storage.generate_private_download_url(
+            app.employment_public_id,
+            resource_type="image",
+            expires_in=3600,
+        )
+        if signed_emp:
+            resp.employment_document_url = signed_emp
+    return resp
 
 
 @router.get(
@@ -27,17 +53,19 @@ def list_authority_applications(
     status_filter: Optional[str] = Query(None, alias="status", description="Filter by pending, approved, rejected, or all"),
     db: Session = Depends(get_db),
     current_admin: User = Depends(require_role("admin")),
+    storage: BaseStorageService = Depends(get_storage_service),
 ):
     """
     List authority registration applications for Admin review.
     Accessible only by authenticated Admins.
+    Generates short-lived authorized URLs for sensitive documents.
     """
     query = db.query(AuthorityApplication)
     if status_filter and status_filter.lower() != "all":
         query = query.filter(AuthorityApplication.status == status_filter.lower().strip())
     
     applications = query.order_by(AuthorityApplication.id.desc()).all()
-    return applications
+    return [_enrich_application_with_signed_urls(app, storage) for app in applications]
 
 
 @router.get(
@@ -49,10 +77,12 @@ def get_authority_application(
     application_id: int,
     db: Session = Depends(get_db),
     current_admin: User = Depends(require_role("admin")),
+    storage: BaseStorageService = Depends(get_storage_service),
 ):
     """
     Retrieve full application details, identity document URLs, and official credentials.
     Accessible only by authenticated Admins.
+    Generates short-lived authorized URLs for sensitive documents.
     """
     application = (
         db.query(AuthorityApplication)
@@ -64,7 +94,7 @@ def get_authority_application(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Authority application #{application_id} not found.",
         )
-    return application
+    return _enrich_application_with_signed_urls(application, storage)
 
 
 @router.post(

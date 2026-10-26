@@ -24,7 +24,7 @@ CREATE INDEX IF NOT EXISTS ix_users_role ON users (role);
 
 
 -- 2. COMPLAINTS TABLE
--- Stores civic reports, metadata, photo evidence URLs (MinIO S3), and SDG tags
+-- Stores civic reports, metadata, photo evidence URLs (Cloudinary / Object Storage), and SDG tags
 CREATE TABLE IF NOT EXISTS complaints (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     status VARCHAR(50) NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'under_review', 'in_progress', 'resolved', 'rejected')),
     location VARCHAR(255) NOT NULL,
     image_url VARCHAR(500),
+    image_public_id VARCHAR(255),
     sdg_alignment VARCHAR(255),
     impact_level VARCHAR(100),
     equity_classification VARCHAR(255),

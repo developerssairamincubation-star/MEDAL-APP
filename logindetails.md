@@ -1,5 +1,6 @@
 Summary of Logins
 Portal / Module	Role	Email	Password	Full Name & Description
+Citizen Portal (Primary)	citizen	mithi@medal.gov	admin	Mithilesh (Citizen)
 Citizen Portal	citizen	james.doe@example.com	Password123!	James Doe (General citizen reporting & feed)
 Citizen Portal (Alt 1)	citizen	maria.lopez@example.com	Password123!	Maria Lopez (Citizen)
 Citizen Portal (Alt 2)	citizen	olivia.iver@example.com	Password123!	Olivia Iver (Citizen)
@@ -13,8 +14,7 @@ Detailed Breakdown by Portal
 1. Citizen Portal
 How to access: Select Citizen on the welcome screen (/citizen/login).
 Credentials:
-Email: james.doe@example.com
-Password: Password123!
+- Email: mithi@medal.gov (Password: admin) or james.doe@example.com (Password: Password123!)
 Capabilities:
 File civic grievance reports with photos, geolocation, and SDG alignments.
 View community complaint feed, upvote, and post comments/threads.

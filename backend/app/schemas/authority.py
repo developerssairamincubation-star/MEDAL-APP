@@ -17,7 +17,9 @@ class AuthorityRegisterRequest(BaseModel):
         max_length=128,
     )
     aadhaar_document_url: str = Field(..., min_length=5, max_length=1024)
+    aadhaar_public_id: Optional[str] = None
     employment_document_url: str = Field(..., min_length=5, max_length=1024)
+    employment_public_id: Optional[str] = None
 
 
 class AuthorityApplicationResponse(BaseModel):
@@ -32,7 +34,9 @@ class AuthorityApplicationResponse(BaseModel):
     identity_number: Optional[str] = None
     clearance_level: str
     aadhaar_document_url: str
+    aadhaar_public_id: Optional[str] = None
     employment_document_url: str
+    employment_public_id: Optional[str] = None
     status: str
     rejection_reason: Optional[str] = None
     reviewed_by_id: Optional[int] = None
@@ -61,4 +65,5 @@ class RejectApplicationRequest(BaseModel):
 class DocumentUploadResponse(BaseModel):
     message: str
     document_url: str
+    public_id: Optional[str] = None
     filename: str

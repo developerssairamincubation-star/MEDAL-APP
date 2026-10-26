@@ -4,7 +4,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Ultralytics YOLO](https://img.shields.io/badge/Ultralytics_YOLO-v8%2Fv11-00FFFF?logo=python&logoColor=black)](https://docs.ultralytics.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![MinIO](https://img.shields.io/badge/MinIO-S3_Storage-C72C48?logo=minio&logoColor=white)](https://min.io)
+[![Cloudinary](https://img.shields.io/badge/Cloudinary-Cloud_Storage-3448C5?logo=cloudinary&logoColor=white)](https://cloudinary.com)
 
 **MEDAL** is an intelligent civic engagement and grievance reporting ecosystem connecting citizens with municipal authorities. Citizens capture photo evidence of community issues (waste dumping, potholes, streetlight outages, water leaks), which is instantly analyzed by an on-premise **Ultralytics YOLO** computer vision pipeline, classified into civic issue categories, and mapped to the United Nations **Sustainable Development Goals (SDGs)** before formal submission.
 
@@ -22,7 +22,7 @@
            ▼
 ⚡ FastAPI Backend REST API (Port 8000)
    │
-   ├── ☁️ MinIO S3 Object Storage (Port 9000) — Evidence Storage
+   ├── ☁️ Cloudinary Cloud Asset Storage — Evidence & Document Storage
    │
    └── 🧠 AI Image Analysis Pipeline
            │
@@ -58,7 +58,7 @@
 * **👤 Citizen-Centric Control**: AI predictions are assistive suggestions; citizens retain full freedom to select or change SDGs.
 * **🌐 Community Feed & Engagement**: Real-time upvoting, single-repost network sharing, and threaded comments.
 * **📡 Multi-Device LAN / Physical Device Support**: Test on real Android smartphones connected to your local development Wi-Fi network.
-* **☁️ Pluggable Storage**: Seamless MinIO S3-compatible bucket storage with local static fallback.
+* **☁️ Pluggable Storage**: Cloudinary cloud-native asset storage with HTTPS delivery and local filesystem fallback.
 * **🔒 Enterprise Security**: JWT Bearer token authentication, role-based access control (Citizen, Official, Admin), and file size/MIME validation.
 
 ---
@@ -75,7 +75,7 @@ MEDAL-APP-main/
 │   │   ├── models/                  # DB models (User, Complaint, Repost, Upvote, etc.)
 │   │   ├── routers/                 # API Endpoints (Auth, Complaints, ML Analysis)
 │   │   ├── schemas/                 # Pydantic validation schemas
-│   │   └── services/                # Business logic (YOLO, Civic Issue, SDG, MinIO)
+│   │   └── services/                # Business logic (YOLO, Civic Issue, SDG, Cloudinary Storage)
 │   ├── models/                      # Pretrained & fine-tuned YOLO weights (yolo26n.pt)
 │   ├── test_images/                 # Curated test suite images
 │   ├── uploads/                     # Local fallback storage directory
@@ -97,7 +97,7 @@ MEDAL-APP-main/
 │   ├── api_design.md
 │   └── project_flow.md
 │
-├── docker-compose.yml               # MinIO S3 Object Storage service
+├── docker-compose.yml               # Docker Compose services
 ├── COMMAND.md                       # Complete terminal command cheat sheet
 └── README.md                        # Project documentation (this file)
 ```
@@ -112,7 +112,7 @@ MEDAL-APP-main/
 | **Backend API** | FastAPI / Python 3.10+ | High-performance asynchronous REST API |
 | **Computer Vision** | Ultralytics YOLO | Pretrained base weights + extensible custom civic model |
 | **Database** | PostgreSQL 15+ | Relational persistence with SQLAlchemy & Alembic |
-| **Object Storage**| MinIO S3 | High-throughput evidence file and image storage |
+| **Object Storage**| Cloudinary | Cloud-native media asset management, HTTPS delivery & secure signed URLs |
 | **Authentication**| OAuth2 / JWT (python-jose) | Secure token-based session handling |
 
 ---
@@ -124,7 +124,7 @@ Ensure you have the following installed:
 * [Python 3.10+](https://www.python.org/)
 * [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.24+)
 * [PostgreSQL](https://www.postgresql.org/download/)
-* [Docker & Docker Compose](https://www.docker.com/) (for MinIO)
+* [Docker & Docker Compose](https://www.docker.com/) (optional, for local DB/services)
 * Git
 
 ---
@@ -143,14 +143,11 @@ SECRET_KEY=your_super_secret_jwt_key_here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-# Pluggable Storage (minio or local)
-STORAGE_TYPE=minio
-MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadminpassword
-MINIO_BUCKET_NAME=medal-evidence
-MINIO_SECURE=False
-MINIO_PUBLIC_URL=http://localhost:9000
+# Pluggable Storage (cloudinary or local)
+STORAGE_TYPE=cloudinary
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 
 # YOLO Configuration
 YOLO_MODEL_PATH=models/yolo26n.pt
@@ -168,11 +165,9 @@ const String kPcWifiIp = '172.16.127.223';
 
 ### 3. Running Services
 
-#### Step 1: Start MinIO Object Storage
-```powershell
-docker compose up -d
-```
-MinIO Console will be accessible at `http://localhost:9001` (User: `minioadmin`, Pass: `minioadminpassword`).
+#### Step 1: Configure Cloudinary Credentials
+Configure `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in `backend/.env`.
+Verify storage readiness with the health check endpoint: `GET /health`.
 
 #### Step 2: Initialize Database & Run Backend
 ```powershell

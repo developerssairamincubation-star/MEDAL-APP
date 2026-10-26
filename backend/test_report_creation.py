@@ -60,8 +60,14 @@ def run_tests():
     print(f"  -> PASS: Citizen authenticated, ID = {citizen_id}")
 
     # 2. Upload Photo Evidence via Pluggable Storage Service
-    print("\n[STEP 2] Testing photo evidence upload (/complaints/upload-evidence)...")
-    fake_image_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00\xff\xdb\x00C\x00"
+    fake_image_bytes = (
+        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00"
+        b"\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19"
+        b"\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342"
+        b"\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05"
+        b"\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07"
+        b"\x08\t\n\x0b\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xbf\x00\xff\xd9"
+    )
     upload_res = client.post(
         "/complaints/upload-evidence",
         headers=headers,
@@ -69,7 +75,7 @@ def run_tests():
     )
     assert upload_res.status_code == 200, f"Upload failed: {upload_res.text}"
     image_url = upload_res.json().get("image_url")
-    assert image_url and ("/reports/" in image_url or image_url.startswith("/uploads/reports/")), f"Unexpected image_url: {image_url}"
+    assert image_url and ("cloudinary" in image_url or "http" in image_url or "/reports/" in image_url), f"Unexpected image_url: {image_url}"
     print(f"  -> PASS: Photo uploaded cleanly via storage layer: {image_url}")
 
     # 3. Create full Civic Report with all required and enriched fields

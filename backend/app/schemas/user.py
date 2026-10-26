@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     full_name: str
     phone: str | None = None
     profile_image_url: str | None = None
+    profile_image_public_id: str | None = None
     role: str
     approval_status: str = "approved"
     designation: str | None = None
@@ -42,6 +43,7 @@ class UserResponse(BaseModel):
 class ProfilePhotoResponse(BaseModel):
     message: str
     profile_image_url: str
+    public_id: str | None = None
     data: UserResponse
 
     model_config = ConfigDict(from_attributes=True)

@@ -32,5 +32,13 @@ void main() {
       const externalUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb';
       expect(apiService.resolveImageUrl(externalUrl), equals(externalUrl));
     });
+
+    test('resolveImageUrl preserves Cloudinary HTTPS URLs even if path contains profiles or reports', () {
+      const cloudinaryUrl = 'https://res.cloudinary.com/uco2jihi/image/upload/v1234567890/medal/avatars/profiles/42/avatar.jpg';
+      expect(apiService.resolveImageUrl(cloudinaryUrl), equals(cloudinaryUrl));
+
+      const complaintUrl = 'https://res.cloudinary.com/uco2jihi/image/upload/v1234567890/medal/complaints/asset_abc123.jpg';
+      expect(apiService.resolveImageUrl(complaintUrl), equals(complaintUrl));
+    });
   });
 }

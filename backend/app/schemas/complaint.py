@@ -28,6 +28,7 @@ class ComplaintBase(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180.0, le=180.0, description="Longitude between -180 and 180")
     location_address: Optional[str] = None
     image_url: Optional[str] = None
+    image_public_id: Optional[str] = None
     sdg_alignment: Optional[str] = None
     impact_level: Optional[str] = None
     equity_classification: Optional[str] = None
@@ -64,6 +65,7 @@ class ComplaintUpdate(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
     location_address: Optional[str] = None
     image_url: Optional[str] = None
+    image_public_id: Optional[str] = None
     sdg_alignment: Optional[str] = None
     impact_level: Optional[str] = None
     equity_classification: Optional[str] = None
@@ -128,11 +130,19 @@ class ComplaintStatsResponse(BaseModel):
     by_category: dict[str, int]
 
 
+class EvidenceUploadResponse(BaseModel):
+    image_url: str
+    public_id: Optional[str] = None
+    format: Optional[str] = None
+    bytes: Optional[int] = None
+
+
 class CommentCreate(BaseModel):
     comment: Optional[str] = None
     content: Optional[str] = None
     parent_comment_id: Optional[int] = None
     image_url: Optional[str] = None
+    image_public_id: Optional[str] = None
 
 
 class CommentResponse(BaseModel):
@@ -146,6 +156,7 @@ class CommentResponse(BaseModel):
     comment: str
     content: Optional[str] = None
     image_url: Optional[str] = None
+    image_public_id: Optional[str] = None
     created_at: datetime
     parent_comment_id: Optional[int] = None
     is_deleted: bool = False

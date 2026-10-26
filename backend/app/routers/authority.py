@@ -17,13 +17,14 @@ from app.schemas.authority import (
     DocumentUploadResponse,
 )
 from app.services.storage import BaseStorageService, get_storage_service
+from app.utils.file_validation import (
+    MAX_DOCUMENT_SIZE_BYTES,
+    validate_and_read_upload,
+)
 from app.utils.security import hash_password
 
 router = APIRouter(prefix="/authority", tags=["Authority"])
 logger = logging.getLogger("medal.authority")
-
-ALLOWED_DOC_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp"}
-MAX_DOC_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB limit
 
 
 @router.post(
@@ -37,30 +38,24 @@ async def upload_authority_document(
 ):
     """
     Secure document upload endpoint for Authority onboarding (Aadhaar, Gazette, Official ID).
-    Stores documents under verification/ folder in object storage.
+    Stores documents under medal/authority-documents with authenticated (private) access mode.
+    Validates magic bytes (PDF, JPEG, PNG, WebP) and maximum 15MB file size.
     """
     filename = file.filename or "document.pdf"
-    ext = os.path.splitext(filename)[1].lower()
-
-    if ext not in ALLOWED_DOC_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file extension '{ext}'. Allowed types: PDF, PNG, JPG, JPEG, WEBP.",
-        )
-
-    # Read bytes and check size
-    contents = await file.read()
-    if len(contents) > MAX_DOC_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File exceeds maximum allowed size of 15MB.",
-        )
-
-    # Reset cursor for storage provider upload
-    await file.seek(0)
+    contents, verified_mime, ext = await validate_and_read_upload(
+        file=file,
+        allowed_types={"image/*", "application/pdf"},
+        max_size_bytes=MAX_DOCUMENT_SIZE_BYTES,
+    )
 
     try:
-        doc_url = await storage.upload_file(file, folder="verification")
+        upload_res = await storage.upload_bytes(
+            data=contents,
+            filename=filename,
+            folder="medal/authority-documents",
+            content_type=verified_mime,
+            is_private=True,
+        )
     except Exception as e:
         logger.error(f"Failed to upload authority document: {e}")
         raise HTTPException(
@@ -70,7 +65,8 @@ async def upload_authority_document(
 
     return DocumentUploadResponse(
         message="Document uploaded successfully",
-        document_url=doc_url,
+        document_url=upload_res.secure_url,
+        public_id=upload_res.public_id,
         filename=filename,
     )
 
@@ -129,7 +125,9 @@ def register_authority(
         identity_number=req.identity_number.strip() if req.identity_number else None,
         clearance_level=req.clearance_level.strip(),
         aadhaar_document_url=req.aadhaar_document_url.strip(),
+        aadhaar_public_id=req.aadhaar_public_id.strip() if req.aadhaar_public_id else None,
         employment_document_url=req.employment_document_url.strip(),
+        employment_public_id=req.employment_public_id.strip() if req.employment_public_id else None,
         status="pending",
     )
     db.add(application)

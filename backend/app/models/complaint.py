@@ -21,6 +21,7 @@ class Complaint(Base):
     longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     location_address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    image_public_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     sdg_alignment: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     impact_level: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     equity_classification: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -81,6 +82,7 @@ class ComplaintComment(Base):
     parent_comment_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("complaint_comments.id", ondelete="CASCADE"), nullable=True, index=True)
     comment: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    image_public_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
