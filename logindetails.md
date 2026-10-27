@@ -20,7 +20,7 @@ File civic grievance reports with photos, geolocation, and SDG alignments.
 View community complaint feed, upvote, and post comments/threads.
 Access the SEEK Academy modules and track filed complaints.
 2. Municipal Authority / Ward Officer Portal
-How to access: Log in via /authority/login or through the Citizen login (the system automatically redirects based on user role).
+How to access: Log in via /authority/login (Citizen login is strictly restricted to citizen accounts; authority accounts are denied access on the citizen login page).
 Credentials:
 Email: ward.officer@medal.gov.in
 Password: Password123!
@@ -39,7 +39,7 @@ Access the Admin Authority Applications list (/admin/applications-list).
 Review pending authority registration applications, examine uploaded ID proofs (Aadhaar / Employment Gazette docs), and approve or reject authority officers.
 Oversee municipal system operations.
 4. Educational Institution Module
-How to access: Select Institution on the welcome screen (/institution).
+How to access: Select Institution on the welcome screen (/institution). (Citizen and Municipal Authority accounts are strictly blocked from logging into the Institution portal).
 Principal Account:
 Email: steverogers@medal.gov (or principal@medal.gov)
 Password: Password123! (or any password $\ge$ 4 characters)

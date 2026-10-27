@@ -141,12 +141,6 @@ class _AuthorityLoginScreenState extends State<AuthorityLoginScreen> {
     }
   }
 
-  void _handleDemoLogin() {
-    _emailController.text = 'rajesh.varma@corporation.gov.in';
-    _passwordController.text = 'Officer@2026';
-    _handleLogin();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -331,29 +325,6 @@ class _AuthorityLoginScreenState extends State<AuthorityLoginScreen> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Demo Quick Login Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 46,
-                          child: OutlinedButton.icon(
-                            onPressed: _isLoading ? null : _handleDemoLogin,
-                            icon: const Icon(Icons.play_circle_outline, size: 18),
-                            label: const Text(
-                              "Quick Demo Officer Login (Review Mode)",
-                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: MedalTheme.primaryDark,
-                              side: const BorderSide(color: MedalTheme.primaryLight),
-                              backgroundColor: MedalTheme.primaryTint,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
                           ),
                         ),
                         const SizedBox(height: 20),

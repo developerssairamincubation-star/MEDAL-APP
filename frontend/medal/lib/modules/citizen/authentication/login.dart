@@ -4,8 +4,6 @@ import 'package:medal/modules/citizen/screens/components.dart';
 import 'package:medal/modules/citizen/authentication/forgot_password.dart';
 import 'package:medal/routes/app_routes.dart';
 import 'package:medal/modules/authority/screens/auth/registration_role_selection_screen.dart';
-import 'package:medal/modules/authority/screens/admin/admin_authority_applications_list_screen.dart';
-import 'package:medal/modules/authority/screens/dashboard/authority_main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -51,6 +49,32 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      final userRole = (ApiService().userRole).toLowerCase().trim();
+      if (userRole == 'official' || userRole == 'admin') {
+        await ApiService().logout();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Access denied: Authority accounts cannot log in through the Citizen Portal. Please use the Authority Portal.'),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+      if (userRole == 'student' || userRole == 'principal' || userRole == 'staff') {
+        await ApiService().logout();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Access denied: Institution accounts cannot log in through the Citizen Portal. Please use the Institution Portal.'),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Welcome back, ${ApiService().currentUser?['full_name'] ?? 'Citizen'}!'),
@@ -58,32 +82,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      final userRole = (ApiService().userRole).toLowerCase().trim();
-      if (userRole == 'admin') {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const AdminAuthorityApplicationsListScreen(),
-          ),
-          (route) => false,
-        );
-      } else if (userRole == 'official') {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const AuthorityMainScreen(),
-          ),
-          (route) => false,
-        );
-      } else {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const MainScreen(showAcademyPopup: true),
-          ),
-          (route) => false,
-        );
-      }
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const MainScreen(showAcademyPopup: true),
+        ),
+        (route) => false,
+      );
     } on ApiException catch (e) {
       debugPrint('[MEDAL] LOGIN API EXCEPTION: statusCode=${e.statusCode} message=${e.message}');
       if (!mounted) return;

@@ -64,6 +64,7 @@ class AuthorityComplaint {
   final int commentsCount;
   final DateTime reportedAt;
   final String reportedBy;
+  final String? citizenProfileImageUrl;
   String? officerNotes;
   String? rejectionReason;
   String? redirectedDepartment;
@@ -87,11 +88,122 @@ class AuthorityComplaint {
     required this.commentsCount,
     required this.reportedAt,
     required this.reportedBy,
+    this.citizenProfileImageUrl,
     this.officerNotes,
     this.rejectionReason,
     this.redirectedDepartment,
     this.redirectionReason,
   });
+
+  factory AuthorityComplaint.fromMap(Map<String, dynamic> map) {
+    final rawId = map['id'];
+    final int? backendId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    final String complaintIdStr = 'CMP-2026-${backendId ?? (DateTime.now().millisecondsSinceEpoch % 10000)}';
+
+    // Status mapping
+    final rawStatus = (map['status'] ?? 'submitted').toString().toLowerCase().trim();
+    AuthorityComplaintStatus status;
+    switch (rawStatus) {
+      case 'assigned':
+        status = AuthorityComplaintStatus.assigned;
+        break;
+      case 'under_review':
+      case 'reviewing':
+        status = AuthorityComplaintStatus.reviewing;
+        break;
+      case 'in_progress':
+        status = AuthorityComplaintStatus.inProgress;
+        break;
+      case 'resolved':
+      case 'completed':
+        status = AuthorityComplaintStatus.completed;
+        break;
+      case 'rejected':
+        status = AuthorityComplaintStatus.rejected;
+        break;
+      case 'redirected':
+        status = AuthorityComplaintStatus.redirected;
+        break;
+      default:
+        // Default to assigned for authority viewing
+        status = AuthorityComplaintStatus.assigned;
+        break;
+    }
+
+    // Priority mapping from impact_level
+    final rawImpact = (map['impact_level'] ?? 'Medium').toString().toLowerCase().trim();
+    AuthorityPriority priority;
+    if (rawImpact.contains('critical')) {
+      priority = AuthorityPriority.critical;
+    } else if (rawImpact.contains('high')) {
+      priority = AuthorityPriority.high;
+    } else if (rawImpact.contains('low')) {
+      priority = AuthorityPriority.low;
+    } else {
+      priority = AuthorityPriority.medium;
+    }
+
+    // SDG parsing
+    final rawSdg = (map['sdg_alignment'] ?? 'SDG 11').toString();
+    int sdgNum = 11;
+    final match = RegExp(r'\d+').firstMatch(rawSdg);
+    if (match != null) {
+      sdgNum = int.tryParse(match.group(0)!) ?? 11;
+    }
+    final sdg = SdgInfo(
+      number: sdgNum,
+      title: 'SDG $sdgNum',
+      description: rawSdg,
+      color: sdgNum == 13
+          ? const Color(0xFF3F7E44)
+          : (sdgNum == 11 ? const Color(0xFFFD9D24) : const Color(0xFF0467B6)),
+    );
+
+    // Evidence images
+    final List<String> evidence = [];
+    final imgUrl = map['image_url']?.toString();
+    if (imgUrl != null && imgUrl.trim().isNotEmpty) {
+      evidence.add(imgUrl.trim());
+    }
+
+    // Ward extraction from location or jurisdiction
+    final loc = (map['location_address'] ?? map['location'] ?? 'Municipal Zone').toString();
+    String ward = 'Ward 14';
+    final wardMatch = RegExp(r'Ward\s*\d+', caseSensitive: false).firstMatch(loc);
+    if (wardMatch != null) {
+      ward = wardMatch.group(0)!;
+    }
+
+    DateTime reportedAt;
+    try {
+      reportedAt = map['created_at'] != null ? DateTime.parse(map['created_at'].toString()).toLocal() : DateTime.now();
+    } catch (_) {
+      reportedAt = DateTime.now();
+    }
+
+    return AuthorityComplaint(
+      id: complaintIdStr,
+      backendId: backendId,
+      title: (map['title'] ?? 'Civic Grievance').toString(),
+      description: (map['description'] ?? '').toString(),
+      category: (map['category'] ?? 'General').toString(),
+      ward: ward,
+      address: loc,
+      latitude: (map['latitude'] as num?)?.toDouble() ?? 12.9716,
+      longitude: (map['longitude'] as num?)?.toDouble() ?? 80.2435,
+      status: status,
+      priority: priority,
+      sdg: sdg,
+      evidenceImages: evidence,
+      upvotes: map['upvotes_count'] is int ? map['upvotes_count'] : (int.tryParse(map['upvotes_count']?.toString() ?? '0') ?? 0),
+      commentsCount: map['comments_count'] is int ? map['comments_count'] : (int.tryParse(map['comments_count']?.toString() ?? '0') ?? 0),
+      reportedAt: reportedAt,
+      reportedBy: (map['citizen_name'] ?? 'Citizen').toString(),
+      citizenProfileImageUrl: map['profile_image_url']?.toString(),
+      officerNotes: map['officer_notes']?.toString(),
+      rejectionReason: map['rejection_reason']?.toString(),
+    );
+  }
 
   int? get numericId {
     if (backendId != null) return backendId;

@@ -356,7 +356,7 @@ void main() {
     }, () => mockClient);
   });
 
-  testWidgets('Quick Demo Officer Login populates credentials and triggers authentication',
+  testWidgets('Authority login screen does not show Quick Demo option and authenticates via credentials',
       (WidgetTester tester) async {
     final mockToken = _buildMockJwt(role: 'official', sub: '220');
     final mockClient = MockClient((request) async {
@@ -390,8 +390,19 @@ void main() {
       await tester.pumpWidget(createLoginTestApp());
       await tester.pumpAndSettle();
 
-      // Tap Quick Demo Officer Login button
-      await tester.tap(find.text('Quick Demo Officer Login (Review Mode)'));
+      // Verify Quick Demo button is removed
+      expect(find.text('Quick Demo Officer Login (Review Mode)'), findsNothing);
+
+      // Enter credentials manually and tap Sign In
+      await tester.enterText(
+        find.widgetWithText(TextField, 'officer@corporation.gov.in'),
+        'rajesh.varma@corporation.gov.in',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, '••••••••'),
+        'Officer@2026',
+      );
+      await tester.tap(find.text('Sign In as Authority'));
       await tester.pumpAndSettle();
 
       expect(find.text('Welcome, Rajesh Varma! Authority session verified.'), findsOneWidget);
@@ -526,7 +537,7 @@ void main() {
     expect(find.byType(AuthorityLoginScreen), findsOneWidget);
   });
 
-  testWidgets('Admin credentials entered on Citizen LoginScreen routes to AdminAuthorityApplicationsListScreen',
+  testWidgets('Authority/Admin credentials entered on Citizen LoginScreen are strictly DENIED access',
       (WidgetTester tester) async {
     final mockToken = _buildMockJwt(role: 'admin', sub: '232');
     final mockClient = MockClient((request) async {
@@ -545,13 +556,6 @@ void main() {
               'is_verified': true,
             },
           }),
-          200,
-          headers: {'content-type': 'application/json'},
-        );
-      }
-      if (request.url.path.contains('/admin/authority-applications')) {
-        return http.Response(
-          jsonEncode([]),
           200,
           headers: {'content-type': 'application/json'},
         );
@@ -581,8 +585,9 @@ void main() {
       await tester.tap(find.widgetWithText(ElevatedButton, 'Sign In'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AdminAuthorityApplicationsListScreen), findsOneWidget);
-      expect(ApiService().userRole, equals('admin'));
+      expect(find.byType(AdminAuthorityApplicationsListScreen), findsNothing);
+      expect(find.textContaining('Authority accounts cannot log in through the Citizen Portal'), findsOneWidget);
+      expect(ApiService().isAuthenticated, isFalse);
     }, () => mockClient);
   });
 }

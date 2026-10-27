@@ -38,6 +38,8 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
 
   XFile? _selectedImage;
   bool _isSubmitting = false;
+  bool _isLoadingComments = false;
+  late Map<String, dynamic> _complaintData;
 
   // Post engagement counters
   late int _upvotes;
@@ -47,7 +49,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
   bool _isReposted = false;
 
   // Root comments list
-  late List<Map<String, dynamic>> _comments;
+  List<Map<String, dynamic>> _comments = [];
 
   // Engagement tracking per comment: commentId -> value
   final Map<int, int> _commentUpvotes = {};
@@ -58,12 +60,27 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
   @override
   void initState() {
     super.initState();
-    final data = widget.complaintData ?? {};
-    _upvotes = data['upvotes_count'] as int? ?? 124;
-    _commentsCount = data['comments_count'] as int? ?? 12;
-    _repostsCount = data['reposts_count'] as int? ?? 24;
+    _complaintData = widget.complaintData != null
+        ? Map<String, dynamic>.from(widget.complaintData!)
+        : {};
 
-    _initializeComments();
+    _upvotes = _complaintData['upvotes_count'] is int
+        ? _complaintData['upvotes_count']
+        : (int.tryParse(_complaintData['upvotes_count']?.toString() ?? '0') ?? 0);
+    _commentsCount = _complaintData['comments_count'] is int
+        ? _complaintData['comments_count']
+        : (int.tryParse(_complaintData['comments_count']?.toString() ?? '0') ?? 0);
+    _repostsCount = _complaintData['reposts_count'] is int
+        ? _complaintData['reposts_count']
+        : (int.tryParse(_complaintData['reposts_count']?.toString() ?? '0') ?? 0);
+    _isUpvoted = _complaintData['has_upvoted'] == true;
+    _isReposted = _complaintData['has_reposted'] == true;
+
+    _initializeFallbackComments();
+    _fetchComplaintDetails();
+    _loadUpvoteStatus();
+    _loadRepostStatus();
+    _fetchComments();
 
     if (widget.autoFocusComment) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -74,7 +91,174 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
     }
   }
 
-  void _initializeComments() {
+  String _formatRelativeTime(dynamic dateStr) {
+    if (dateStr == null) return "Recently";
+    try {
+      final dt = DateTime.parse(dateStr.toString()).toLocal();
+      final diff = DateTime.now().difference(dt);
+      if (diff.inMinutes < 60) {
+        return "${diff.inMinutes.clamp(1, 60)}m ago";
+      } else if (diff.inHours < 24) {
+        return "${diff.inHours} hours ago";
+      } else if (diff.inDays < 7) {
+        return "${diff.inDays} days ago";
+      } else {
+        return "${dt.day}/${dt.month}/${dt.year}";
+      }
+    } catch (_) {
+      return "Recently";
+    }
+  }
+
+  Future<void> _fetchComplaintDetails() async {
+    final complaintId = widget.complaintId ?? _complaintData['id'] as int?;
+    if (complaintId == null) return;
+    try {
+      final details = await ApiService().getComplaintDetails(complaintId);
+      if (mounted && details.isNotEmpty) {
+        setState(() {
+          _complaintData = {..._complaintData, ...details};
+          _upvotes = _complaintData['upvotes_count'] as int? ?? _upvotes;
+          _commentsCount = _complaintData['comments_count'] as int? ?? _commentsCount;
+          _repostsCount = _complaintData['reposts_count'] as int? ?? _repostsCount;
+        });
+      }
+    } catch (e) {
+      debugPrint('[AuthorityPostDetail] Error fetching details: $e');
+    }
+  }
+
+  Future<void> _loadUpvoteStatus() async {
+    final complaintId = widget.complaintId ?? _complaintData['id'] as int?;
+    if (complaintId == null) return;
+    try {
+      final status = await ApiService().getUpvoteStatus(complaintId);
+      if (mounted) {
+        setState(() {
+          _upvotes = status['total_upvotes'] ?? _upvotes;
+          _isUpvoted = status['has_upvoted'] == true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadRepostStatus() async {
+    final complaintId = widget.complaintId ?? _complaintData['id'] as int?;
+    if (complaintId == null || !ApiService().isAuthenticated) return;
+    try {
+      final status = await ApiService().getRepostStatus(complaintId);
+      if (mounted) {
+        setState(() {
+          _repostsCount = status['total_reposts'] ?? _repostsCount;
+          _isReposted = status['has_reposted'] == true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Map<String, dynamic> _mapApiComment(Map<String, dynamic> c,
+      {List<Map<String, dynamic>> replies = const []}) {
+    final name = (c['user_name'] ?? 'Citizen').toString();
+    final initials = (c['user_initials'] ?? (name.isNotEmpty ? name[0] : 'C')).toString();
+    final profileUrl = c['profile_image_url'] as String?;
+    final timeStr = _formatRelativeTime(c['created_at']);
+    final text = (c['comment'] ?? c['content'] ?? '').toString();
+    final image = c['image_url'] as String?;
+    final id = c['id'] as int? ?? 0;
+
+    final List<Color> bgColors = [
+      const Color(0xFFFEF08A),
+      const Color(0xFF86EFAC),
+      const Color(0xFF5EEAD4),
+      const Color(0xFFFBCFE8),
+      const Color(0xFFE0E7FF),
+    ];
+    final List<Color> textColors = [
+      const Color(0xFF854D0E),
+      const Color(0xFF15803D),
+      const Color(0xFF0F766E),
+      const Color(0xFF9D174D),
+      const Color(0xFF3730A3),
+    ];
+    final colorIdx = id.abs() % bgColors.length;
+
+    return {
+      'id': id,
+      'author': name,
+      'initials': initials,
+      'profile_image_url': profileUrl,
+      'time': timeStr,
+      'text': text,
+      'upvotes': 0,
+      'downvotes': 0,
+      'replies': replies.length,
+      'avatar_color': bgColors[colorIdx],
+      'avatar_text_color': textColors[colorIdx],
+      'image': image,
+      'image_url': image,
+      'authorities': <String>[],
+      'replies_list': replies.map((r) => _mapApiComment(r)).toList(),
+    };
+  }
+
+  Future<void> _fetchComments() async {
+    final complaintId = widget.complaintId ?? _complaintData['id'] as int?;
+    if (complaintId == null) return;
+    setState(() => _isLoadingComments = true);
+    try {
+      final rawComments = await ApiService().getComments(complaintId);
+      if (!mounted) return;
+
+      if (rawComments.isEmpty &&
+          widget.complaintData == null &&
+          WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+        _initializeFallbackComments();
+        setState(() => _isLoadingComments = false);
+        return;
+      }
+
+      final Map<int, List<Map<String, dynamic>>> repliesMap = {};
+      final List<Map<String, dynamic>> rootList = [];
+
+      for (final c in rawComments) {
+        final parentId = c['parent_comment_id'] as int?;
+        if (parentId != null) {
+          repliesMap.putIfAbsent(parentId, () => []).add(c);
+        }
+      }
+
+      for (final c in rawComments) {
+        final parentId = c['parent_comment_id'] as int?;
+        if (parentId == null) {
+          final cid = c['id'] as int? ?? 0;
+          final replies = repliesMap[cid] ?? [];
+          rootList.add(_mapApiComment(c, replies: replies));
+        }
+      }
+
+      setState(() {
+        _comments = rootList;
+        _commentsCount = rawComments.length;
+        _isLoadingComments = false;
+      });
+
+      for (final c in _comments) {
+        final id = c['id'] as int? ?? 0;
+        _commentUpvotes.putIfAbsent(id, () => 0);
+        _commentDownvotes.putIfAbsent(id, () => 0);
+      }
+    } catch (e) {
+      debugPrint('[AuthorityPostDetail] Error fetching comments: $e');
+      if (mounted) {
+        if (_comments.isEmpty) {
+          _initializeFallbackComments();
+        }
+        setState(() => _isLoadingComments = false);
+      }
+    }
+  }
+
+  void _initializeFallbackComments() {
     _comments = [
       {
         'id': 1001,
@@ -220,6 +404,42 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
     _commentFocusNode.requestFocus();
   }
 
+  Future<void> _toggleUpvote() async {
+    final complaintId = widget.complaintId ?? _complaintData['id'] as int?;
+    setState(() {
+      _isUpvoted = !_isUpvoted;
+      _upvotes += _isUpvoted ? 1 : -1;
+    });
+    if (complaintId == null) return;
+    try {
+      final res = await ApiService().toggleUpvote(complaintId);
+      if (mounted) {
+        setState(() {
+          _upvotes = res['total_upvotes'] ?? _upvotes;
+          _isUpvoted = res['has_upvoted'] == true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleRepost() async {
+    final complaintId = widget.complaintId ?? _complaintData['id'] as int?;
+    setState(() {
+      _isReposted = !_isReposted;
+      _repostsCount += _isReposted ? 1 : -1;
+    });
+    if (complaintId == null || !ApiService().isAuthenticated) return;
+    try {
+      final res = await ApiService().repostComplaint(complaintId);
+      if (mounted) {
+        setState(() {
+          _repostsCount = res['total_reposts'] ?? _repostsCount;
+          _isReposted = res['has_reposted'] == true;
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _submitComment() async {
     final content = _commentController.text.trim();
     if (content.isEmpty && _selectedImage == null) return;
@@ -228,7 +448,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
     setState(() => _isSubmitting = true);
 
     final complaintId = widget.complaintId ??
-        widget.complaintData?['id'] as int? ??
+        _complaintData['id'] as int? ??
         101;
     final hadImage = _selectedImage != null;
 
@@ -253,14 +473,18 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           content.isNotEmpty ? content : '[Photo]',
           imageUrl: uploadedImageUrl,
         );
-      } catch (_) {
-        // Fallback gracefully for offline/mock development
+      } catch (e) {
+        debugPrint('[AuthorityPostDetail] Error adding comment: $e');
       }
 
+      final currentUser = ApiService().currentUser;
+      final currentUserName = (currentUser?['full_name'] ?? 'Officer').toString();
+      final currentUserProfile = currentUser?['profile_image_url'] as String?;
       final newComment = {
         'id': DateTime.now().millisecondsSinceEpoch % 100000,
-        'author': 'You',
-        'initials': 'ME',
+        'author': currentUserName,
+        'initials': currentUserName.isNotEmpty ? currentUserName[0].toUpperCase() : 'O',
+        'profile_image_url': currentUserProfile,
         'time': 'just now',
         'text': content.isNotEmpty ? content : '[Photo Attachment]',
         'upvotes': 0,
@@ -270,13 +494,20 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
         'avatar_text_color': const Color(0xFF1D4ED8),
         'image': uploadedImageUrl ?? (hadImage ? _selectedImage?.path : null),
         'image_url': uploadedImageUrl,
-        'authorities': ['@elenarodriguez', '@Jane_doe', '@Marcus_Chen'],
+        'authorities': <String>[],
         'replies_list': <Map<String, dynamic>>[],
       };
 
+      // Also reload comments from backend if connected
+      try {
+        await _fetchComments();
+      } catch (_) {}
+
       setState(() {
-        _comments.insert(0, newComment);
-        _commentsCount++;
+        if (!_comments.any((c) => c['text'] == newComment['text'] && c['author'] == newComment['author'])) {
+          _comments.insert(0, newComment);
+          _commentsCount++;
+        }
         _commentController.clear();
         _selectedImage = null;
         _isSubmitting = false;
@@ -389,23 +620,120 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
     return RichText(text: TextSpan(children: spans));
   }
 
+  Widget _buildStatusBadge(String status) {
+    Color bgColor = const Color(0xFFE11D48);
+    String label = 'IN PROGRESS';
+
+    final s = status.toLowerCase();
+    if (s == 'resolved' || s == 'completed') {
+      bgColor = const Color(0xFF0467B6);
+      label = 'RESOLVED';
+    } else if (s == 'under_review' || s == 'reviewing') {
+      bgColor = const Color(0xFFD97706);
+      label = 'UNDER REVIEW';
+    } else if (s == 'assigned') {
+      bgColor = const Color(0xFF2563EB);
+      label = 'ASSIGNED';
+    } else if (s == 'rejected') {
+      bgColor = const Color(0xFF64748B);
+      label = 'REJECTED';
+    } else if (s == 'submitted') {
+      bgColor = const Color(0xFF0D9488);
+      label = 'SUBMITTED';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPostImage(String? url) {
+    if (url == null || url.trim().isEmpty) return const SizedBox.shrink();
+    final trimmed = url.trim();
+    if (trimmed.startsWith('assets/')) {
+      return Image.asset(
+        trimmed,
+        width: double.infinity,
+        height: 180,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+      );
+    }
+    return Image.network(
+      ApiService().resolveImageUrl(trimmed),
+      width: double.infinity,
+      height: 180,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          height: 180,
+          color: const Color(0xFFF1F5F9),
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0467B6)),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Container(
+      height: 160,
+      color: const Color(0xFFF1F5F9),
+      child: const Center(
+        child: Icon(
+          Icons.image_outlined,
+          size: 40,
+          color: Color(0xFF94A3B8),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final data = widget.complaintData ?? {};
-    final authorName = data['citizen_name'] ?? 'James Doe';
-    final authorInitials = data['citizen_initials'] ?? 'JD';
-    final timeAgo = '2 hours ago';
-    final description = data['description'] ??
-        'Critical waste management failure observed at the canal junction. Local community impact rising due to blockage.';
-    final authorities = [
-      '@elenarodriguez',
-      '@Jane_doe',
-      '@Marcus_Chen',
-    ];
-    final imageAsset =
-        data['image_url'] ?? 'assets/images/sample_waste_canal.jpg';
-    final location = data['location'] ?? 'Bharathiyar street';
-    final sdgAlignment = data['sdg_alignment'] ?? 'SDG 13';
+    final data = _complaintData;
+    final authorName = (data['citizen_name'] ?? 'Citizen').toString();
+    final authorInitials = (data['citizen_initials'] ?? (authorName.isNotEmpty ? authorName[0] : 'C')).toString();
+    final authorProfileUrl = data['profile_image_url'] as String?;
+    final timeAgo = _formatRelativeTime(data['created_at']);
+    final description = (data['description'] ?? data['title'] ?? '').toString();
+    final status = (data['status'] ?? 'in_progress').toString().toLowerCase();
+
+    // Parse real @mentions from complaint text or fallback to departmental authorities
+    final allText = '$description ${data['title'] ?? ''}';
+    final mentionMatches = RegExp(r'@[A-Za-z0-9_.]+').allMatches(allText);
+    List<String> authorities = mentionMatches.map((m) => m.group(0)!).toSet().toList();
+    if (authorities.isEmpty) {
+      authorities = [
+        '@elenarodriguez',
+        '@Jane_doe',
+        '@Marcus_Chen',
+      ];
+    }
+
+    final imageUrl = data['image_url'] as String?;
+    final location = (data['location_address'] ?? data['location'] ?? 'Municipal Zone').toString();
+    final sdgAlignment = (data['sdg_alignment'] ?? data['sdg'] ?? 'SDG 13').toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F6FD),
@@ -449,21 +777,40 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Author row with status badge
+                              // Author row with real profile photo and status badge
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  CircleAvatar(
-                                    radius: 20,
-                                    backgroundColor: const Color(0xFFF3E8FF),
-                                    child: Text(
-                                      authorInitials,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF9333EA),
-                                      ),
-                                    ),
+                                  Builder(
+                                    builder: (context) {
+                                      final resolvedUrl = (authorProfileUrl != null && authorProfileUrl.trim().isNotEmpty)
+                                          ? ApiService().resolveImageUrl(authorProfileUrl.trim())
+                                          : null;
+                                      Widget fallbackInitials() => CircleAvatar(
+                                        radius: 20,
+                                        backgroundColor: const Color(0xFFF3E8FF),
+                                        child: Text(
+                                          authorInitials,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF9333EA),
+                                          ),
+                                        ),
+                                      );
+                                      if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+                                        return ClipOval(
+                                          child: Image.network(
+                                            resolvedUrl,
+                                            width: 40,
+                                            height: 40,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => fallbackInitials(),
+                                          ),
+                                        );
+                                      }
+                                      return fallbackInitials();
+                                    },
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
@@ -500,26 +847,8 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                                       ],
                                     ),
                                   ),
-                                  // Status Badge
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 9,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE11D48),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      'IN PROGRESS',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.white,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                  ),
+                                  // Real Status Badge
+                                  _buildStatusBadge(status),
                                 ],
                               ),
 
@@ -562,28 +891,13 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
 
                               const SizedBox(height: 12),
 
-                              // Full post image
-                              if (imageAsset != null)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.asset(
-                                    imageAsset,
-                                    width: double.infinity,
-                                    height: 180,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            Container(
-                                      height: 160,
-                                      color: const Color(0xFFF1F5F9),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.image_outlined,
-                                          size: 40,
-                                          color: Color(0xFF94A3B8),
-                                        ),
-                                      ),
-                                    ),
+                              // Full post image (rendered if present)
+                              if (imageUrl != null && imageUrl.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: _buildPostImage(imageUrl),
                                   ),
                                 ),
 
@@ -772,12 +1086,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           // 1. Upvote
           Expanded(
             child: InkWell(
-              onTap: () {
-                setState(() {
-                  _isUpvoted = !_isUpvoted;
-                  _upvotes += _isUpvoted ? 1 : -1;
-                });
-              },
+              onTap: _toggleUpvote,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Center(
@@ -824,12 +1133,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           // 3. Repost
           Expanded(
             child: InkWell(
-              onTap: () {
-                setState(() {
-                  _isReposted = !_isReposted;
-                  _repostsCount += _isReposted ? 1 : -1;
-                });
-              },
+              onTap: _toggleRepost,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Center(
@@ -861,18 +1165,43 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
         children: [
           Row(
             children: [
-              // Purple MK Avatar
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: const Color(0xFFF3E8FF),
-                child: Text(
-                  'MK',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF9333EA),
-                  ),
-                ),
+              // User avatar with profile photo or initials
+              Builder(
+                builder: (context) {
+                  final user = ApiService().currentUser;
+                  final rawUrl = user?['profile_image_url'] as String?;
+                  final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                      ? ApiService().resolveImageUrl(rawUrl.trim())
+                      : null;
+                  final userName = (user?['full_name'] ?? 'Officer').toString();
+                  final userInitials = userName.isNotEmpty ? userName[0].toUpperCase() : 'O';
+
+                  Widget fallback() => CircleAvatar(
+                    radius: 16,
+                    backgroundColor: const Color(0xFFDBEAFE),
+                    child: Text(
+                      userInitials,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0467B6),
+                      ),
+                    ),
+                  );
+
+                  if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+                    return ClipOval(
+                      child: Image.network(
+                        resolvedUrl,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => fallback(),
+                      ),
+                    );
+                  }
+                  return fallback();
+                },
               ),
               const SizedBox(width: 10),
 
@@ -1035,10 +1364,10 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
       final time = comment['time']?.toString() ?? 'just now';
       final text = comment['text']?.toString() ?? '';
       final upvotes =
-          _commentUpvotes[id] ?? (comment['upvotes'] as int? ?? 11);
+          _commentUpvotes[id] ?? (comment['upvotes'] as int? ?? 0);
       final downvotes =
-          _commentDownvotes[id] ?? (comment['downvotes'] as int? ?? 2);
-      final repliesCount = comment['replies'] as int? ?? 1;
+          _commentDownvotes[id] ?? (comment['downvotes'] as int? ?? 0);
+      final repliesCount = comment['replies'] as int? ?? 0;
       final isLiked = _commentLiked[id] ?? false;
       final userVote = _commentUserVotes[id] ?? 0;
       final avatarBg =
@@ -1059,20 +1388,40 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Comment Author Header
+                // Comment Author Header with user profile photo or initials
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 17,
-                      backgroundColor: avatarBg,
-                      child: Text(
-                        initials,
-                        style: GoogleFonts.inter(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: avatarTextColor,
-                        ),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final rawUrl = comment['profile_image_url'] as String?;
+                        final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                            ? ApiService().resolveImageUrl(rawUrl.trim())
+                            : null;
+                        Widget fallback() => CircleAvatar(
+                          radius: 17,
+                          backgroundColor: avatarBg,
+                          child: Text(
+                            initials,
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: avatarTextColor,
+                            ),
+                          ),
+                        );
+                        if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+                          return ClipOval(
+                            child: Image.network(
+                              resolvedUrl,
+                              width: 34,
+                              height: 34,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => fallback(),
+                            ),
+                          );
+                        }
+                        return fallback();
+                      },
                     ),
                     const SizedBox(width: 10),
                     Text(

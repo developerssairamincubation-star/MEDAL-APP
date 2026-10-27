@@ -205,10 +205,14 @@ class _AuthorityCommentThreadScreenState
       }
 
       // Add to local thread replies list
+      final currentUser = ApiService().currentUser;
+      final currentUserName = (currentUser?['full_name'] ?? 'Officer').toString();
+      final currentUserProfile = currentUser?['profile_image_url'] as String?;
       final newReply = {
         'id': DateTime.now().millisecondsSinceEpoch % 100000,
-        'author': 'You',
-        'initials': 'ME',
+        'author': currentUserName,
+        'initials': currentUserName.isNotEmpty ? currentUserName[0].toUpperCase() : 'O',
+        'profile_image_url': currentUserProfile,
         'time': 'just now',
         'text': content.isNotEmpty ? content : '[Photo Attachment]',
         'upvotes': 0,
@@ -381,17 +385,38 @@ class _AuthorityCommentThreadScreenState
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  CircleAvatar(
-                                    radius: 20,
-                                    backgroundColor: const Color(0xFF86EFAC),
-                                    child: Text(
-                                      authorInitials,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF15803D),
-                                      ),
-                                    ),
+                                  Builder(
+                                    builder: (context) {
+                                      final rawUrl = widget.commentData['profile_image_url'] as String?;
+                                      final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                                          ? ApiService().resolveImageUrl(rawUrl.trim())
+                                          : null;
+                                      Widget fallback() => CircleAvatar(
+                                        radius: 20,
+                                        backgroundColor: const Color(0xFF86EFAC),
+                                        child: Text(
+                                          authorInitials,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF15803D),
+                                          ),
+                                        ),
+                                      );
+
+                                      if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+                                        return ClipOval(
+                                          child: Image.network(
+                                            resolvedUrl,
+                                            width: 40,
+                                            height: 40,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => fallback(),
+                                          ),
+                                        );
+                                      }
+                                      return fallback();
+                                    },
                                   ),
                                   const SizedBox(width: 10),
                                   Column(
@@ -748,18 +773,43 @@ class _AuthorityCommentThreadScreenState
         children: [
           Row(
             children: [
-              // Purple MK Avatar
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: const Color(0xFFF3E8FF),
-                child: Text(
-                  'MK',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF9333EA),
-                  ),
-                ),
+              // User avatar with profile photo or initials
+              Builder(
+                builder: (context) {
+                  final user = ApiService().currentUser;
+                  final rawUrl = user?['profile_image_url'] as String?;
+                  final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                      ? ApiService().resolveImageUrl(rawUrl.trim())
+                      : null;
+                  final userName = (user?['full_name'] ?? 'Officer').toString();
+                  final userInitials = userName.isNotEmpty ? userName[0].toUpperCase() : 'O';
+
+                  Widget fallback() => CircleAvatar(
+                    radius: 16,
+                    backgroundColor: const Color(0xFFDBEAFE),
+                    child: Text(
+                      userInitials,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0467B6),
+                      ),
+                    ),
+                  );
+
+                  if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+                    return ClipOval(
+                      child: Image.network(
+                        resolvedUrl,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => fallback(),
+                      ),
+                    );
+                  }
+                  return fallback();
+                },
               ),
               const SizedBox(width: 10),
 
@@ -945,17 +995,38 @@ class _AuthorityCommentThreadScreenState
               // Reply Author Header
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 17,
-                    backgroundColor: avatarBg,
-                    child: Text(
-                      initials,
-                      style: GoogleFonts.inter(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: avatarTextColor,
-                      ),
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final rawUrl = reply['profile_image_url'] as String?;
+                      final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                          ? ApiService().resolveImageUrl(rawUrl.trim())
+                          : null;
+                      Widget fallback() => CircleAvatar(
+                        radius: 17,
+                        backgroundColor: avatarBg,
+                        child: Text(
+                          initials,
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: avatarTextColor,
+                          ),
+                        ),
+                      );
+
+                      if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+                        return ClipOval(
+                          child: Image.network(
+                            resolvedUrl,
+                            width: 34,
+                            height: 34,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => fallback(),
+                          ),
+                        );
+                      }
+                      return fallback();
+                    },
                   ),
                   const SizedBox(width: 10),
                   Text(

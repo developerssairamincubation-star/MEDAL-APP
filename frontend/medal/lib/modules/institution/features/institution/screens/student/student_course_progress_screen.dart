@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:medal/core/services/api_service.dart';
@@ -93,6 +94,8 @@ class _StudentCourseProgressScreenState extends State<StudentCourseProgressScree
                     )
                   else
                     ..._progressList.map((item) {
+                      final rawId = item['course_id'] ?? item['id'] ?? 1;
+                      final courseId = rawId is int ? rawId : int.tryParse(rawId.toString()) ?? 1;
                       final title = item['title'] ?? 'SEEK Course';
                       final category = item['category'] ?? 'SEEK';
                       final double progressPct = (item['progress_pct'] as num?)?.toDouble() ?? 0.0;
@@ -101,22 +104,29 @@ class _StudentCourseProgressScreenState extends State<StudentCourseProgressScree
                       final status = item['status'] ?? 'In Progress';
                       final isCompleted = progressPct >= 1.0;
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            context.push('/student/course-detail/$courseId');
+                          },
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E4EC)),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x06000000),
-                              blurRadius: 10,
-                              offset: Offset(0, 2),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E4EC)),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x06000000),
+                                  blurRadius: 10,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Column(
+                            child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
@@ -202,7 +212,9 @@ class _StudentCourseProgressScreenState extends State<StudentCourseProgressScree
                             ),
                           ],
                         ),
-                      );
+                      ),
+                    ),
+                  );
                     }),
                 ],
               ),

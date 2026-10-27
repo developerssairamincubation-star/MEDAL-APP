@@ -213,6 +213,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+            SizedBox(width: 8),
+            Text(
+              "Log Out",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Are you sure you want to log out?",
+          style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ApiService().logout();
+              if (!context.mounted) return;
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                AppRoutes.roleSelection,
+                (route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+            child: const Text("Log Out", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showPhotoOptions() {
     showModalBottomSheet(
       context: context,
@@ -841,14 +891,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(width: 16),
                       TextButton.icon(
-                        onPressed: () async {
-                          await ApiService().logout();
-                          if (!context.mounted) return;
-                          Navigator.of(context).pushNamedAndRemoveUntil(
-                            AppRoutes.roleSelection,
-                            (route) => false,
-                          );
-                        },
+                        onPressed: () => _showLogoutConfirmationDialog(context),
                         icon: const Icon(Icons.logout, size: 16, color: Colors.redAccent),
                         label: const Text(
                           "Log Out",

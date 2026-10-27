@@ -199,7 +199,7 @@ void main() {
     expect(find.text('Urgent / SLA'), findsOneWidget);
   });
 
-  testWidgets('AuthorityLoginScreen renders portal inputs and demo login button',
+  testWidgets('AuthorityLoginScreen renders portal inputs and sign in button without quick demo',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -210,7 +210,7 @@ void main() {
 
     expect(find.text('Authority Portal'), findsOneWidget);
     expect(find.text('Officer Sign In'), findsOneWidget);
-    expect(find.text('Quick Demo Officer Login (Review Mode)'), findsOneWidget);
+    expect(find.text('Quick Demo Officer Login (Review Mode)'), findsNothing);
     expect(find.text('Sign In as Authority'), findsOneWidget);
   });
 

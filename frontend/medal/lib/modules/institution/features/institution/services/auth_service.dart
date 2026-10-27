@@ -56,11 +56,24 @@ class AuthService {
         return AuthResult.success(UserRole.student, userData);
       } else if (roleStr == 'principal') {
         return AuthResult.success(UserRole.principal, userData);
-      } else if (roleStr == 'staff' || roleStr == 'official') {
+      } else if (roleStr == 'staff' || roleStr == 'faculty' || roleStr == 'teacher') {
         return AuthResult.success(UserRole.staff, userData);
+      } else if (roleStr == 'citizen') {
+        await ApiService().logout();
+        return const AuthResult.failure(
+          'Access denied: Citizen accounts cannot log in to the Institution Portal. Please use the Citizen Login.',
+        );
+      } else if (roleStr == 'official' || roleStr == 'admin') {
+        await ApiService().logout();
+        return const AuthResult.failure(
+          'Access denied: Municipal Authority accounts cannot log in to the Institution Portal.',
+        );
+      } else {
+        await ApiService().logout();
+        return AuthResult.failure(
+          'Access denied: Your account role ($roleStr) is not authorized for the Institution Portal.',
+        );
       }
-      // If role is citizen or other, treat as student if logging in through Student Portal
-      return AuthResult.success(UserRole.student, userData);
     } catch (e) {
       // 2. If backend rejects, check mock repository for demo accounts
       final roleStr = MockRepository.credentials[normalizedEmail];

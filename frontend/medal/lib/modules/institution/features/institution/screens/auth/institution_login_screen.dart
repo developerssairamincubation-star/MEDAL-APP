@@ -366,36 +366,6 @@ class _InstitutionLoginScreenState
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-
-                // ── Demo Hint / Role Switcher ───────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0467B6).withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Demo Student: kajolmisra@medal.gov  |  Password: Password123!',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF0467B6),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Faculty/Principal: principal@medal.gov (any password)',
-                        style: GoogleFonts.inter(
-                          fontSize: 10.5,
-                          color: const Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 SizedBox(height: size.height * 0.04),
               ],
             ),

@@ -176,11 +176,12 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
   }
 
   String _formatTime(dynamic dateStr, int id) {
-    if (id == 101) return "2 hours ago";
-    if (id == 102) return "5 hours ago";
-    if (id == 103) return "12 hours ago";
-
-    if (dateStr == null) return "Recently";
+    if (dateStr == null) {
+      if (id == 101) return "2 hours ago";
+      if (id == 102) return "5 hours ago";
+      if (id == 103) return "12 hours ago";
+      return "Recently";
+    }
     try {
       final dt = DateTime.parse(dateStr.toString()).toLocal();
       final diff = DateTime.now().difference(dt);
@@ -198,9 +199,9 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
     }
   }
 
-  void _handleCardTap(Map<String, dynamic> item) {
+  void _handleCardTap(Map<String, dynamic> item) async {
     final id = item['id'] as int? ?? 101;
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => AuthorityPostDetailScreen(
@@ -209,6 +210,9 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
         ),
       ),
     );
+    if (mounted) {
+      _fetchFeed(forceRefresh: true);
+    }
   }
 
   @override
@@ -485,15 +489,15 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
     final timeAgo = _formatTime(item['created_at'], id);
     final status = (item['status'] ?? 'in_progress').toString().toLowerCase();
     final description = (item['description'] ?? item['title'] ?? '').toString();
-    final location = (item['location'] ?? 'Bharathiyar street').toString();
+    final location = (item['location_address'] ?? item['location'] ?? 'Bharathiyar street').toString();
     final imageUrl = item['image_url'] as String?;
-    final sdgText = (item['sdg_alignment'] ?? 'SDG 13').toString();
+    final sdgText = (item['sdg_alignment'] ?? item['sdg'] ?? 'SDG 13').toString();
 
     final isUpvoted = _upvotedIds.contains(id);
     final isReposted = _repostedIds.contains(id);
-    final upvotesCount = (item['upvotes_count'] as int? ?? 124) + (isUpvoted ? 1 : 0);
-    final commentsCount = item['comments_count'] as int? ?? 12;
-    final repostsCount = (item['reposts_count'] as int? ?? 24) + (isReposted ? 1 : 0);
+    final upvotesCount = (item['upvotes_count'] as int? ?? 0) + (isUpvoted ? 1 : 0);
+    final commentsCount = item['comments_count'] as int? ?? 0;
+    final repostsCount = (item['reposts_count'] as int? ?? 0) + (isReposted ? 1 : 0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -527,23 +531,50 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
                   child: Row(
                     children: [
-                      // Avatar with light blue background
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFDBEAFE),
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          initials,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF0467B6),
-                          ),
-                        ),
+                      // Avatar with real citizen profile photo or light blue initials fallback
+                      Builder(
+                        builder: (context) {
+                          final currentUserId = ApiService().currentUser?['id'];
+                          final isCurrentUser = (currentUserId != null && item['citizen_id'] == currentUserId);
+                          String? rawProfileUrl = item['profile_image_url'] as String?;
+                          if ((rawProfileUrl == null || rawProfileUrl.trim().isEmpty) && isCurrentUser) {
+                            rawProfileUrl = ApiService().currentUser?['profile_image_url'] as String?;
+                          }
+                          final resolvedUrl = (rawProfileUrl != null && rawProfileUrl.trim().isNotEmpty)
+                              ? ApiService().resolveImageUrl(rawProfileUrl.trim())
+                              : null;
+
+                          Widget fallbackInitials() => Container(
+                            width: 32,
+                            height: 32,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFDBEAFE),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              initials,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0467B6),
+                              ),
+                            ),
+                          );
+
+                          if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+                            return ClipOval(
+                              child: Image.network(
+                                resolvedUrl,
+                                width: 32,
+                                height: 32,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => fallbackInitials(),
+                              ),
+                            );
+                          }
+                          return fallbackInitials();
+                        },
                       ),
                       const SizedBox(width: 10),
 
@@ -837,8 +868,8 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
               // 2. Comment
               Expanded(
                 child: InkWell(
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => AuthorityPostDetailScreen(
@@ -848,6 +879,9 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                         ),
                       ),
                     );
+                    if (mounted) {
+                      _fetchFeed(forceRefresh: true);
+                    }
                   },
                   child: Center(
                     child: Text(

@@ -330,6 +330,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       badge: 'COMPLETED',
                       accentColor: const Color(0xFF0D9488), // Teal
                       badgeBgColor: const Color(0xFFE6FFFA),
+                      onTap: () => context.go(AppRoutes.studentAcademy),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -340,6 +341,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       badge: 'ACTIVE',
                       accentColor: const Color(0xFF7C3AED), // Purple
                       badgeBgColor: const Color(0xFFF3E8FF),
+                      onTap: () => context.go(AppRoutes.studentCourseProgress),
                     ),
                   ),
                 ],
@@ -354,6 +356,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       badge: 'POINTS',
                       accentColor: const Color(0xFF0467B6), // Blue
                       badgeBgColor: const Color(0xFFE6F2FA),
+                      onTap: () => context.go(AppRoutes.studentCourseProgress),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -364,6 +367,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       badge: 'PENDING',
                       accentColor: const Color(0xFF0284C7), // Sky Blue
                       badgeBgColor: const Color(0xFFE0F2FE),
+                      onTap: () => context.push(AppRoutes.studentPendingCourses),
                     ),
                   ),
                 ],
@@ -418,12 +422,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               if (_recentActivity.isEmpty)
                 ...[
                   _buildActivityCard(
+                    courseId: 1,
                     title: 'SEEK COURSE 1',
                     startDate: '06 Oct 2026',
                     endDate: '26 Oct 2026',
                   ),
                   const SizedBox(height: 12),
                   _buildActivityCard(
+                    courseId: 2,
                     title: 'SEEK COURSE 2',
                     startDate: '09 Oct 2026',
                     endDate: '30 Oct 2026',
@@ -431,9 +437,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ]
               else
                 ..._recentActivity.map((act) {
+                  final rawId = act['course_id'] ?? act['id'] ?? 1;
+                  final courseId = rawId is int ? rawId : int.tryParse(rawId.toString()) ?? 1;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _buildActivityCard(
+                      courseId: courseId,
                       title: act['title'] ?? 'SEEK COURSE',
                       startDate: act['start_date'] ?? '06 Oct 2026',
                       endDate: act['end_date'] ?? '26 Oct 2026',
@@ -454,168 +463,218 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     required String badge,
     required Color accentColor,
     required Color badgeBgColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E4EC)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x05000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Left vertical accent line
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: 3.5,
-              decoration: BoxDecoration(
-                color: accentColor,
-                borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E4EC)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x05000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
               ),
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Stack(
+            children: [
+              // Left vertical accent line
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 3.5,
+                  decoration: BoxDecoration(
+                    color: accentColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      number,
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: accentColor,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: badgeBgColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        badge,
-                        style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: accentColor,
-                          letterSpacing: 0.4,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          number,
+                          style: GoogleFonts.inter(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: accentColor,
+                          ),
                         ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: badgeBgColor,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            badge,
+                            style: GoogleFonts.inter(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: accentColor,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildActivityCard({
+    required int courseId,
     required String title,
     required String startDate,
     required String endDate,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          context.push('/student/course-detail/$courseId');
+        },
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E4EC)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x05000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Left accent pill
-          Positioned(
-            left: 0,
-            top: 2,
-            bottom: 2,
-            child: Container(
-              width: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFF0467B6),
-                borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E4EC)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x05000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
               ),
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // UNESCO Logo
-                const UnescoLogoWidget(width: 88),
-                const SizedBox(width: 14),
-
-                // Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.inter(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Start Date :   $startDate',
-                        style: GoogleFonts.inter(
-                          fontSize: 11.5,
-                          color: const Color(0xFF475569),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'End Date :    $endDate',
-                        style: GoogleFonts.inter(
-                          fontSize: 11.5,
-                          color: const Color(0xFF475569),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+          child: Stack(
+            children: [
+              // Left accent pill
+              Positioned(
+                left: 0,
+                top: 2,
+                bottom: 2,
+                child: Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0467B6),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-              ],
-            ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // UNESCO Logo
+                    const UnescoLogoWidget(width: 88),
+                    const SizedBox(width: 14),
+
+                    // Details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE6F2FA),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'View',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF0467B6),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 2),
+                                    const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 9,
+                                      color: Color(0xFF0467B6),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Start Date :   $startDate',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              color: const Color(0xFF475569),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'End Date :    $endDate',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              color: const Color(0xFF475569),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

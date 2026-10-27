@@ -94,24 +94,30 @@ class LogoutDialog extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // "Yes" Text / Button
-                  GestureDetector(
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await ref.read(authProvider.notifier).logout();
-                      if (context.mounted) {
-                        context.go(AppRoutes.login);
-                      }
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                  // "Yes" Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await ref.read(authProvider.notifier).logout();
+                        if (context.mounted) {
+                          context.go(AppRoutes.login);
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFFCA5A5), width: 1.2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                       child: Text(
-                        'Yes',
+                        'Yes, Log Out',
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF64748B),
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFDC2626),
                         ),
                       ),
                     ),
