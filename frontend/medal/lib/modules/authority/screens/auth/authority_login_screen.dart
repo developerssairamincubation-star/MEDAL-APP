@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../routes/app_routes.dart';
 import '../admin/admin_authority_applications_list_screen.dart';
 import '../dashboard/authority_main_screen.dart';
 import 'authority_register_screen.dart';
@@ -145,6 +146,21 @@ class _AuthorityLoginScreenState extends State<AuthorityLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MedalTheme.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: MedalTheme.textPrimary, size: 20),
+          tooltip: "Back",
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, AppRoutes.roleSelection);
+            }
+          },
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -162,7 +178,7 @@ class _AuthorityLoginScreenState extends State<AuthorityLoginScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
-                      Icons.security_rounded,
+                      Icons.military_tech_rounded,
                       color: MedalTheme.primary,
                       size: 38,
                     ),

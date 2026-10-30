@@ -120,7 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             children: [
               const Icon(
-                Icons.workspace_premium,
+                Icons.military_tech_rounded,
                 color: Color(0xFF0467B6),
                 size: 45,
               ),

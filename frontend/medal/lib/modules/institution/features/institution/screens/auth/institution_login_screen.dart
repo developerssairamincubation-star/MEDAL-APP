@@ -139,6 +139,21 @@ class _InstitutionLoginScreenState
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textPrimary, size: 20),
+          tooltip: "Back to Role Selection",
+          onPressed: () {
+            Navigator.of(context, rootNavigator: true).maybePop().then((popped) {
+              if (!popped) {
+                Navigator.of(context, rootNavigator: true).pushReplacementNamed('/role-selection');
+              }
+            });
+          },
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -147,11 +162,11 @@ class _InstitutionLoginScreenState
             ),
             child: Column(
               children: [
-                SizedBox(height: size.height * 0.08),
+                SizedBox(height: size.height * 0.02),
 
                 // ── MEdAL Logo ──────────────────────────────────
                 const MedalLogoLarge(),
-                SizedBox(height: size.height * 0.04),
+                SizedBox(height: size.height * 0.03),
 
                 // ── Student Login Card (Screenshot 1) ───────────
                 Container(
@@ -197,7 +212,7 @@ class _InstitutionLoginScreenState
                             children: [
                               // Title
                               Text(
-                                'Student login',
+                                'Institution Login',
                                 style: GoogleFonts.inter(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,

@@ -12,6 +12,7 @@ class RoleCard extends StatefulWidget {
     required this.icon,
     required this.buttonText,
     required this.onTap,
+    this.compact = false,
   });
 
   final String title;
@@ -19,6 +20,7 @@ class RoleCard extends StatefulWidget {
   final Widget icon;
   final String buttonText;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   State<RoleCard> createState() => _RoleCardState();
@@ -31,6 +33,7 @@ class _RoleCardState extends State<RoleCard> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
+    final compact = widget.compact;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -39,7 +42,7 @@ class _RoleCardState extends State<RoleCard> with SingleTickerProviderStateMixin
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
         transform: _isHovered 
-            ? (Matrix4.translationValues(0.0, -6.0, 0.0)..multiply(Matrix4.diagonal3Values(1.02, 1.02, 1.0)))
+            ? (Matrix4.translationValues(0.0, -4.0, 0.0)..multiply(Matrix4.diagonal3Values(1.01, 1.01, 1.0)))
             : Matrix4.identity(),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -53,8 +56,8 @@ class _RoleCardState extends State<RoleCard> with SingleTickerProviderStateMixin
               color: _isHovered 
                   ? primaryColor.withValues(alpha: 0.12)
                   : Colors.black.withValues(alpha: 0.05),
-              blurRadius: _isHovered ? 20 : 10,
-              offset: _isHovered ? const Offset(0, 10) : const Offset(0, 4),
+              blurRadius: _isHovered ? 16 : 8,
+              offset: _isHovered ? const Offset(0, 8) : const Offset(0, 4),
             ),
           ],
         ),
@@ -67,14 +70,17 @@ class _RoleCardState extends State<RoleCard> with SingleTickerProviderStateMixin
               splashColor: primaryColor.withValues(alpha: 0.08),
               highlightColor: primaryColor.withValues(alpha: 0.04),
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 20.0 : 24.0,
+                  vertical: compact ? 16.0 : 24.0,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Icon Container
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(compact ? 12 : 16),
                       decoration: BoxDecoration(
                         color: _isHovered 
                             ? primaryColor.withValues(alpha: 0.1)
@@ -83,31 +89,32 @@ class _RoleCardState extends State<RoleCard> with SingleTickerProviderStateMixin
                       ),
                       child: widget.icon,
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: compact ? 12 : 20),
                     // Title
                     Text(
                       widget.title,
                       style: theme.textTheme.titleLarge?.copyWith(
-                        fontSize: 22,
+                        fontSize: compact ? 20 : 22,
                         fontWeight: FontWeight.bold,
                         color: MedalTheme.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: compact ? 6 : 10),
                     // Description
                     Text(
                       widget.description,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: MedalTheme.textSecondary,
-                        fontSize: 14,
+                        fontSize: compact ? 13 : 14,
+                        height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: compact ? 16 : 24),
                     // Action Button
                     SizedBox(
                       width: double.infinity,
-                      height: 48,
+                      height: compact ? 42 : 48,
                       child: OutlinedButton(
                         onPressed: widget.onTap,
                         style: OutlinedButton.styleFrom(
@@ -124,8 +131,8 @@ class _RoleCardState extends State<RoleCard> with SingleTickerProviderStateMixin
                         ),
                         child: Text(
                           widget.buttonText,
-                          style: const TextStyle(
-                            fontSize: 15,
+                          style: TextStyle(
+                            fontSize: compact ? 14 : 15,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

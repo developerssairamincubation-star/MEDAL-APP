@@ -484,7 +484,7 @@ void main() {
     }, () => mockClient);
   });
 
-  testWidgets('RoleSelectionScreen dedicated Admin Login button navigates to AuthorityLoginScreen',
+  testWidgets('RoleSelectionScreen does not display System Administrator Login button (removed per spec)',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
@@ -499,16 +499,12 @@ void main() {
     await tester.pumpAndSettle();
 
     final adminBtnFinder = find.byKey(const Key('admin_login_option'));
-    expect(adminBtnFinder, findsOneWidget);
-    expect(find.text('System Administrator Login'), findsOneWidget);
+    expect(adminBtnFinder, findsNothing);
+    expect(find.text('System Administrator Login'), findsNothing);
 
-    await tester.ensureVisible(adminBtnFinder);
-    await tester.pumpAndSettle();
-    await tester.tap(adminBtnFinder);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(AuthorityLoginScreen), findsOneWidget);
-    expect(find.text('Authority Portal'), findsOneWidget);
+    // Both Citizen and Institution cards must be present on the same page
+    expect(find.text('Citizen'), findsOneWidget);
+    expect(find.text('Institution'), findsOneWidget);
   });
 
   testWidgets('Citizen Login screen has dedicated Admin Portal button navigating to admin login',
@@ -525,9 +521,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Verify Institution option was removed
+    expect(find.text('Institution / Official Portal'), findsNothing);
+
+    // Verify Authority Portal and Admin Portal exist
+    expect(find.text('Authority Portal'), findsOneWidget);
+
     final adminBtnFinder = find.byKey(const Key('citizen_screen_admin_login_button'));
     expect(adminBtnFinder, findsOneWidget);
-    expect(find.text('Admin Portal (Verification Desk)'), findsOneWidget);
+    expect(find.text('Admin Portal'), findsOneWidget);
 
     await tester.ensureVisible(adminBtnFinder);
     await tester.pumpAndSettle();
