@@ -20,7 +20,6 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
   String _selectedStatusFilter = 'All';
   List<AuthorityComplaint> _apiComplaints = [];
   bool _isLoading = true;
-  String? _errorMessage;
 
   final List<String> _statusFilters = [
     'All',
@@ -38,7 +37,6 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
   Future<void> _loadComplaints() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     try {
@@ -188,7 +186,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
           width: 96,
           height: 68,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholder(),
+          errorBuilder: (_, _, _) => _buildPlaceholder(),
         );
       }
       return Image.network(
@@ -196,7 +194,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
         width: 96,
         height: 68,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildPlaceholder(),
+        errorBuilder: (_, _, _) => _buildPlaceholder(),
       );
     }
     final assetFallback = _getEvidenceAsset(item);
@@ -205,7 +203,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
       width: 96,
       height: 68,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _buildPlaceholder(),
+      errorBuilder: (_, _, _) => _buildPlaceholder(),
     );
   }
 
@@ -457,7 +455,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
                               width: 24,
                               height: 24,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => fallback(),
+                              errorBuilder: (_, _, _) => fallback(),
                             ),
                           );
                         }

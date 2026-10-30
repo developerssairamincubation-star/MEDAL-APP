@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 import logging
-import mimetypes
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
@@ -32,10 +31,8 @@ from app.services.storage import BaseStorageService, get_storage_service
 from app.utils.file_validation import MAX_IMAGE_SIZE_BYTES, validate_and_read_upload
 from app.utils.security import (
     create_access_token,
-    create_password_reset_token,
     create_verified_reset_token,
     decode_access_token,
-    decode_password_reset_token,
     decode_verified_reset_token,
     generate_otp,
     hash_otp,

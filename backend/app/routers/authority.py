@@ -1,8 +1,4 @@
-from datetime import datetime, timezone
 import logging
-import mimetypes
-import os
-from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import EmailStr
 from sqlalchemy.orm import Session

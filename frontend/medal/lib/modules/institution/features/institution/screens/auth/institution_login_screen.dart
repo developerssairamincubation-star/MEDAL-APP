@@ -146,11 +146,12 @@ class _InstitutionLoginScreenState
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textPrimary, size: 20),
           tooltip: "Back to Role Selection",
           onPressed: () {
-            Navigator.of(context, rootNavigator: true).maybePop().then((popped) {
-              if (!popped) {
-                Navigator.of(context, rootNavigator: true).pushReplacementNamed('/role-selection');
-              }
-            });
+            final nav = Navigator.of(context, rootNavigator: true);
+            if (nav.canPop()) {
+              nav.pop();
+            } else {
+              nav.pushReplacementNamed('/role-selection');
+            }
           },
         ),
       ),

@@ -1,7 +1,6 @@
 import asyncio
 import io
 import logging
-import mimetypes
 import os
 import time
 import uuid
@@ -12,7 +11,6 @@ from fastapi import HTTPException, UploadFile, status
 
 from app.utils.file_validation import (
     detect_file_type_from_bytes,
-    generate_safe_asset_id,
     get_extension_for_mime,
 )
 

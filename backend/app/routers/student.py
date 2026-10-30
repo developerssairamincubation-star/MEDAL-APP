@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 import logging
-from typing import List, Optional
+from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db

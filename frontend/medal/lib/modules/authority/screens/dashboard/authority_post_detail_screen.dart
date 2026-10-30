@@ -38,7 +38,6 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
 
   XFile? _selectedImage;
   bool _isSubmitting = false;
-  bool _isLoadingComments = false;
   late Map<String, dynamic> _complaintData;
 
   // Post engagement counters
@@ -204,7 +203,6 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
   Future<void> _fetchComments() async {
     final complaintId = widget.complaintId ?? _complaintData['id'] as int?;
     if (complaintId == null) return;
-    setState(() => _isLoadingComments = true);
     try {
       final rawComments = await ApiService().getComments(complaintId);
       if (!mounted) return;
@@ -213,7 +211,6 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           widget.complaintData == null &&
           WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
         _initializeFallbackComments();
-        setState(() => _isLoadingComments = false);
         return;
       }
 
@@ -239,7 +236,6 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
       setState(() {
         _comments = rootList;
         _commentsCount = rawComments.length;
-        _isLoadingComments = false;
       });
 
       for (final c in _comments) {
@@ -253,7 +249,6 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
         if (_comments.isEmpty) {
           _initializeFallbackComments();
         }
-        setState(() => _isLoadingComments = false);
       }
     }
   }

@@ -25,7 +25,6 @@ from app.services.ai_sdg_service import AiSdgService
 from app.services.storage import BaseStorageService, get_storage_service
 from app.utils.file_validation import (
     MAX_IMAGE_SIZE_BYTES,
-    detect_file_type_from_bytes,
     validate_and_read_upload,
 )
 
