@@ -19,7 +19,7 @@
 import 'package:flutter/foundation.dart';
 
 /// Production backend URL deployed on Render
-const String kRenderUrl = 'https://medal-backend.onrender.com';
+const String kRenderUrl = 'https://medal-backend-1sm9.onrender.com';
 
 /// Backend port — matches uvicorn startup port for local dev
 const int kBackendPort = 8000;

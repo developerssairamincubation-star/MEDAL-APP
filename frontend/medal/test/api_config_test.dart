@@ -6,20 +6,20 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ApiConfig & Production Render Base URL Tests', () {
-    test('Default productionUrl is https://medal-backend.onrender.com', () {
-      expect(ApiConfig.productionUrl, equals('https://medal-backend.onrender.com'));
-      expect(kRenderUrl, equals('https://medal-backend.onrender.com'));
+    test('Default productionUrl is https://medal-backend-1sm9.onrender.com', () {
+      expect(ApiConfig.productionUrl, equals('https://medal-backend-1sm9.onrender.com'));
+      expect(kRenderUrl, equals('https://medal-backend-1sm9.onrender.com'));
     });
 
     test('Default baseUrl uses Render production URL when no override is set', () {
-      expect(ApiConfig.baseUrl, equals('https://medal-backend.onrender.com'));
-      expect(kActiveBaseUrl, equals('https://medal-backend.onrender.com'));
+      expect(ApiConfig.baseUrl, equals('https://medal-backend-1sm9.onrender.com'));
+      expect(kActiveBaseUrl, equals('https://medal-backend-1sm9.onrender.com'));
       expect(ApiConfig.isProduction, isTrue);
     });
 
     test('ApiService baseUrl matches ApiConfig.baseUrl', () {
       final apiService = ApiService();
-      expect(apiService.baseUrl, equals('https://medal-backend.onrender.com'));
+      expect(apiService.baseUrl, equals('https://medal-backend-1sm9.onrender.com'));
     });
 
     test('Legacy local configurations are preserved and accessible', () {
