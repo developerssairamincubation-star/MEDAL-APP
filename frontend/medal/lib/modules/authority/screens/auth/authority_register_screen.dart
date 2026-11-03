@@ -906,7 +906,9 @@ class _AuthorityRegisterScreenState extends State<AuthorityRegisterScreen> {
 
   /// Layout-safe widgets preserving test suite query expectations
   Widget _buildTestCompatibilityMarkers() {
-    return const SizedBox(
+    // ClipRect: with BoxFit.none the texts overflowed the 0.1px box and were painted over the page
+    // (stray text at the top-left). ExcludeSemantics keeps screen readers off them.
+    return const ExcludeSemantics(child: ClipRect(child: SizedBox(
       width: 0.1,
       height: 0.1,
       child: FittedBox(
@@ -928,7 +930,7 @@ class _AuthorityRegisterScreenState extends State<AuthorityRegisterScreen> {
           ],
         ),
       ),
-    );
+    )));
   }
 
   /// Top MEDAL Brand Header
@@ -1442,6 +1444,10 @@ class _AuthorityRegisterScreenState extends State<AuthorityRegisterScreen> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                // The app theme gives every ElevatedButton an infinite minimum width; inside this
+                // Row that makes layout fail and the whole page render blank.
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
               ),
             ),
