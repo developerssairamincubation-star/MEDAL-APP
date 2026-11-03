@@ -45,6 +45,7 @@ dependencies:
   http: ^1.6.0
   http_parser: ^4.1.2
   shared_preferences: ^2.5.5
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

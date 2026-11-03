@@ -2,11 +2,13 @@
 // Admin Authority Verification and Officer Onboarding Details Screen
 // Visually matches the MEDAL Admin Authority Verification design specification.
 
+import 'package:medal/widgets/medal_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../routes/app_routes.dart';
+import '../../../../widgets/medal_logo.dart';
 
 class AdminAuthorityVerificationScreen extends StatefulWidget {
   final Map<String, dynamic>? application;
@@ -228,8 +230,7 @@ class _AdminAuthorityVerificationScreenState
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => MedalAlertDialog(
         title: Row(
           children: [
             const Icon(Icons.verified_user_rounded, color: Color(0xFF4F46E5), size: 24),
@@ -316,8 +317,7 @@ class _AdminAuthorityVerificationScreenState
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => MedalAlertDialog(
         title: Row(
           children: [
             const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626), size: 24),
@@ -436,8 +436,7 @@ class _AdminAuthorityVerificationScreenState
     if (trimmed.isEmpty) {
       showDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        builder: (ctx) => MedalAlertDialog(
           title: Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
           content: Text(
             'No document file was uploaded for this requirement.',
@@ -652,11 +651,7 @@ class _AdminAuthorityVerificationScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.military_tech_rounded,
-            color: Color(0xFF6366F1),
-            size: 24,
-          ),
+          const MedalLogo(iconSize: 18),
           const SizedBox(width: 6),
           Text(
             'MEdAL',

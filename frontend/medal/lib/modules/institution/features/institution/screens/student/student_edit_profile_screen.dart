@@ -19,9 +19,9 @@ class StudentEditProfileScreen extends StatefulWidget {
 }
 
 class _StudentEditProfileScreenState extends State<StudentEditProfileScreen> {
-  final _nameController = TextEditingController(text: 'Kajol Misra');
-  final _emailController = TextEditingController(text: 'kajolmisra@medal.gov');
-  final _deptController = TextEditingController(text: 'Maths , Physics , Biology');
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _deptController = TextEditingController();
   final _phoneController = TextEditingController(text: '9123456789');
 
   String? _avatarUrl;
@@ -74,10 +74,10 @@ class _StudentEditProfileScreenState extends State<StudentEditProfileScreen> {
         final data = jsonDecode(resp.body);
         if (mounted) {
           setState(() {
-            _nameController.text = data['full_name'] ?? 'Kajol Misra';
-            _emailController.text = data['email'] ?? 'kajolmisra@medal.gov';
-            _phoneController.text = (data['phone'] ?? '9123456789').replaceAll('+91 ', '');
-            _deptController.text = data['preferences'] ?? data['department'] ?? 'Maths , Physics , Biology';
+            _nameController.text = data['full_name'] ?? '';
+            _emailController.text = data['email'] ?? '';
+            _phoneController.text = (data['phone'] ?? '').replaceAll('+91 ', '');
+            _deptController.text = data['preferences'] ?? data['department'] ?? '';
             _avatarUrl = data['profile_image_url'];
           });
         }
@@ -365,14 +365,6 @@ class _StudentEditProfileScreenState extends State<StudentEditProfileScreen> {
                 children: [
                   Text(
                     'MEdAL v2.4.0 Institutional Core',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF94A3B8),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Last login: Today at 08:42 AM',
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       color: const Color(0xFF94A3B8),

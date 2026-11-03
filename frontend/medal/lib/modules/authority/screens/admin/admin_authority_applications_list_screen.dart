@@ -2,12 +2,14 @@
 // Admin Authority Applications List Screen
 // Shows registered officer applications with Pending, Approved, and Rejected tabs.
 
+import 'package:medal/widgets/medal_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../routes/app_routes.dart';
+import '../../../../widgets/medal_logo.dart';
 
 enum ApplicationFilterTab { pending, approved, rejected }
 
@@ -102,8 +104,7 @@ class _AdminAuthorityApplicationsListScreenState
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => MedalAlertDialog(
         title: Row(
           children: [
             const Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 22),
@@ -206,11 +207,7 @@ class _AdminAuthorityApplicationsListScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.military_tech_rounded,
-            color: Color(0xFF6366F1),
-            size: 24,
-          ),
+          const MedalLogo(iconSize: 18),
           const SizedBox(width: 6),
           Text(
             'MEdAL',

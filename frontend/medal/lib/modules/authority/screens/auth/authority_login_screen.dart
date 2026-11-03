@@ -8,6 +8,7 @@ import '../../../../routes/app_routes.dart';
 import '../admin/admin_authority_applications_list_screen.dart';
 import '../dashboard/authority_main_screen.dart';
 import 'authority_register_screen.dart';
+import '../../../../widgets/medal_logo.dart';
 
 class AuthorityLoginScreen extends StatefulWidget {
   const AuthorityLoginScreen({super.key});
@@ -170,19 +171,7 @@ class _AuthorityLoginScreenState extends State<AuthorityLoginScreen> {
               child: Column(
                 children: [
                   // Seal / Icon
-                  Container(
-                    width: 68,
-                    height: 68,
-                    decoration: const BoxDecoration(
-                      color: MedalTheme.primaryTint,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.military_tech_rounded,
-                      color: MedalTheme.primary,
-                      size: 38,
-                    ),
-                  ),
+                  const MedalLogo(iconSize: 36),
                   const SizedBox(height: 14),
                   const Text(
                     "Authority Portal",

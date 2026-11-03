@@ -11,6 +11,7 @@ import '../../../../core/services/api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../routes/app_routes.dart';
 import 'authority_login_screen.dart';
+import '../../../../widgets/medal_logo.dart';
 
 class AuthorityRegisterScreen extends StatefulWidget {
   final String? initialFullName;
@@ -938,11 +939,7 @@ class _AuthorityRegisterScreenState extends State<AuthorityRegisterScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.military_tech_rounded,
-            color: Color(0xFF1A82D2),
-            size: 24,
-          ),
+          const MedalLogo(iconSize: 18),
           const SizedBox(width: 6),
           Text(
             'MEDAL',

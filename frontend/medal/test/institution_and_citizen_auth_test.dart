@@ -149,7 +149,7 @@ void main() {
       expect(find.text('Are you sure you want to log out?'), findsNothing);
     });
 
-    testWidgets('StudentDashboardScreen renders interactive course cards and stat cards',
+    testWidgets('StudentDashboardScreen renders stat cards and chapter activity empty state',
         (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -161,13 +161,12 @@ void main() {
       // Check stat cards exist
       expect(find.text('Certification Ready'), findsOneWidget);
       expect(find.text('Enrolled Courses'), findsOneWidget);
-      expect(find.text('Credits Earned'), findsOneWidget);
+      expect(find.text('Chapters Completed'), findsOneWidget);
       expect(find.text('Enrollment Pending'), findsOneWidget);
 
-      // Check course cards exist and have View indicators
-      expect(find.text('SEEK COURSE 1'), findsOneWidget);
-      expect(find.text('SEEK COURSE 2'), findsOneWidget);
-      expect(find.text('View'), findsNWidgets(2));
+      // Recent activity lists completed chapters only; none without live data.
+      expect(find.text('SEEK COURSE 1'), findsNothing);
+      expect(find.textContaining('No chapters completed yet'), findsOneWidget);
     });
   });
 }

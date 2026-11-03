@@ -25,8 +25,7 @@ import '../features/institution/screens/principal/add_staff_screen.dart';
 import '../features/institution/screens/principal/principal_profile_screen.dart';
 import '../features/institution/screens/staff/staff_dashboard_screen.dart';
 import '../features/institution/screens/staff/my_class_screen.dart';
-import '../features/institution/screens/staff/class_detail_screen.dart';
-import '../features/institution/screens/staff/invite_students_screen.dart';
+import '../features/institution/screens/shared/member_detail_screen.dart';
 import '../features/institution/screens/staff/staff_profile_screen.dart';
 import '../features/institution/services/auth_service.dart';
 
@@ -52,24 +51,31 @@ abstract final class AppRoutes {
   static const String principalStaffList = '/principal/staff-list';
   static const String principalAddStaff = '/principal/add-staff';
   static const String principalProfile = '/principal/profile';
+  static const String principalMemberDetail = '/principal/member/:memberId';
 
   // Staff
   static const String staffDashboard = '/staff/dashboard';
   static const String staffMyClass = '/staff/my-class';
-  static const String staffClassDetail = '/staff/class-detail/:studentId';
-  static const String staffInviteStudents = '/staff/invite-students';
+  static const String staffStudentDetail = '/staff/student/:memberId';
   static const String staffProfile = '/staff/profile';
 }
 
 // ── Router Provider ─────────────────────────────────────────────────────────
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  // The router is created once. Auth changes re-run `redirect` through
+  // `refreshListenable` instead of rebuilding the router, which used to reset
+  // the app to the splash screen (and clear the login form) on every change.
+  final authChanged = ValueNotifier<int>(0);
+  ref.listen<AuthState>(authProvider, (_, __) => authChanged.value++);
+  ref.onDispose(authChanged.dispose);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
+    refreshListenable: authChanged,
     redirect: (BuildContext context, GoRouterState state) {
+      final authState = ref.read(authProvider);
       final isAuthenticated = authState.isAuthenticated;
       final isSplashRoute = state.matchedLocation == AppRoutes.splash;
       final isLoginRoute = state.matchedLocation == AppRoutes.login;
@@ -128,7 +134,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.studentAcademy,
         name: 'studentAcademy',
-        builder: (context, state) => const StudentAcademyScreen(),
+        builder: (context, state) => StudentAcademyScreen(
+          initialTabIndex:
+              state.uri.queryParameters['tab'] == 'certificates' ? 1 : 0,
+        ),
       ),
       GoRoute(
         path: AppRoutes.studentProfile,
@@ -181,6 +190,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'principalProfile',
         builder: (context, state) => const PrincipalProfileScreen(),
       ),
+      GoRoute(
+        path: AppRoutes.principalMemberDetail,
+        name: 'principalMemberDetail',
+        builder: (context, state) => MemberDetailScreen(
+          memberId: int.tryParse(state.pathParameters['memberId'] ?? '') ?? 0,
+        ),
+      ),
 
       // ── Staff ──────────────────────────────────────────────────
       GoRoute(
@@ -194,17 +210,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MyClassScreen(),
       ),
       GoRoute(
-        path: '/staff/class-detail/:studentId',
-        name: 'staffClassDetail',
-        builder: (context, state) {
-          final studentId = state.pathParameters['studentId'] ?? '';
-          return ClassDetailScreen(studentId: studentId);
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.staffInviteStudents,
-        name: 'staffInviteStudents',
-        builder: (context, state) => const InviteStudentsScreen(),
+        path: AppRoutes.staffStudentDetail,
+        name: 'staffStudentDetail',
+        builder: (context, state) => MemberDetailScreen(
+          memberId: int.tryParse(state.pathParameters['memberId'] ?? '') ?? 0,
+        ),
       ),
       GoRoute(
         path: AppRoutes.staffProfile,

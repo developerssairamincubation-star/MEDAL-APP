@@ -1,9 +1,13 @@
 // lib/modules/authority/screens/academy/authority_academy_screen.dart
 // Authority Academy screen featuring My Courses and My Certificates tabs matching Figma reference screenshots.
 
+import '../../../../core/services/course_progress_store.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/authority_models.dart';
+import 'authority_seek_course_screen.dart';
+import '../../../../widgets/medal_logo.dart';
+import '../../widgets/authority_filter_tabs.dart';
 
 class AuthorityAcademyScreen extends StatefulWidget {
   final int initialTab;
@@ -16,7 +20,6 @@ class AuthorityAcademyScreen extends StatefulWidget {
 class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
   late int _selectedTab; // 0 = My Courses, 1 = My Certificates
   String _selectedCourseTopic = 'All Topics';
-  String _selectedCertFilter = 'All Topics';
   final TextEditingController _searchController = TextEditingController();
 
   final List<String> _courseTopics = [
@@ -27,17 +30,11 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
     'Digital Skills',
   ];
 
-  final List<String> _certFilters = [
-    'All Topics',
-    'Goal oriented',
-    'Top badges',
-    'Recent',
-  ];
-
   @override
   void initState() {
     super.initState();
     _selectedTab = widget.initialTab;
+    CourseProgressStore.instance.ensureLoaded();
   }
 
   @override
@@ -99,7 +96,10 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                 ),
                 child: Column(
                   children: [
-                    _buildCertRow("Recipient", MockAuthorityRepository.currentOfficer.legalName),
+                    _buildCertRow(
+                      "Recipient",
+                      MockAuthorityRepository.currentOfficer.legalName,
+                    ),
                     const SizedBox(height: 5),
                     _buildCertRow("Certificate No.", cert.certificateNo),
                     const SizedBox(height: 5),
@@ -120,7 +120,9 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text("Certificate ${cert.certificateNo} downloaded successfully."),
+                        content: Text(
+                          "Certificate ${cert.certificateNo} downloaded successfully.",
+                        ),
                         backgroundColor: const Color(0xFF16A34A),
                       ),
                     );
@@ -128,13 +130,18 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                   icon: const Icon(Icons.download_rounded, size: 18),
                   label: Text(
                     "Download PDF Certificate",
-                    style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0467B6),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -151,7 +158,10 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF64748B)),
+          style: GoogleFonts.inter(
+            fontSize: 11.5,
+            color: const Color(0xFF64748B),
+          ),
         ),
         Flexible(
           child: Text(
@@ -171,6 +181,13 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: CourseProgressStore.instance,
+      builder: (context, _) => _buildBody(context),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
     return Material(
       color: const Color(0xFFF8FAFD),
       child: SingleChildScrollView(
@@ -187,15 +204,19 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
             // 2. Search Field
             _buildSearchBar(),
 
-            const SizedBox(height: 10),
-
-            // 3. Horizontal Category Filter Pills
-            _buildFilterPills(),
+            // 3. Category filter pills (My Courses only; none on My Certificates)
+            if (_selectedTab == 0) ...[
+              const SizedBox(height: 10),
+              _buildFilterPills(),
+            ],
 
             const SizedBox(height: 12),
 
             // 4. Tab Specific Content
-            if (_selectedTab == 0) _buildMyCoursesContent() else _buildMyCertificatesContent(),
+            if (_selectedTab == 0)
+              _buildMyCoursesContent()
+            else
+              _buildMyCertificatesContent(),
           ],
         ),
       ),
@@ -221,7 +242,9 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                 duration: const Duration(milliseconds: 180),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: _selectedTab == 0 ? const Color(0xFF0467B6) : Colors.transparent,
+                  color: _selectedTab == 0
+                      ? const Color(0xFF0467B6)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -229,7 +252,9 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: _selectedTab == 0 ? Colors.white : const Color(0xFF5A6E85),
+                    color: _selectedTab == 0
+                        ? Colors.white
+                        : const Color(0xFF5A6E85),
                   ),
                 ),
               ),
@@ -243,7 +268,9 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                 duration: const Duration(milliseconds: 180),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: _selectedTab == 1 ? const Color(0xFF0467B6) : Colors.transparent,
+                  color: _selectedTab == 1
+                      ? const Color(0xFF0467B6)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -251,7 +278,9 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: _selectedTab == 1 ? Colors.white : const Color(0xFF5A6E85),
+                    color: _selectedTab == 1
+                        ? Colors.white
+                        : const Color(0xFF5A6E85),
                   ),
                 ),
               ),
@@ -280,9 +309,19 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
         style: GoogleFonts.inter(fontSize: 12),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF8B9CB2)),
-          prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF7B8C9E)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          hintStyle: GoogleFonts.inter(
+            fontSize: 12,
+            color: const Color(0xFF8B9CB2),
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: Color(0xFF7B8C9E),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 8,
+          ),
           border: InputBorder.none,
           isDense: true,
         ),
@@ -293,47 +332,13 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
 
   /// Horizontal scrollable category filter pills
   Widget _buildFilterPills() {
-    final pills = _selectedTab == 0 ? _courseTopics : _certFilters;
-    final active = _selectedTab == 0 ? _selectedCourseTopic : _selectedCertFilter;
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: pills.map((topic) {
-          final isSelected = topic == active;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (_selectedTab == 0) {
-                    _selectedCourseTopic = topic;
-                  } else {
-                    _selectedCertFilter = topic;
-                  }
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF0467B6) : const Color(0xFFE8F1FB),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Text(
-                  topic,
-                  style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                    color: isSelected ? Colors.white : const Color(0xFF334E68),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+    return AuthorityFilterTabs(
+      labels: _courseTopics,
+      selectedIndex: _courseTopics.indexOf(_selectedCourseTopic),
+      size: AuthorityTabSize.regular,
+      padding: EdgeInsets.zero,
+      onSelected: (index) =>
+          setState(() => _selectedCourseTopic = _courseTopics[index]),
     );
   }
 
@@ -353,10 +358,12 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
         const SizedBox(height: 12),
 
         // 2. Course Cards Feed
-        ...courses.map((course) => Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: _buildCourseCard(course),
-            )),
+        ...courses.map(
+          (course) => Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: _buildCourseCard(course),
+          ),
+        ),
       ],
     );
   }
@@ -384,7 +391,11 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.local_fire_department_rounded, size: 14, color: Color(0xFFDC2626)),
+              const Icon(
+                Icons.local_fire_department_rounded,
+                size: 14,
+                color: Color(0xFFDC2626),
+              ),
               const SizedBox(width: 4),
               Text(
                 "IN PROGRESS",
@@ -407,6 +418,26 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
               fontWeight: FontWeight.w800,
               color: const Color(0xFF111C2D),
               height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            SeekCourseContent.description,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: const Color(0xFF64748B),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "${course.totalModules} modules • ${course.duration} • ${course.level}",
+            style: GoogleFonts.inter(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF475569),
             ),
           ),
           const SizedBox(height: 8),
@@ -441,7 +472,9 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
             child: LinearProgressIndicator(
               value: course.progress,
               backgroundColor: const Color(0xFFE2EDF8),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0467B6)),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF0467B6),
+              ),
               minHeight: 6,
             ),
           ),
@@ -453,10 +486,10 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
             height: 34,
             child: ElevatedButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("Resuming ${course.title}..."),
-                    backgroundColor: const Color(0xFF0467B6),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AuthoritySeekCourseScreen(),
                   ),
                 );
               },
@@ -464,12 +497,17 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                 backgroundColor: const Color(0xFF0467B6),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
                 padding: EdgeInsets.zero,
               ),
               child: Text(
                 course.buttonActionText ?? "Continue Learning",
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -512,7 +550,11 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                   height: 130,
                   color: const Color(0xFFE2E8F0),
                   child: const Center(
-                    child: Icon(Icons.school_outlined, size: 36, color: Color(0xFF94A3B8)),
+                    child: Icon(
+                      Icons.school_outlined,
+                      size: 36,
+                      color: Color(0xFF94A3B8),
+                    ),
                   ),
                 ),
               ),
@@ -521,9 +563,14 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                   left: 10,
                   bottom: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      color: isWhiteBadge ? Colors.white : Colors.black.withValues(alpha: 0.75),
+                      color: isWhiteBadge
+                          ? Colors.white
+                          : Colors.black.withValues(alpha: 0.75),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -531,7 +578,9 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 9.5,
                         fontWeight: FontWeight.w800,
-                        color: isWhiteBadge ? const Color(0xFF111C2D) : Colors.white,
+                        color: isWhiteBadge
+                            ? const Color(0xFF111C2D)
+                            : Colors.white,
                         letterSpacing: 0.3,
                       ),
                     ),
@@ -559,14 +608,25 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                 // Meta Row: Duration and Rating
                 Row(
                   children: [
-                    const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFF64748B)),
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 13,
+                      color: Color(0xFF64748B),
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       course.duration,
-                      style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: const Color(0xFF64748B),
+                      ),
                     ),
                     const SizedBox(width: 10),
-                    const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 14,
+                      color: Color(0xFFF59E0B),
+                    ),
                     const SizedBox(width: 3),
                     Text(
                       course.rating?.toString() ?? "4.8",
@@ -595,8 +655,13 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0467B6),
-                      side: const BorderSide(color: Color(0xFF0467B6), width: 1.0),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: const BorderSide(
+                        color: Color(0xFF0467B6),
+                        width: 1.0,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                     child: Text(
@@ -637,7 +702,7 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
             Expanded(
               child: Row(
                 children: [
-                  const Icon(Icons.military_tech_rounded, size: 20, color: Color(0xFF0467B6)),
+                  const MedalLogo(iconSize: 18),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
@@ -658,7 +723,9 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text("Showing all official earned certifications."),
+                    content: Text(
+                      "Showing all official earned certifications.",
+                    ),
                     backgroundColor: Color(0xFF0467B6),
                   ),
                 );
@@ -677,12 +744,58 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
 
         const SizedBox(height: 10),
 
-        // 3. Certificate Cards
-        ...certs.map((cert) => Padding(
+        // 3. Certificate Cards (only for fully completed courses)
+        if (certs.isEmpty)
+          _buildNoCertificatesState()
+        else
+          ...certs.map(
+            (cert) => Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
               child: _buildCertificateCard(cert),
-            )),
+            ),
+          ),
       ],
+    );
+  }
+
+  Widget _buildNoCertificatesState() {
+    return Container(
+      key: const Key('no_certificates_state'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 26),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD6E4F0)),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.workspace_premium_outlined,
+            size: 40,
+            color: Color(0xFF94A3B8),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'No certificates yet',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF111C2D),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Complete a course to earn your certificate. It will appear here as soon as every lesson is done.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 11.5,
+              height: 1.4,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -704,7 +817,8 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
             topText: "Learning spree",
             icon: Icons.workspace_premium_rounded,
             iconColor: const Color(0xFFFFD54F),
-            bottomText: "5 Courses\ncompleted",
+            bottomText:
+                "${MockAuthorityRepository.certificates.length} Courses\ncompleted",
           ),
         ),
         const SizedBox(width: 8),
@@ -734,10 +848,7 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF6B7280),
-            Color(0xFF4B5563),
-          ],
+          colors: [Color(0xFF6B7280), Color(0xFF4B5563)],
         ),
         boxShadow: const [
           BoxShadow(
@@ -830,7 +941,9 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "Lorem ipsum dolor",
+                            cert.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -847,13 +960,19 @@ class _AuthorityAcademyScreenState extends State<AuthorityAcademyScreen> {
                       width: 28,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: isCheckBadge ? const Color(0xFFE0E7FF) : const Color(0xFFF3E8FF),
+                        color: isCheckBadge
+                            ? const Color(0xFFE0E7FF)
+                            : const Color(0xFFF3E8FF),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        isCheckBadge ? Icons.verified_rounded : Icons.star_rounded,
+                        isCheckBadge
+                            ? Icons.verified_rounded
+                            : Icons.star_rounded,
                         size: 18,
-                        color: isCheckBadge ? const Color(0xFF0467B6) : const Color(0xFF7C3AED),
+                        color: isCheckBadge
+                            ? const Color(0xFF0467B6)
+                            : const Color(0xFF7C3AED),
                       ),
                     ),
                   ],

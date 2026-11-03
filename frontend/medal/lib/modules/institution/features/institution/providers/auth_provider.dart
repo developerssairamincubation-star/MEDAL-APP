@@ -3,6 +3,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
+import '../state/student_notification_state.dart';
+import '../state/student_session_state.dart';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -61,6 +63,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
 
       if (result.success) {
+        StudentSessionState.reset();
+        StudentNotificationState.instance.reset();
         state = state.copyWith(
           isAuthenticated: true,
           role: result.role,
@@ -85,6 +89,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _authService.logout();
+    StudentSessionState.reset();
+    StudentNotificationState.instance.reset();
     state = const AuthState.initial();
   }
 

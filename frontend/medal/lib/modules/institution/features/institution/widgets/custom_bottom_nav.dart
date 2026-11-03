@@ -115,7 +115,7 @@ const principalNavItems = [
 
 const staffNavItems = [
   BottomNavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
-  BottomNavItem(icon: Icons.menu_book_rounded, label: 'My class'),
-  BottomNavItem(icon: Icons.group_add_rounded, label: 'Invite students'),
+  BottomNavItem(icon: Icons.groups_rounded, label: 'Students'),
+  BottomNavItem(icon: Icons.menu_book_rounded, label: 'My course'),
   BottomNavItem(icon: Icons.person_rounded, label: 'Profile'),
 ];

@@ -8,13 +8,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
 
+/// Exposes the host (root app) navigator to the Institution module, whose own
+/// MaterialApp.router has a separate Navigator that cannot pop back to the
+/// role-selection screen.
+class InstitutionHostScope extends InheritedWidget {
+  const InstitutionHostScope({
+    super.key,
+    required this.navigator,
+    required super.child,
+  });
+
+  final NavigatorState navigator;
+
+  static NavigatorState? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<InstitutionHostScope>()?.navigator;
+
+  @override
+  bool updateShouldNotify(InstitutionHostScope oldWidget) => navigator != oldWidget.navigator;
+}
+
 class InstitutionAppWrapper extends StatelessWidget {
   const InstitutionAppWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const ProviderScope(
-      child: InstitutionApp(),
+    return InstitutionHostScope(
+      navigator: Navigator.of(context),
+      child: const ProviderScope(
+        child: InstitutionApp(),
+      ),
     );
   }
 }

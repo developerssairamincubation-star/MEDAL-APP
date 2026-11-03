@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
+import '../widgets/medal_logo.dart';
 import '../widgets/role_card.dart';
 import '../routes/app_routes.dart';
 
@@ -105,12 +106,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                         opacity: _titleFadeAnimation,
                         child: Column(
                           children: [
-                            const Icon(
-                              Icons.military_tech_rounded,
-                              color: MedalTheme.primary,
-                              size: 42,
-                            ),
-                            const SizedBox(height: 8),
+                            const MedalLogo(iconSize: 34),
+                            const SizedBox(height: 6),
                             const Text(
                               'Welcome to MEDAL',
                               textAlign: TextAlign.center,
@@ -134,7 +131,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                           ],
                         ),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 16),
 
                       // Cards Section (Row on Desktop/Tablet, Column on Mobile)
                       if (isDesktop)
@@ -173,7 +170,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                                 child: _buildCitizenCard(context, compact: true),
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             FadeTransition(
                               opacity: _card2FadeAnimation,
                               child: SlideTransition(

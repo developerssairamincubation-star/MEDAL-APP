@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/institution/routes/app_routes.dart';
 import 'package:medal/modules/institution/theme/app_theme.dart';
+import '../../../../../../widgets/medal_logo.dart';
 
 class StudentRegisterScreen extends StatefulWidget {
   const StudentRegisterScreen({super.key});
@@ -166,11 +167,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.military_tech_rounded,
-                      color: AppTheme.primary,
-                      size: 26,
-                    ),
+                    const MedalLogo(iconSize: 18),
                     const SizedBox(width: 6),
                     Text(
                       'MEdAL',

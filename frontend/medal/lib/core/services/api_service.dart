@@ -772,6 +772,7 @@ class ApiService {
     String? sdgAlignment,
     String? impactLevel,
     String? equityClassification,
+    List<int> mentionIds = const [],
   }) async {
     final uri = Uri.parse('$baseUrl/complaints');
     final response = await http.post(
@@ -791,10 +792,21 @@ class ApiService {
         if (impactLevel != null && impactLevel.isNotEmpty) 'impact_level': impactLevel,
         if (equityClassification != null && equityClassification.isNotEmpty)
           'equity_classification': equityClassification,
+        if (mentionIds.isNotEmpty) 'mentions': mentionIds,
       }),
     );
     final data = _handleResponse(response);
     return data as Map<String, dynamic>;
+  }
+
+  /// GET /officials?q= — approved officials for the "@" tag autocomplete
+  Future<List<Map<String, dynamic>>> searchOfficials(String query, {int limit = 8}) async {
+    final uri = Uri.parse('$baseUrl/officials').replace(
+      queryParameters: {'q': query, 'limit': '$limit'},
+    );
+    final response = await http.get(uri, headers: _headers());
+    final data = _handleResponse(response);
+    return List<Map<String, dynamic>>.from(data as List);
   }
 
   /// GET /complaints/feed (Public Community Feed)

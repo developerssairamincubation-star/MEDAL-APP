@@ -8,12 +8,14 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../theme/app_theme.dart';
 import '../../../../routes/app_routes.dart';
-import '../../providers/staff_provider.dart';
+import '../../models/member.dart';
+import '../../providers/institution_provider.dart';
+import '../../widgets/async_body.dart';
 import '../../widgets/medal_app_bar.dart';
 import '../../widgets/custom_bottom_nav.dart';
-import '../../widgets/student_list_card.dart';
+import '../../widgets/member_progress_card.dart';
 
-/// My Class Screen — matches Staff_login_Myclass.png
+/// Students screen — every registered student with their real SEEK progress.
 class MyClassScreen extends ConsumerStatefulWidget {
   const MyClassScreen({super.key});
 
@@ -23,6 +25,24 @@ class MyClassScreen extends ConsumerStatefulWidget {
 
 class _MyClassScreenState extends ConsumerState<MyClassScreen> {
   final _searchController = TextEditingController();
+  String _query = '';
+  String _filter = _filters.first;
+
+  List<InstitutionMember> _apply(List<InstitutionMember> all) {
+    final q = _query.trim().toLowerCase();
+    return all.where((m) {
+      final matchesSearch = q.isEmpty ||
+          m.name.toLowerCase().contains(q) ||
+          (m.studentId ?? '').toLowerCase().contains(q) ||
+          (m.department ?? '').toLowerCase().contains(q);
+      final matchesFilter = switch (_filter) {
+        'Not started' => m.status == MemberStatus.notStarted,
+        'Completed' => m.status == MemberStatus.completed,
+        _ => true,
+      };
+      return matchesSearch && matchesFilter;
+    }).toList();
+  }
 
   @override
   void dispose() {
@@ -38,7 +58,7 @@ class _MyClassScreenState extends ConsumerState<MyClassScreen> {
       case 1:
         break; // Already here
       case 2:
-        context.go(AppRoutes.staffInviteStudents);
+        context.go(AppRoutes.studentAcademy);
         break;
       case 3:
         context.go(AppRoutes.staffProfile);
@@ -46,12 +66,11 @@ class _MyClassScreenState extends ConsumerState<MyClassScreen> {
     }
   }
 
-  static const _filters = ['All Students', 'At Risk', 'Top Achievers'];
+  static const _filters = ['All Students', 'Not started', 'Completed'];
 
   @override
   Widget build(BuildContext context) {
-    final classState = ref.watch(myClassProvider);
-    final notifier = ref.read(myClassProvider.notifier);
+    final students = ref.watch(studentMembersProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -62,7 +81,7 @@ class _MyClassScreenState extends ConsumerState<MyClassScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Text(
-              'My classroom',
+              'Students',
               style: GoogleFonts.inter(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -76,9 +95,9 @@ class _MyClassScreenState extends ConsumerState<MyClassScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
               controller: _searchController,
-              onChanged: notifier.search,
+              onChanged: (v) => setState(() => _query = v),
               decoration: InputDecoration(
-                hintText: 'Search students, groups, or skills...',
+                hintText: 'Search students, IDs, or departments...',
                 prefixIcon: const Icon(Icons.search_rounded,
                     color: AppTheme.textMuted, size: 20),
                 border: OutlineInputBorder(
@@ -112,9 +131,9 @@ class _MyClassScreenState extends ConsumerState<MyClassScreen> {
               separatorBuilder: (context, index) => const SizedBox(width: 8),
               itemBuilder: (context, i) {
                 final filter = _filters[i];
-                final isSelected = filter == classState.selectedFilter;
+                final isSelected = filter == _filter;
                 return GestureDetector(
-                  onTap: () => notifier.filterStudents(filter),
+                  onTap: () => setState(() => _filter = filter),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(
@@ -145,44 +164,39 @@ class _MyClassScreenState extends ConsumerState<MyClassScreen> {
           const SizedBox(height: 14),
           // ── Student list ────────────────────────────────────
           Expanded(
-            child: classState.filteredStudents.isEmpty
-                ? Center(
-                    child: Text(
-                      'No students found.',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: AppTheme.textMuted,
-                      ),
-                    ),
-                  )
-                : ListView.separated(
+            child: AsyncBody<List<InstitutionMember>>(
+              value: students,
+              onRetry: () => ref.invalidate(studentMembersProvider),
+              builder: (all) {
+                if (all.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.school_outlined,
+                    title: 'No students yet',
+                    message: 'Students appear here once they register.',
+                  );
+                }
+                final shown = _apply(all);
+                if (shown.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.search_off_rounded,
+                    title: 'No students match your filters',
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () async => ref.refresh(studentMembersProvider.future),
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    itemCount: classState.filteredStudents.length,
+                    itemCount: shown.length,
                     separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) {
-                      final student = classState.filteredStudents[i];
-                      return StudentListCard(
-                        student: student,
-                        onViewDetails: () => context.push(
-                          '/staff/class-detail/${student.id}',
-                        ),
-                        onNudge: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Nudge sent to ${student.name}!',
-                              ),
-                              backgroundColor: AppTheme.primary,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                    itemBuilder: (context, i) => MemberProgressCard(
+                      member: shown[i],
+                      onTap: () => context.push('/staff/student/${shown[i].id}'),
+                    ),
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),

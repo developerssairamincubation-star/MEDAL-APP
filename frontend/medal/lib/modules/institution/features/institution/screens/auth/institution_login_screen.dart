@@ -1,11 +1,13 @@
 // lib/features/institution/screens/auth/institution_login_screen.dart
 // Student Login Screen matching Screenshot 1 pixel-for-pixel, with options for staff/principal login.
 
+import 'package:medal/widgets/medal_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../institution_app.dart' show InstitutionHostScope;
 import '../../../../theme/app_theme.dart';
 import '../../../../routes/app_routes.dart';
 import '../../providers/auth_provider.dart';
@@ -61,8 +63,7 @@ class _InstitutionLoginScreenState
     final resetEmailController = TextEditingController(text: _emailController.text);
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => MedalAlertDialog(
         title: Text(
           'Reset Password',
           style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18),
@@ -146,11 +147,13 @@ class _InstitutionLoginScreenState
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textPrimary, size: 20),
           tooltip: "Back to Role Selection",
           onPressed: () {
-            final nav = Navigator.of(context, rootNavigator: true);
-            if (nav.canPop()) {
-              nav.pop();
+            final host = InstitutionHostScope.maybeOf(context);
+            if (host != null && host.canPop()) {
+              host.pop();
+            } else if (host != null) {
+              host.pushReplacementNamed('/role-selection');
             } else {
-              nav.pushReplacementNamed('/role-selection');
+              Navigator.of(context, rootNavigator: true).maybePop();
             }
           },
         ),

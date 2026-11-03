@@ -1,3 +1,8 @@
+import 'package:medal/core/services/course_progress_store.dart';
+import 'package:medal/modules/authority/models/authority_models.dart';
+import 'package:medal/widgets/profile_photo_cropper.dart';
+import 'package:medal/widgets/profile_ui.dart';
+import 'package:medal/widgets/medal_dialog.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,14 +25,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   static const Color primaryIndigo = Color(0xFF0467B6);
   static const Color darkNavy = Color(0xFF111C2D);
-  static const Color slateBlue = Color(0xFF5D6478);
-  static const Color lavenderBorder = Color(0xFFC6C5D7);
-  static const Color accentPurple = Color(0xFF9333EA);
 
   @override
   void initState() {
     super.initState();
     _user = ApiService().currentUser;
+    CourseProgressStore.instance.ensureLoaded();
     _loadProfileData();
   }
 
@@ -216,8 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showLogoutConfirmationDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => MedalAlertDialog(
         title: const Row(
           children: [
             Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
@@ -347,8 +349,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       if (picked == null) return;
 
-      final bytes = await picked.readAsBytes();
+      final rawBytes = await picked.readAsBytes();
       if (!mounted) return;
+      // Crop step (move / zoom, circle or square) before the photo is previewed and saved.
+      final bytes = await cropProfilePhoto(context, rawBytes);
+      if (bytes == null || !mounted) return;
       _showPhotoPreviewDialog(picked, bytes);
     } catch (e) {
       if (!mounted) return;
@@ -367,8 +372,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        return MedalAlertDialog(
           title: const Text(
             "Update Profile Photo",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -425,8 +429,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await ApiService().updateProfilePhoto(
         fileBytes: bytes,
-        filename: picked.name,
-        mimeType: picked.mimeType,
+        filename: 'profile.png',
+        mimeType: 'image/png',
       );
 
       if (!mounted) return;
@@ -543,362 +547,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
 
-                  // 1. Profile Hero Card matching Reference Image 3
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFFF1F5F9)),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x08000000),
-                          blurRadius: 16,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                    child: Column(
-                      children: [
-                        // CITIZEN Pill Badge in top right
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F4FD),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: lavenderBorder.withValues(alpha: 0.6)),
-                            ),
-                            child: const Text(
-                              "CITIZEN",
-                              style: TextStyle(
-                                color: primaryIndigo,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Avatar with Edit Pencil Icon
-                        Center(
-                          child: Stack(
-                            alignment: Alignment.center,
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFFE2E8F0),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: CircleAvatar(
-                                  radius: 48,
-                                  backgroundColor: const Color(0xFFEEF2FF),
-                                  child: ClipOval(
-                                    child: Image.network(
-                                      resolvedPhotoUrl ??
-                                          "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300",
-                                      width: 96,
-                                      height: 96,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Center(
-                                          child: Text(
-                                            fullName.isNotEmpty ? fullName[0].toUpperCase() : 'A',
-                                            style: const TextStyle(
-                                              fontSize: 34,
-                                              fontWeight: FontWeight.bold,
-                                              color: primaryIndigo,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (_isUploadingPhoto)
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: const BoxDecoration(
-                                      color: Colors.black45,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Center(
-                                      child: SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              // Pencil Edit Button
-                              Positioned(
-                                bottom: 2,
-                                right: 2,
-                                child: Material(
-                                  color: primaryIndigo,
-                                  shape: const CircleBorder(
-                                    side: BorderSide(color: Colors.white, width: 2),
-                                  ),
-                                  elevation: 2,
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: _isUploadingPhoto ? null : _showPhotoOptions,
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(7),
-                                      child: Icon(
-                                        Icons.edit,
-                                        color: Colors.white,
-                                        size: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // User Name
-                        Text(
-                          fullName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: darkNavy,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-
-                        // Certified User Badge
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(
-                              Icons.verified,
-                              color: primaryIndigo,
-                              size: 16,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              "Certified user",
-                              style: TextStyle(
-                                color: slateBlue,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Email Row
-                        Row(
-                          children: [
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.mail_outline_rounded,
-                              color: primaryIndigo,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                email,
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  color: slateBlue,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Phone Row
-                        Row(
-                          children: [
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.phone_android_rounded,
-                              color: primaryIndigo,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                phone,
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  color: slateBlue,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 22),
-
-                        // Points Banner
-                        Row(
-                          children: const [
-                            SizedBox(width: 8),
-                            Text("🏆", style: TextStyle(fontSize: 18)),
-                            SizedBox(width: 10),
-                            Text(
-                              "You have earned 35 points!",
-                              style: TextStyle(
-                                color: darkNavy,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // 2. Section Header: Earned Certifications & Upload Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: const [
-                          Icon(
-                            Icons.military_tech_outlined,
-                            color: primaryIndigo,
-                            size: 22,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            "Earned Certifications",
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: darkNavy,
-                            ),
-                          ),
-                        ],
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Upload certificate dialog opened"),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryIndigo,
-                          elevation: 0,
-                          minimumSize: const Size(0, 32),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          "Upload",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
+                  // 1. Profile hero (shared layout, same as every login)
+                  ProfileHeroCard(
+                    roleLabel: 'Citizen',
+                    name: fullName,
+                    email: email,
+                    phone: phone,
+                    pointsText: 'You have earned 35 points!',
+                    photoUrl: resolvedPhotoUrl,
+                    isUploading: _isUploadingPhoto,
+                    onEdit: _showPhotoOptions,
+                    badgeBackground: const Color(0xFFE8F4FD),
+                    badgeForeground: primaryIndigo,
                   ),
 
                   const SizedBox(height: 14),
 
-                  // Certificate Card 1 (Indigo Bar)
-                  _buildCertificateCard(
-                    stripeColor: primaryIndigo,
-                    completedDate: "COMPLETED MAY 2024",
-                    title: "Advanced Grievance\nResolution",
-                    certificateNo: "MED-8829-XR4",
-                    badgeColor: const Color(0xFFE8F4FD),
-                    badgeIcon: Icons.verified,
-                    iconColor: primaryIndigo,
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Certificate Card 2 (Purple Bar)
-                  _buildCertificateCard(
-                    stripeColor: accentPurple,
-                    completedDate: "COMPLETED FEB 2024",
-                    title: "SDG Alignment & Institutional\nEthics",
-                    certificateNo: "MED-1102-G12",
-                    badgeColor: const Color(0xFFFAF5FF),
-                    badgeIcon: Icons.stars_rounded,
-                    iconColor: accentPurple,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Centered View All
-                  Center(
-                    child: TextButton(
-                      onPressed: () {},
-                      child: const Text(
-                        "View All",
-                        style: TextStyle(
-                          color: primaryIndigo,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                  // 2. Earned certifications (only completed courses)
+                  ListenableBuilder(
+                    listenable: CourseProgressStore.instance,
+                    builder: (context, _) => ProfileCertificatesSection(
+                      certificates: [
+                        for (final c in MockAuthorityRepository.certificates)
+                          ProfileCertificate(
+                            title: c.title,
+                            dateText: c.completionDateText,
+                            number: c.certificateNo,
+                          ),
+                      ],
+                      onUpload: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Upload certificate dialog opened"),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      onDownload: (cert) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Downloading ${cert.number}..."),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
-                  // Quick profile edit / logout helper buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () => _showEditProfileSheet(context, fullName, phone),
-                        icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
-                        label: const Text(
-                          "Edit Profile",
-                          style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      TextButton.icon(
-                        onPressed: () => _showLogoutConfirmationDialog(context),
-                        icon: const Icon(Icons.logout, size: 16, color: Colors.redAccent),
-                        label: const Text(
-                          "Log Out",
-                          style: TextStyle(color: Colors.redAccent, fontSize: 13),
-                        ),
-                      ),
-                    ],
+                  // 3. Account management (shared tiles)
+                  const ProfileSectionTitle('Account Management'),
+                  const SizedBox(height: 10),
+                  ProfileAccountTile(
+                    icon: Icons.edit_outlined,
+                    title: 'Edit Profile',
+                    subtitle: 'Update your name and phone number',
+                    onTap: () => _showEditProfileSheet(context, fullName, phone),
+                  ),
+                  const SizedBox(height: 8),
+                  ProfileLogoutTile(
+                    onTap: () => _showLogoutConfirmationDialog(context),
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -906,144 +615,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
     );
   }
-
-  Widget _buildCertificateCard({
-    required Color stripeColor,
-    required String completedDate,
-    required String title,
-    required String certificateNo,
-    required Color badgeColor,
-    required IconData badgeIcon,
-    required Color iconColor,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              width: 5,
-              color: stripeColor,
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 14, right: 16, top: 14, bottom: 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row: Completed date and badge
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                completedDate,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF64748B),
-                  letterSpacing: 0.5,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  badgeIcon,
-                  color: iconColor,
-                  size: 18,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-
-          // Title
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: darkNavy,
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Bottom Row: Certificate No. and Download Button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Certificate No.",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    certificateNo,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: darkNavy,
-                    ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Downloading $certificateNo..."),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: badgeColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.download_rounded,
-                    color: iconColor,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  ),
-],
-),
-),
-);
-}
 }

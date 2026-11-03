@@ -1,3 +1,4 @@
+import 'package:medal/widgets/medal_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:medal/core/services/api_service.dart';
 
@@ -102,10 +103,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+        builder: (ctx) => MedalAlertDialog(
           title: const Row(
             children: [
               Icon(Icons.check_circle, color: Color(0xFF10B981), size: 28),

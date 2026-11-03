@@ -2,7 +2,9 @@
 // Data models and mock datasets for the MEDAL Authority Module.
 // NOTE: Mock data is utilized here until Phase 2 backend APIs are connected.
 
+import '../../../core/services/course_progress_store.dart';
 import 'package:flutter/material.dart';
+import '../../../core/utils/location_text.dart';
 
 enum AuthorityComplaintStatus {
   assigned('Assigned', Color(0xFF0467B6), Color(0xFFE8F4FD)),
@@ -64,6 +66,7 @@ class AuthorityComplaint {
   final int commentsCount;
   final DateTime reportedAt;
   final String reportedBy;
+  final String reportedByRole; // 'Citizen' or 'Authority'
   final String? citizenProfileImageUrl;
   String? officerNotes;
   String? rejectionReason;
@@ -88,6 +91,7 @@ class AuthorityComplaint {
     required this.commentsCount,
     required this.reportedAt,
     required this.reportedBy,
+    this.reportedByRole = 'Citizen',
     this.citizenProfileImageUrl,
     this.officerNotes,
     this.rejectionReason,
@@ -97,11 +101,17 @@ class AuthorityComplaint {
 
   factory AuthorityComplaint.fromMap(Map<String, dynamic> map) {
     final rawId = map['id'];
-    final int? backendId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
-    final String complaintIdStr = 'CMP-2026-${backendId ?? (DateTime.now().millisecondsSinceEpoch % 10000)}';
+    final int? backendId = rawId is int
+        ? rawId
+        : int.tryParse(rawId?.toString() ?? '');
+    final String complaintIdStr =
+        'CMP-2026-${backendId ?? (DateTime.now().millisecondsSinceEpoch % 10000)}';
 
     // Status mapping
-    final rawStatus = (map['status'] ?? 'submitted').toString().toLowerCase().trim();
+    final rawStatus = (map['status'] ?? 'submitted')
+        .toString()
+        .toLowerCase()
+        .trim();
     AuthorityComplaintStatus status;
     switch (rawStatus) {
       case 'assigned':
@@ -131,7 +141,10 @@ class AuthorityComplaint {
     }
 
     // Priority mapping from impact_level
-    final rawImpact = (map['impact_level'] ?? 'Medium').toString().toLowerCase().trim();
+    final rawImpact = (map['impact_level'] ?? 'Medium')
+        .toString()
+        .toLowerCase()
+        .trim();
     AuthorityPriority priority;
     if (rawImpact.contains('critical')) {
       priority = AuthorityPriority.critical;
@@ -167,16 +180,21 @@ class AuthorityComplaint {
     }
 
     // Ward extraction from location or jurisdiction
-    final loc = (map['location_address'] ?? map['location'] ?? 'Municipal Zone').toString();
+    final loc = displayLocation(map, fallback: 'Municipal Zone');
     String ward = 'Ward 14';
-    final wardMatch = RegExp(r'Ward\s*\d+', caseSensitive: false).firstMatch(loc);
+    final wardMatch = RegExp(
+      r'Ward\s*\d+',
+      caseSensitive: false,
+    ).firstMatch(loc);
     if (wardMatch != null) {
       ward = wardMatch.group(0)!;
     }
 
     DateTime reportedAt;
     try {
-      reportedAt = map['created_at'] != null ? DateTime.parse(map['created_at'].toString()).toLocal() : DateTime.now();
+      reportedAt = map['created_at'] != null
+          ? DateTime.parse(map['created_at'].toString()).toLocal()
+          : DateTime.now();
     } catch (_) {
       reportedAt = DateTime.now();
     }
@@ -195,14 +213,27 @@ class AuthorityComplaint {
       priority: priority,
       sdg: sdg,
       evidenceImages: evidence,
-      upvotes: map['upvotes_count'] is int ? map['upvotes_count'] : (int.tryParse(map['upvotes_count']?.toString() ?? '0') ?? 0),
-      commentsCount: map['comments_count'] is int ? map['comments_count'] : (int.tryParse(map['comments_count']?.toString() ?? '0') ?? 0),
+      upvotes: map['upvotes_count'] is int
+          ? map['upvotes_count']
+          : (int.tryParse(map['upvotes_count']?.toString() ?? '0') ?? 0),
+      commentsCount: map['comments_count'] is int
+          ? map['comments_count']
+          : (int.tryParse(map['comments_count']?.toString() ?? '0') ?? 0),
       reportedAt: reportedAt,
       reportedBy: (map['citizen_name'] ?? 'Citizen').toString(),
+      reportedByRole: roleLabelFor(map['citizen_role']?.toString()),
       citizenProfileImageUrl: map['profile_image_url']?.toString(),
       officerNotes: map['officer_notes']?.toString(),
       rejectionReason: map['rejection_reason']?.toString(),
     );
+  }
+
+  /// Maps a backend user role to the label shown beside a complainant's name.
+  static String roleLabelFor(String? rawRole) {
+    final r = (rawRole ?? '').toLowerCase().trim();
+    return (r == 'official' || r == 'admin' || r == 'authority')
+        ? 'Authority'
+        : 'Citizen';
   }
 
   int? get numericId {
@@ -249,6 +280,170 @@ class AuthorityCourse {
     this.buttonActionText,
     this.isFeatured = false,
   });
+}
+
+class SeekLesson {
+  final String title;
+  final String type; // video | reading | quiz | practice | case_study
+  final String duration;
+
+  const SeekLesson(this.title, this.type, this.duration);
+
+  /// Lesson number taken from the title, e.g. "1.1".
+  String get number => title.split(' ').first;
+  String get key => 'seek:$number';
+
+  /// True once the signed-in user has marked this lesson done.
+  bool get completed => CourseProgressStore.instance.isLessonDone(key);
+}
+
+class SeekModule {
+  final int number;
+  final String title;
+  final String summary;
+  final String duration;
+  final List<SeekLesson> lessons;
+
+  const SeekModule({
+    required this.number,
+    required this.title,
+    required this.summary,
+    required this.duration,
+    required this.lessons,
+  });
+
+  int get completedLessons => lessons.where((l) => l.completed).length;
+  bool get isCompleted => completedLessons == lessons.length;
+}
+
+/// Content of the SEEK course shown in the Authority Academy.
+class SeekCourseContent {
+  static const String title =
+      'Social Emotional Education:\nKnowledge to Practice (SEEK)';
+  static const String provider = 'UNESCO MGIEP & MEdAL Academy';
+  static const String sourceUrl = 'https://mgiep.unesco.org/seek';
+  static const String courseId = 'seek';
+  static String get plainTitle => title.replaceAll('\n', ' ');
+
+  // Written in our own words; see the official page for the original course.
+  static const String description =
+      'SEEK is a self-paced programme on building social and emotional skills such as '
+      'empathy, kindness and self-awareness. This version for officers links those skills '
+      'to everyday public service: listening to citizens, handling grievances fairly and '
+      'responding with care.';
+
+  static const List<String> outcomes = [
+    'Recognise your own emotions and how they shape decisions at work',
+    'Practise empathy when reading and responding to citizen grievances',
+    'Align local issues with the UN Sustainable Development Goals',
+    'Communicate progress and outcomes to the public with clarity and kindness',
+  ];
+
+  static const List<SeekModule> modules = [
+    SeekModule(
+      number: 1,
+      title: 'Introduction & Civic Foundations',
+      summary: 'Why social and emotional skills matter in public service.',
+      duration: '35 mins',
+      lessons: [
+        SeekLesson(
+          '1.1 Welcome to the SEEK Curriculum',
+          'video',
+          '8 mins',
+        ),
+        SeekLesson(
+          '1.2 Principles of Civic Grievance Reporting',
+          'reading',
+          '12 mins',
+        ),
+        SeekLesson(
+          '1.3 Foundational Quiz: Ethics & Privacy',
+          'quiz',
+          '15 mins',
+        ),
+      ],
+    ),
+    SeekModule(
+      number: 2,
+      title: 'SDG Alignment & Frameworks',
+      summary: 'Connecting local complaints to global development goals.',
+      duration: '45 mins',
+      lessons: [
+        SeekLesson(
+          '2.1 Mapping Local Issues to UN SDG Targets',
+          'video',
+          '14 mins',
+        ),
+        SeekLesson(
+          '2.2 Sanitation, Clean Water & Infrastructure (SDG 6 & 9)',
+          'reading',
+          '10 mins',
+        ),
+        SeekLesson(
+          '2.3 Sustainable Communities (SDG 11) in Action',
+          'reading',
+          '11 mins',
+        ),
+        SeekLesson(
+          '2.4 Assessment: Identifying SDG Indicators',
+          'quiz',
+          '10 mins',
+        ),
+      ],
+    ),
+    SeekModule(
+      number: 3,
+      title: 'Field Verification & Evidence Gathering',
+      summary: 'Verifying reports on the ground with accuracy and respect.',
+      duration: '40 mins',
+      lessons: [
+        SeekLesson(
+          '3.1 Accurate Geolocation & GPS Coordinate Tagging',
+          'video',
+          '10 mins',
+        ),
+        SeekLesson(
+          '3.2 High-Fidelity Photo Documentation Protocols',
+          'reading',
+          '15 mins',
+        ),
+        SeekLesson('3.3 Verification Lab Exercise', 'practice', '15 mins'),
+      ],
+    ),
+    SeekModule(
+      number: 4,
+      title: 'Institutional Response & Public Accountability',
+      summary: 'Escalation, transparency and closing the loop with citizens.',
+      duration: '50 mins',
+      lessons: [
+        SeekLesson(
+          '4.1 Municipal Authority Escalation Paths',
+          'video',
+          '15 mins',
+        ),
+        SeekLesson(
+          '4.2 Collaborative Public Commenting & Moderation',
+          'reading',
+          '15 mins',
+        ),
+        SeekLesson(
+          '4.3 Case Analysis: Resolution from Submission to Sign-Off',
+          'case_study',
+          '20 mins',
+        ),
+      ],
+    ),
+  ];
+
+  static List<String> get allLessonKeys =>
+      [for (final m in modules) for (final l in m.lessons) l.key];
+
+  static int get totalLessons =>
+      modules.fold(0, (a, m) => a + m.lessons.length);
+  static int get completedLessons =>
+      modules.fold(0, (a, m) => a + m.completedLessons);
+  static double get progress =>
+      totalLessons == 0 ? 0 : completedLessons / totalLessons;
 }
 
 class AuthorityCertificate {
@@ -343,7 +538,8 @@ class MockAuthorityRepository {
     designation: 'Divisional Environmental Inspector',
     department: 'Public Works & Sanitation',
     officialEmail: 'lawrenceperker@medal.gov',
-    jurisdiction: 'Zone 4, Pine River Catchment, Municipal Office Complex, Sector 9',
+    jurisdiction:
+        'Zone 4, Pine River Catchment, Municipal Office Complex, Sector 9',
     phone: '9123456789',
     employeeId: 'EMP-GMC-2024-419',
     isVerified: true,
@@ -371,12 +567,11 @@ class MockAuthorityRepository {
       sdg: const SdgInfo(
         number: 13,
         title: 'Climate Action',
-        description: 'Take urgent action to combat climate change and its impacts.',
+        description:
+            'Take urgent action to combat climate change and its impacts.',
         color: Color(0xFFBE123C),
       ),
-      evidenceImages: [
-        'assets/images/sample_waste_canal.jpg',
-      ],
+      evidenceImages: ['assets/images/sample_waste_canal.jpg'],
       upvotes: 124,
       commentsCount: 12,
       reportedAt: DateTime.parse('2026-10-06 10:30:00'),
@@ -399,12 +594,11 @@ class MockAuthorityRepository {
       sdg: const SdgInfo(
         number: 9,
         title: 'Industry, Innovation & Infrastructure',
-        description: 'Make cities and human settlements inclusive, safe, resilient, and sustainable.',
+        description:
+            'Make cities and human settlements inclusive, safe, resilient, and sustainable.',
         color: Color(0xFFFD9D24),
       ),
-      evidenceImages: [
-        'assets/images/sample_pothole.jpg',
-      ],
+      evidenceImages: ['assets/images/sample_pothole.jpg'],
       upvotes: 35,
       commentsCount: 9,
       reportedAt: DateTime.now().subtract(const Duration(hours: 12)),
@@ -429,9 +623,7 @@ class MockAuthorityRepository {
         description: 'Safe and well-lit urban environments for citizen safety.',
         color: Color(0xFFFD9D24),
       ),
-      evidenceImages: [
-        'assets/images/sample_streetlight.jpg',
-      ],
+      evidenceImages: ['assets/images/sample_streetlight.jpg'],
       upvotes: 52,
       commentsCount: 21,
       reportedAt: DateTime.now().subtract(const Duration(days: 1)),
@@ -456,9 +648,7 @@ class MockAuthorityRepository {
         description: 'Safe and well-lit urban environments for citizen safety.',
         color: Color(0xFFFD9D24),
       ),
-      evidenceImages: [
-        'assets/images/dark_street.jpg',
-      ],
+      evidenceImages: ['assets/images/dark_street.jpg'],
       upvotes: 19,
       commentsCount: 4,
       reportedAt: DateTime.now().subtract(const Duration(days: 1)),
@@ -483,9 +673,7 @@ class MockAuthorityRepository {
         description: 'Ensuring safe urban drainage systems.',
         color: Color(0xFF00AED9),
       ),
-      evidenceImages: [
-        'assets/images/drain_block.jpg',
-      ],
+      evidenceImages: ['assets/images/drain_block.jpg'],
       upvotes: 27,
       commentsCount: 6,
       reportedAt: DateTime.now().subtract(const Duration(days: 2)),
@@ -494,119 +682,57 @@ class MockAuthorityRepository {
     ),
   ];
 
-  static const AuthorityCourse featuredCourse = AuthorityCourse(
+  static AuthorityCourse get featuredCourse => AuthorityCourse(
     id: 'CRS-SEEK-01',
-    title: 'Social Emotional Education:\nKnowledge to Practice (SEEK)',
+    title: SeekCourseContent.title,
     department: 'Education & Ethics',
-    totalModules: 10,
-    completedModules: 7,
-    progress: 0.68,
-    duration: '6.0 Hours',
+    totalModules: SeekCourseContent.modules.length,
+    completedModules: SeekCourseContent.modules
+        .where((m) => m.isCompleted)
+        .length,
+    progress: SeekCourseContent.progress,
+    duration: '2h 50m',
     level: 'Intermediate',
-    instructor: 'UNESCO MGIEP & MEdAL Academy',
-    badgeText: 'IN PROGRESS',
+    instructor: SeekCourseContent.provider,
+    badgeText: SeekCourseContent.completedLessons == SeekCourseContent.totalLessons
+        ? 'COMPLETED'
+        : (SeekCourseContent.completedLessons == 0 ? 'NOT STARTED' : 'IN PROGRESS'),
     buttonActionText: 'Continue Learning',
     isFeatured: true,
   );
 
-  static final List<AuthorityCourse> courses = [
-    const AuthorityCourse(
-      id: 'CRS-AUTH-101',
-      title: 'Lorem ipsum dolor',
-      department: 'Environmental Management',
-      totalModules: 8,
-      completedModules: 3,
-      progress: 0.4,
-      duration: '4h',
-      level: 'All Levels',
-      instructor: 'MEdAL Academy',
-      rating: 4.9,
-      badgeText: 'SDG 15',
-      imageAsset: 'assets/images/sample_mountain.jpg',
-      buttonActionText: 'Start Course',
-    ),
-    const AuthorityCourse(
-      id: 'CRS-AUTH-102',
-      title: 'Lorem ipsum dolor',
-      department: 'Empathy & Civic Communication',
-      totalModules: 6,
-      completedModules: 0,
-      progress: 0.0,
-      duration: '6h',
-      level: 'Advanced',
-      instructor: 'National Institute of Urban Affairs',
-      rating: 4.7,
-      badgeText: 'EMPATHY',
-      imageAsset: 'assets/images/sample_chart.jpg',
-      buttonActionText: 'Enroll',
-    ),
-    const AuthorityCourse(
-      id: 'CRS-AUTH-103',
-      title: 'Lorem ipsum dolor',
-      department: 'Municipal Leadership',
-      totalModules: 5,
-      completedModules: 0,
-      progress: 0.0,
-      duration: '3h',
-      level: 'Leadership',
-      instructor: 'Central Governance Board',
-      rating: 4.8,
-      badgeText: 'LEADERSHIP',
-      imageAsset: 'assets/images/sample_team.jpg',
-      buttonActionText: 'Enroll',
-    ),
-    const AuthorityCourse(
-      id: 'CRS-AUTH-104',
-      title: 'Lorem ipsum dolor',
-      department: 'Mindfulness & Focus',
-      totalModules: 8,
-      completedModules: 0,
-      progress: 0.0,
-      duration: '5h',
-      level: 'Intermediate',
-      instructor: 'MEdAL Academy',
-      rating: 4.6,
-      badgeText: 'MINDFULNESS',
-      imageAsset: 'assets/images/sample_building.jpg',
-      buttonActionText: 'Start Course',
-    ),
-  ];
+  /// Other courses are not available yet; SEEK is the only course in the Academy.
+  static const List<AuthorityCourse> courses = [];
 
-  static final List<AuthorityCertificate> certificates = [
-    const AuthorityCertificate(
-      id: 'CERT-AUTH-2024-084',
-      title: 'Advanced Grievance Resolution',
-      issuedBy: 'National Institute of Urban Affairs & MEdAL',
-      issueDate: '15 May 2024',
-      credentialUrl: 'https://medal.gov.in/verify/MED-8929-XR4',
-      grade: 'Distinction (96%)',
-      certificateNo: 'MED-8929-XR4',
-      completionDateText: 'COMPLETED MAY 2024',
-      badgeType: 'check',
-    ),
-    const AuthorityCertificate(
-      id: 'CERT-AUTH-2024-012',
-      title: 'SDG Alignment & Institutional Ethics',
-      issuedBy: 'Ministry of Housing and Urban Affairs & MEdAL Cell',
-      issueDate: '20 Feb 2024',
-      credentialUrl: 'https://medal.gov.in/verify/MED-1102-G12',
-      grade: 'Certified Officer',
-      certificateNo: 'MED-1102-G12',
-      completionDateText: 'COMPLETED FEB 2024',
-      badgeType: 'star',
-    ),
-    const AuthorityCertificate(
-      id: 'CERT-AUTH-2025-081',
-      title: 'Civic SLA Management & Escalation Framework',
-      issuedBy: 'National Institute of Urban Affairs (NIUA) & MEdAL',
-      issueDate: '15 Nov 2025',
-      credentialUrl: 'https://medal.gov.in/verify/CERT-AUTH-2025-081',
-      grade: 'Distinction (94%)',
-      certificateNo: 'MED-5501-A90',
-      completionDateText: 'COMPLETED NOV 2023',
-      badgeType: 'check',
-    ),
-  ];
+  /// Certificates exist only for courses the user has fully completed.
+  static List<AuthorityCertificate> get certificates {
+    final done = CourseProgressStore.instance.completedAt(
+      SeekCourseContent.courseId,
+    );
+    if (done == null) return const [];
+    const months = [
+      'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+      'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+    ];
+    final mon = months[done.month - 1];
+    final uid = CourseProgressStore.instance.userKey
+        .replaceAll(RegExp(r'[^A-Za-z0-9]'), '')
+        .toUpperCase();
+    final no = 'MED-SEEK-${uid.isEmpty ? 'USER' : uid}';
+    return [
+      AuthorityCertificate(
+        id: 'CERT-$no',
+        title: SeekCourseContent.plainTitle,
+        issuedBy: SeekCourseContent.provider,
+        issueDate: '${done.day} ${mon[0]}${mon.substring(1).toLowerCase()} ${done.year}',
+        credentialUrl: SeekCourseContent.sourceUrl,
+        grade: 'Completed',
+        certificateNo: no,
+        completionDateText: 'COMPLETED $mon ${done.year}',
+        badgeType: 'check',
+      ),
+    ];
+  }
 
   static final List<AuthorityNotificationItem> notifications = [
     AuthorityNotificationItem(

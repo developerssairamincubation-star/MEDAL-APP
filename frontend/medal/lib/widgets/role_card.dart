@@ -29,6 +29,18 @@ class RoleCard extends StatefulWidget {
 class _RoleCardState extends State<RoleCard> with SingleTickerProviderStateMixin {
   bool _isHovered = false;
 
+  Widget _buildIconBox(Color primaryColor, bool compact) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      padding: EdgeInsets.all(compact ? 10 : 16),
+      decoration: BoxDecoration(
+        color: _isHovered ? primaryColor.withValues(alpha: 0.1) : MedalTheme.background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: widget.icon,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -72,34 +84,42 @@ class _RoleCardState extends State<RoleCard> with SingleTickerProviderStateMixin
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: compact ? 20.0 : 24.0,
-                  vertical: compact ? 16.0 : 24.0,
+                  vertical: compact ? 14.0 : 24.0,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Icon Container
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      padding: EdgeInsets.all(compact ? 12 : 16),
-                      decoration: BoxDecoration(
-                        color: _isHovered 
-                            ? primaryColor.withValues(alpha: 0.1)
-                            : MedalTheme.background,
-                        borderRadius: BorderRadius.circular(16),
+                    // Icon Container (+ title inline on compact/mobile so two
+                    // cards fit on one screen without scrolling)
+                    if (compact)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildIconBox(primaryColor, compact),
+                          const SizedBox(width: 12),
+                          Text(
+                            widget.title,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: MedalTheme.textPrimary,
+                            ),
+                          ),
+                        ],
+                      )
+                    else ...[
+                      _buildIconBox(primaryColor, compact),
+                      const SizedBox(height: 20),
+                      Text(
+                        widget.title,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: MedalTheme.textPrimary,
+                        ),
                       ),
-                      child: widget.icon,
-                    ),
-                    SizedBox(height: compact ? 12 : 20),
-                    // Title
-                    Text(
-                      widget.title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontSize: compact ? 20 : 22,
-                        fontWeight: FontWeight.bold,
-                        color: MedalTheme.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: compact ? 6 : 10),
+                    ],
+                    SizedBox(height: compact ? 8 : 10),
                     // Description
                     Text(
                       widget.description,
@@ -110,11 +130,11 @@ class _RoleCardState extends State<RoleCard> with SingleTickerProviderStateMixin
                         height: 1.35,
                       ),
                     ),
-                    SizedBox(height: compact ? 16 : 24),
+                    SizedBox(height: compact ? 12 : 24),
                     // Action Button
                     SizedBox(
                       width: double.infinity,
-                      height: compact ? 42 : 48,
+                      height: compact ? 40 : 48,
                       child: OutlinedButton(
                         onPressed: widget.onTap,
                         style: OutlinedButton.styleFrom(

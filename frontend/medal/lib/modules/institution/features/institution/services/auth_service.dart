@@ -1,8 +1,7 @@
 // lib/features/institution/services/auth_service.dart
-// Authentication service supporting Student (live API) as well as Principal and Staff roles.
+// Authentication service: live backend login for Student, Staff and Principal roles.
 
 import 'package:medal/core/services/api_service.dart';
-import 'mock_repository.dart';
 
 enum UserRole { principal, staff, student }
 
@@ -46,13 +45,13 @@ class AuthService {
       return const AuthResult.failure('Password must be at least 4 characters.');
     }
 
-    // 1. First attempt login against live Backend API (real student authentication)
+    // Sign in against the live backend; the account's role decides the portal.
     try {
       final res = await ApiService().login(email: normalizedEmail, password: password);
       final userData = res['data'] as Map<String, dynamic>?;
       final roleStr = (userData?['role'] ?? ApiService().userRole).toString().toLowerCase().trim();
 
-      if (roleStr == 'student' || normalizedEmail == 'kajolmisra@medal.gov' || normalizedEmail == 'dilli.ganesh@medal.gov') {
+      if (roleStr == 'student') {
         return AuthResult.success(UserRole.student, userData);
       } else if (roleStr == 'principal') {
         return AuthResult.success(UserRole.principal, userData);
@@ -75,18 +74,6 @@ class AuthService {
         );
       }
     } catch (e) {
-      // 2. If backend rejects, check mock repository for demo accounts
-      final roleStr = MockRepository.credentials[normalizedEmail];
-      if (roleStr != null) {
-        if (roleStr == 'principal') {
-          return const AuthResult.success(UserRole.principal);
-        } else if (roleStr == 'student') {
-          return const AuthResult.success(UserRole.student);
-        } else {
-          return const AuthResult.success(UserRole.staff);
-        }
-      }
-
       final errorMsg = e is ApiException ? e.message : 'Invalid credentials. Please verify your email and password.';
       return AuthResult.failure(errorMsg);
     }

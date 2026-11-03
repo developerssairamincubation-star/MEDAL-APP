@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/api_service.dart';
 import '../../models/authority_models.dart';
 import 'authority_complaint_detail_screen.dart';
+import '../../widgets/authority_filter_tabs.dart';
 
 class AuthorityComplaintsScreen extends StatefulWidget {
   const AuthorityComplaintsScreen({super.key});
@@ -42,14 +43,28 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
     try {
       final rawList = await ApiService().getComplaints();
       final currentOfficer = ApiService().currentUser;
-      final officerName = (currentOfficer?['full_name'] ?? '').toString().toLowerCase();
-      final officerEmail = (currentOfficer?['email'] ?? '').toString().toLowerCase();
-      final officerHandle = officerEmail.contains('@') ? officerEmail.split('@')[0] : '';
-      final officerDept = (currentOfficer?['department'] ?? '').toString().toLowerCase();
-      final officerWard = (currentOfficer?['jurisdiction'] ?? currentOfficer?['ward'] ?? '').toString().toLowerCase();
+      final officerName = (currentOfficer?['full_name'] ?? '')
+          .toString()
+          .toLowerCase();
+      final officerEmail = (currentOfficer?['email'] ?? '')
+          .toString()
+          .toLowerCase();
+      final officerHandle = officerEmail.contains('@')
+          ? officerEmail.split('@')[0]
+          : '';
+      final officerDept = (currentOfficer?['department'] ?? '')
+          .toString()
+          .toLowerCase();
+      final officerWard =
+          (currentOfficer?['jurisdiction'] ?? currentOfficer?['ward'] ?? '')
+              .toString()
+              .toLowerCase();
       final isOfficerAdmin = currentOfficer?['role'] == 'admin';
 
-      final nameParts = officerName.split(' ').where((p) => p.length > 2).toList();
+      final nameParts = officerName
+          .split(' ')
+          .where((p) => p.length > 2)
+          .toList();
 
       final List<AuthorityComplaint> tagged = [];
       final List<AuthorityComplaint> general = [];
@@ -69,7 +84,8 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
           isTagged = true;
         } else {
           // Check for handle mention (@ward.officer, @Anitha, etc.)
-          if (officerHandle.isNotEmpty && fullText.contains('@$officerHandle')) {
+          if (officerHandle.isNotEmpty &&
+              fullText.contains('@$officerHandle')) {
             isTagged = true;
           }
           for (final part in nameParts) {
@@ -92,11 +108,14 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
           // Ward/jurisdiction match (e.g. Ward 14)
           if (officerWard.isNotEmpty && fullText.contains(officerWard)) {
             isTagged = true;
-          } else if (ward.contains('ward 14') || addr.contains('medavakkam') || addr.contains('tambaram')) {
+          } else if (ward.contains('ward 14') ||
+              addr.contains('medavakkam') ||
+              addr.contains('tambaram')) {
             isTagged = true;
           }
           // Department match
-          if (officerDept.isNotEmpty && (cat.contains(officerDept) || officerDept.contains(cat))) {
+          if (officerDept.isNotEmpty &&
+              (cat.contains(officerDept) || officerDept.contains(cat))) {
             isTagged = true;
           }
         }
@@ -211,11 +230,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
     width: 96,
     height: 68,
     color: const Color(0xFFE2E8F0),
-    child: const Icon(
-      Icons.image_outlined,
-      color: Color(0xFF94A3B8),
-      size: 24,
-    ),
+    child: const Icon(Icons.image_outlined, color: Color(0xFF94A3B8), size: 24),
   );
 
   @override
@@ -230,30 +245,16 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
           // Hidden test compatibility query marker
           _buildTestCompatibilityMarkers(),
 
-          // 1. Heading "MY COMPLAINTS"
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "MY COMPLAINTS",
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF111C2D),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                if (_isLoading)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0467B6)),
-                  ),
-              ],
-            ),
-          ),
+          // Loading indicator (heading removed per design)
+          if (_isLoading)
+            const LinearProgressIndicator(
+              minHeight: 2,
+              backgroundColor: Colors.transparent,
+              color: Color(0xFF0467B6),
+            )
+          else
+            const SizedBox(height: 2),
+          const SizedBox(height: 10),
 
           // 2. Status Filter Pills
           _buildFilterPills(),
@@ -270,7 +271,9 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
                       builder: (context, constraints) => SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
                           child: Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -327,41 +330,12 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
   }
 
   Widget _buildFilterPills() {
-    return SizedBox(
-      height: 38,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _statusFilters.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final filter = _statusFilters[index];
-          final isSelected = _selectedStatusFilter == filter;
-          return GestureDetector(
-            onTap: () {
-              setState(() => _selectedStatusFilter = filter);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF0467B6)
-                    : const Color(0xFFE2EDF9),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                filter,
-                style: GoogleFonts.inter(
-                  color: isSelected ? Colors.white : const Color(0xFF475569),
-                  fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
+    return AuthorityFilterTabs(
+      labels: _statusFilters,
+      selectedIndex: _statusFilters.indexOf(_selectedStatusFilter),
+      size: AuthorityTabSize.regular,
+      onSelected: (index) =>
+          setState(() => _selectedStatusFilter = _statusFilters[index]),
     );
   }
 
@@ -373,10 +347,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFD6E4F0),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFD6E4F0), width: 1.0),
         boxShadow: const [
           BoxShadow(
             color: Color(0x06000000),
@@ -429,11 +400,16 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
                     Builder(
                       builder: (context) {
                         final rawUrl = item.citizenProfileImageUrl;
-                        final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                        final resolvedUrl =
+                            (rawUrl != null && rawUrl.trim().isNotEmpty)
                             ? ApiService().resolveImageUrl(rawUrl.trim())
                             : null;
-                        final citizenName = item.reportedBy.isNotEmpty ? item.reportedBy : 'Citizen';
-                        final initials = citizenName.isNotEmpty ? citizenName[0].toUpperCase() : 'C';
+                        final citizenName = item.reportedBy.isNotEmpty
+                            ? item.reportedBy
+                            : 'Citizen';
+                        final initials = citizenName.isNotEmpty
+                            ? citizenName[0].toUpperCase()
+                            : 'C';
 
                         Widget fallback() => CircleAvatar(
                           radius: 12,
@@ -464,14 +440,45 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        item.reportedBy.isNotEmpty ? item.reportedBy : 'Citizen',
-                        style: GoogleFonts.inter(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1E293B),
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              item.reportedBy.isNotEmpty
+                                  ? item.reportedBy
+                                  : 'Citizen',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1E293B),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: item.reportedByRole == 'Authority'
+                                  ? const Color(0xFFFEF3C7)
+                                  : const Color(0xFFE8F4FD),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              item.reportedByRole,
+                              style: GoogleFonts.inter(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: item.reportedByRole == 'Authority'
+                                    ? const Color(0xFFB45309)
+                                    : const Color(0xFF0467B6),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -487,11 +494,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
                 ),
               ),
 
-              const Divider(
-                height: 1,
-                thickness: 1,
-                color: Color(0xFFF1F5F9),
-              ),
+              const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
 
               // Main row with thumbnail & details
               Padding(
@@ -535,6 +538,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
                           ),
                           const SizedBox(height: 6),
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Icon(
                                 Icons.location_on_outlined,
@@ -545,8 +549,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
                               Expanded(
                                 child: Text(
                                   item.address,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: true,
                                   style: GoogleFonts.inter(
                                     fontSize: 10.5,
                                     color: const Color(0xFF0467B6),
@@ -572,11 +575,7 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
                 ),
               ),
 
-              const Divider(
-                height: 1,
-                thickness: 1,
-                color: Color(0xFFF1F5F9),
-              ),
+              const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
 
               // Bottom row: Ward / Jurisdiction & Status badge button
               Padding(

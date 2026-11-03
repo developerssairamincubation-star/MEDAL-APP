@@ -1,24 +1,28 @@
 // lib/modules/authority/screens/profile/authority_edit_profile_screen.dart
 // Authority Edit Profile screen visually matching reference Screenshot 4.
 
+import 'package:medal/widgets/medal_dialog.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../../core/services/api_service.dart';
 import '../../models/authority_models.dart';
+import '../../../../widgets/medal_logo.dart';
+import '../../../../widgets/profile_photo_cropper.dart';
 
 class AuthorityEditProfileScreen extends StatefulWidget {
   final VoidCallback onProfileUpdated;
 
-  const AuthorityEditProfileScreen({
-    super.key,
-    required this.onProfileUpdated,
-  });
+  const AuthorityEditProfileScreen({super.key, required this.onProfileUpdated});
 
   @override
   State<AuthorityEditProfileScreen> createState() =>
       _AuthorityEditProfileScreenState();
 }
 
-class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen> {
+class _AuthorityEditProfileScreenState
+    extends State<AuthorityEditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _nameController;
@@ -33,9 +37,21 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
   bool _isAchievementsExpanded = false;
   bool _isWorksExpanded = false;
 
+  // Profile opens read-only; fields unlock only after tapping Edit.
+  bool _isEditing = false;
+  bool _isSaving = false;
+  List<String> _achievementsSnapshot = const [];
+  List<String> _worksSnapshot = const [];
+  final ImagePicker _picker = ImagePicker();
+  Uint8List? _pickedPhotoBytes;
+
   @override
   void initState() {
     super.initState();
+    _loadControllersFromOfficer();
+  }
+
+  void _loadControllersFromOfficer() {
     final officer = MockAuthorityRepository.currentOfficer;
     _nameController = TextEditingController(text: officer.legalName);
     _emailController = TextEditingController(text: officer.officialEmail);
@@ -44,7 +60,28 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
     _designationController = TextEditingController(text: officer.designation);
     _departmentController = TextEditingController(text: officer.department);
     _jurisdictionController = TextEditingController(text: officer.jurisdiction);
-    _securePhoneController = TextEditingController(text: officer.secureContactPhone);
+    _securePhoneController = TextEditingController(
+      text: officer.secureContactPhone,
+    );
+  }
+
+  /// Discards unsaved edits and returns to read-only mode.
+  void _cancelEditing() {
+    final officer = MockAuthorityRepository.currentOfficer;
+    setState(() {
+      _nameController.text = officer.legalName;
+      _emailController.text = officer.officialEmail;
+      _positionsController.text = officer.position;
+      _phoneController.text = officer.phone;
+      _designationController.text = officer.designation;
+      _departmentController.text = officer.department;
+      _jurisdictionController.text = officer.jurisdiction;
+      _securePhoneController.text = officer.secureContactPhone;
+      officer.achievements = _achievementsSnapshot;
+      officer.works = _worksSnapshot;
+      _pickedPhotoBytes = null;
+      _isEditing = false;
+    });
   }
 
   @override
@@ -60,8 +97,33 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
     super.dispose();
   }
 
-  void _saveProfile() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate() || _isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    // Upload the newly selected profile picture first (if any).
+    if (_pickedPhotoBytes != null) {
+      try {
+        await ApiService().updateProfilePhoto(
+          fileBytes: _pickedPhotoBytes!,
+          filename: 'profile.png', // cropped output is always PNG
+          mimeType: 'image/png',
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not upload profile picture: ${e is ApiException ? e.message : e}',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+    }
 
     final officer = MockAuthorityRepository.currentOfficer;
     officer.legalName = _nameController.text.trim();
@@ -74,7 +136,12 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
     officer.secureContactPhone = _securePhoneController.text.trim();
 
     widget.onProfileUpdated();
-    Navigator.pop(context);
+    if (!mounted) return;
+    setState(() {
+      _isSaving = false;
+      _isEditing = false;
+      _pickedPhotoBytes = null;
+    });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Profile changes saved successfully.'),
@@ -83,12 +150,101 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
     );
   }
 
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+      // Crop step (move / zoom, circle or square) before the photo is kept for saving.
+      final cropped = await cropProfilePhoto(context, bytes);
+      if (cropped == null || !mounted) return;
+      setState(() => _pickedPhotoBytes = cropped);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not select image: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   void _editProfilePicture() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Select a new profile image from gallery or camera.'),
-        backgroundColor: Color(0xFF0467B6),
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickPhoto(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickPhoto(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar() {
+    final remoteUrl = ApiService().currentUser?['profile_image_url']
+        ?.toString();
+    final Widget fallback = const Icon(
+      Icons.person,
+      size: 54,
+      color: Color(0xFF64748B),
+    );
+    Widget child = fallback;
+    if (_pickedPhotoBytes != null) {
+      child = Image.memory(
+        _pickedPhotoBytes!,
+        width: 82,
+        height: 82,
+        fit: BoxFit.cover,
+      );
+    } else if (remoteUrl != null && remoteUrl.trim().isNotEmpty) {
+      child = Image.network(
+        ApiService().resolveImageUrl(remoteUrl.trim()),
+        width: 82,
+        height: 82,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => fallback,
+      );
+    }
+    return Container(
+      width: 82,
+      height: 82,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        shape: BoxShape.circle,
+        border: _pickedPhotoBytes != null
+            ? Border.all(color: const Color(0xFF0467B6), width: 2.5)
+            : null,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Center(child: child),
     );
   }
 
@@ -96,8 +252,7 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
     final controller = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => MedalAlertDialog(
         title: Text(
           "Add $type",
           style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
@@ -133,7 +288,9 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                 Navigator.pop(ctx);
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0467B6)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0467B6),
+            ),
             child: const Text("Add"),
           ),
         ],
@@ -162,13 +319,52 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Page Title: Edit profile
-                      Text(
-                        "Edit profile",
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF111C2D),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _isEditing ? "Edit profile" : "Profile",
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF111C2D),
+                              ),
+                            ),
+                          ),
+                          if (!_isEditing)
+                            TextButton.icon(
+                              key: const Key('profile_edit_button'),
+                              onPressed: () => setState(() {
+                                final officer =
+                                    MockAuthorityRepository.currentOfficer;
+                                _achievementsSnapshot = List.of(
+                                  officer.achievements,
+                                );
+                                _worksSnapshot = List.of(officer.works);
+                                _isEditing = true;
+                              }),
+                              icon: const Icon(Icons.edit_rounded, size: 16),
+                              label: Text(
+                                "Edit",
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFF0467B6),
+                                backgroundColor: const Color(0xFFE8F4FD),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
 
                       const SizedBox(height: 16),
@@ -177,31 +373,23 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                       Center(
                         child: Column(
                           children: [
-                            Container(
-                              width: 82,
-                              height: 82,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFF1F5F9),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.person,
-                                size: 54,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
+                            _buildAvatar(),
                             const SizedBox(height: 6),
-                            GestureDetector(
-                              onTap: _editProfilePicture,
-                              child: Text(
-                                "Edit profile picture",
-                                style: GoogleFonts.inter(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF0467B6),
+                            if (_isEditing)
+                              GestureDetector(
+                                onTap: _editProfilePicture,
+                                child: Text(
+                                  _pickedPhotoBytes != null
+                                      ? "Change picture (preview – tap Save to apply)"
+                                      : "Edit profile picture",
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF0467B6),
+                                  ),
                                 ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -212,8 +400,9 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                       _buildInputField(
                         label: "Name",
                         controller: _nameController,
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? "Name is required" : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? "Name is required"
+                            : null,
                       ),
                       const SizedBox(height: 10),
 
@@ -222,8 +411,9 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                         label: "Email",
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? "Email is required" : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? "Email is required"
+                            : null,
                       ),
                       const SizedBox(height: 10),
 
@@ -285,17 +475,18 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                               color: const Color(0xFF111C2D),
                             ),
                           ),
-                          GestureDetector(
-                            onTap: () => _showAddLinkDialog('Achievement'),
-                            child: Text(
-                              "Add links",
-                              style: GoogleFonts.inter(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF64748B),
+                          if (_isEditing)
+                            GestureDetector(
+                              onTap: () => _showAddLinkDialog('Achievement'),
+                              child: Text(
+                                "Add links",
+                                style: GoogleFonts.inter(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF64748B),
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
 
@@ -310,8 +501,11 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                             _isAchievementsExpanded = !_isAchievementsExpanded;
                           });
                         },
-                        items: MockAuthorityRepository.currentOfficer.achievements,
-                        onAddItem: () => _showAddLinkDialog('Achievement'),
+                        items:
+                            MockAuthorityRepository.currentOfficer.achievements,
+                        onAddItem: _isEditing
+                            ? () => _showAddLinkDialog('Achievement')
+                            : null,
                       ),
 
                       const SizedBox(height: 8),
@@ -326,34 +520,77 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                           });
                         },
                         items: MockAuthorityRepository.currentOfficer.works,
-                        onAddItem: () => _showAddLinkDialog('Work'),
+                        onAddItem: _isEditing
+                            ? () => _showAddLinkDialog('Work')
+                            : null,
                       ),
 
                       const SizedBox(height: 20),
 
-                      // Save Changes Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 42,
-                        child: ElevatedButton(
-                          onPressed: _saveProfile,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0467B6),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                      if (_isEditing)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 42,
+                                child: OutlinedButton(
+                                  key: const Key('profile_cancel_button'),
+                                  onPressed: _isSaving ? null : _cancelEditing,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF475569),
+                                    side: const BorderSide(
+                                      color: Color(0xFFCBD5E1),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    "Cancel",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            "Save changes",
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: SizedBox(
+                                height: 42,
+                                child: ElevatedButton(
+                                  key: const Key('profile_save_button'),
+                                  onPressed: _isSaving ? null : _saveProfile,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0467B6),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: _isSaving
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          "Save changes",
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -368,45 +605,49 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
 
   /// Bottom Navigation Bar matching Screenshot 4
   Widget _buildBottomNavigation() {
+    // SafeArea keeps the nav bar above the system Home/Back gesture bar.
     return Container(
-      height: 56,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildNavItem(
-              index: 0,
-              icon: Icons.grid_view_rounded,
-              label: "Dashboard",
-            ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 56,
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildNavItem(
+                  index: 0,
+                  icon: Icons.grid_view_rounded,
+                  label: "Dashboard",
+                ),
+              ),
+              Expanded(
+                child: _buildNavItem(
+                  index: 1,
+                  icon: Icons.article_outlined,
+                  label: "My Complaint",
+                ),
+              ),
+              Expanded(
+                child: _buildNavItem(
+                  index: 2,
+                  icon: Icons.groups_outlined,
+                  label: "Academy",
+                ),
+              ),
+              Expanded(
+                child: _buildNavItem(
+                  index: 3,
+                  icon: Icons.person_rounded,
+                  label: "Profile",
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: _buildNavItem(
-              index: 1,
-              icon: Icons.article_outlined,
-              label: "My Complaint",
-            ),
-          ),
-          Expanded(
-            child: _buildNavItem(
-              index: 2,
-              icon: Icons.groups_outlined,
-              label: "Academy",
-            ),
-          ),
-          Expanded(
-            child: _buildNavItem(
-              index: 3,
-              icon: Icons.person_rounded,
-              label: "Profile",
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -428,7 +669,9 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
         children: [
           Icon(
             icon,
-            color: isSelected ? const Color(0xFF0467B6) : const Color(0xFF94A3B8),
+            color: isSelected
+                ? const Color(0xFF0467B6)
+                : const Color(0xFF94A3B8),
             size: 19,
           ),
           const SizedBox(height: 2),
@@ -437,7 +680,9 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
             style: GoogleFonts.inter(
               fontSize: 10,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? const Color(0xFF0467B6) : const Color(0xFF94A3B8),
+              color: isSelected
+                  ? const Color(0xFF0467B6)
+                  : const Color(0xFF94A3B8),
             ),
           ),
         ],
@@ -458,7 +703,7 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
       ),
       child: Row(
         children: [
-          const Icon(Icons.military_tech_rounded, color: Color(0xFF0467B6), size: 22),
+          const MedalLogo(iconSize: 18),
           const SizedBox(width: 4),
           RichText(
             text: TextSpan(
@@ -524,6 +769,7 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
           ),
           TextFormField(
             controller: controller,
+            readOnly: !_isEditing,
             maxLines: maxLines,
             keyboardType: keyboardType,
             validator: validator,
@@ -552,7 +798,7 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
     required bool isExpanded,
     required VoidCallback onTap,
     required List<String> items,
-    required VoidCallback onAddItem,
+    required VoidCallback? onAddItem,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -579,7 +825,9 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                     ),
                   ),
                   Icon(
-                    isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
                     size: 18,
                     color: const Color(0xFF64748B),
                   ),
@@ -598,7 +846,10 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                   if (items.isEmpty)
                     Text(
                       "No entries yet.",
-                      style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: const Color(0xFF94A3B8),
+                      ),
                     )
                   else
                     ...items.map(
@@ -606,7 +857,11 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                         padding: const EdgeInsets.symmetric(vertical: 3.0),
                         child: Row(
                           children: [
-                            const Icon(Icons.check_circle_outline, size: 13, color: Color(0xFF0467B6)),
+                            const Icon(
+                              Icons.check_circle_outline,
+                              size: 13,
+                              color: Color(0xFF0467B6),
+                            ),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
@@ -623,19 +878,23 @@ class _AuthorityEditProfileScreenState extends State<AuthorityEditProfileScreen>
                       ),
                     ),
                   const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: onAddItem,
-                      icon: const Icon(Icons.add, size: 14),
-                      label: Text("Add item", style: GoogleFonts.inter(fontSize: 11)),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF0467B6),
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
+                  if (onAddItem != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: onAddItem,
+                        icon: const Icon(Icons.add, size: 14),
+                        label: Text(
+                          "Add item",
+                          style: GoogleFonts.inter(fontSize: 11),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF0467B6),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

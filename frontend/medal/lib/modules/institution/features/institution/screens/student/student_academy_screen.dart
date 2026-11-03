@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/institution/theme/app_theme.dart';
 import '../../widgets/student_shell_scaffold.dart';
+import '../../../../../../widgets/medal_logo.dart';
 
 class StudentAcademyScreen extends StatefulWidget {
   final int initialTabIndex; // 0: My Courses, 1: My Certificates
@@ -66,7 +67,8 @@ class _StudentAcademyScreenState extends State<StudentAcademyScreen> {
         final list = List<Map<String, dynamic>>.from(jsonDecode(resp.body));
         if (mounted) {
           setState(() {
-            _courses = list;
+            // There is one SEEK course; its chapters carry the content.
+            _courses = list.take(1).toList();
             _isLoadingCourses = false;
           });
         }
@@ -238,10 +240,9 @@ class _StudentAcademyScreenState extends State<StudentAcademyScreen> {
         final c = _courses[index];
         final id = c['id'] ?? (index + 1);
         final title = c['title'] ?? 'SEEK Course';
-        final duration = c['duration'] ?? '4h';
-        final rating = c['rating'] ?? 4.8;
+        final duration = c['duration'] ?? '';
         final category = c['category'] ?? 'SEEK';
-        final imgUrl = c['image_url'] ?? 'assets/images/sample_mountain.jpg';
+        final String? imgUrl = c['image_url'] as String?;
         final status = c['enrollment_status'] ?? 'not_enrolled';
 
         final isEnrolled = status == 'enrolled' || status == 'completed';
@@ -271,14 +272,19 @@ class _StudentAcademyScreenState extends State<StudentAcademyScreen> {
                   SizedBox(
                     height: 140,
                     width: double.infinity,
-                    child: Image.asset(
-                      imgUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: const Color(0xFFCBD5E1),
-                        child: const Icon(Icons.school, size: 40, color: Colors.white),
-                      ),
-                    ),
+                    child: imgUrl == null || imgUrl.isEmpty
+                        ? Container(
+                            color: const Color(0xFFCBD5E1),
+                            child: const Icon(Icons.school, size: 40, color: Colors.white),
+                          )
+                        : Image.asset(
+                            imgUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: const Color(0xFFCBD5E1),
+                              child: const Icon(Icons.school, size: 40, color: Colors.white),
+                            ),
+                          ),
                   ),
                   Positioned(
                     bottom: 10,
@@ -325,17 +331,6 @@ class _StudentAcademyScreenState extends State<StudentAcademyScreen> {
                         Text(
                           duration,
                           style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF64748B)),
-                        ),
-                        const SizedBox(width: 12),
-                        const Icon(Icons.star_rounded, size: 15, color: Color(0xFFF59E0B)),
-                        const SizedBox(width: 3),
-                        Text(
-                          '$rating',
-                          style: GoogleFonts.inter(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF475569),
-                          ),
                         ),
                       ],
                     ),
@@ -418,7 +413,7 @@ class _StudentAcademyScreenState extends State<StudentAcademyScreen> {
           // Section Title: Earned Certifications + View All
           Row(
             children: [
-              const Icon(Icons.military_tech_rounded, color: Color(0xFF0467B6), size: 20),
+              const MedalLogo(iconSize: 18),
               const SizedBox(width: 6),
               Text(
                 'Earned Certifications',
@@ -448,33 +443,49 @@ class _StudentAcademyScreenState extends State<StudentAcademyScreen> {
             ..._certificates.map((c) => Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: _buildCertificateCard(
-                    completedText: (c['completed_text'] ?? 'COMPLETED').toString().toUpperCase(),
+                    completedText: (c['completed_date_str'] ?? c['completed_text'] ?? 'COMPLETED').toString().toUpperCase(),
                     title: c['title'] ?? 'SEEK Course Certificate',
-                    certNo: c['certificate_number'] ?? 'MED-CERT',
+                    certNo: (c['certificate_no'] ?? c['certificate_number'] ?? 'MED-CERT').toString(),
                     badgeIcon: Icons.verified_rounded,
                     badgeColor: const Color(0xFF0467B6),
                     badgeBgColor: const Color(0xFFE6F2FA),
                   ),
                 ))
-          else ...[
-            _buildCertificateCard(
-              completedText: 'COMPLETED MAY 2024',
-              title: 'SEEK Foundation & Ecological Awareness',
-              certNo: 'MED-55219-X04',
-              badgeIcon: Icons.verified_rounded,
-              badgeColor: const Color(0xFF0467B6),
-              badgeBgColor: const Color(0xFFE6F2FA),
+          else
+            Container(
+              key: const Key('no_certificates_state'),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 26),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E4EC)),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.workspace_premium_outlined, size: 40, color: Color(0xFF94A3B8)),
+                  const SizedBox(height: 10),
+                  Text(
+                    'No certificates yet',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Complete a course to earn your certificate. It will appear here as soon as the course is finished.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      height: 1.4,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 14),
-            _buildCertificateCard(
-              completedText: 'COMPLETED FEB 2024',
-              title: 'Community Empathy & Civic Problem Discovery',
-              certNo: 'MED-1102-G12',
-              badgeIcon: Icons.star_rounded,
-              badgeColor: const Color(0xFF7C3AED),
-              badgeBgColor: const Color(0xFFF3E8FF),
-            ),
-          ],
         ],
       ),
     );

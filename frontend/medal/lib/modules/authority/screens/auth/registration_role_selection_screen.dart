@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../citizen/authentication/register.dart';
 import 'authority_register_screen.dart';
+import '../../../../widgets/medal_logo.dart';
 
 class RegistrationRoleSelectionScreen extends StatelessWidget {
   const RegistrationRoleSelectionScreen({super.key});
@@ -48,11 +49,7 @@ class RegistrationRoleSelectionScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.military_tech_rounded,
-                            color: MedalTheme.primary,
-                            size: 34,
-                          ),
+                          const MedalLogo(iconSize: 24),
                           const SizedBox(width: 8),
                           Text(
                             'MEDAL',
