@@ -200,7 +200,8 @@ class TestPrincipalDashboard:
 
 class TestTeacherScope:
     def test_teacher_sees_students_progress_and_not_other_staff(self, client, make_user, auth, course):
-        teacher, other_staff, student = make_user("staff"), make_user("staff"), make_user("student")
+        teacher, other_staff = make_user("staff"), make_user("staff")
+        student = make_user("student", teacher_id=teacher.id)   # a student added under this teacher
         principal = make_user("principal")
         h = auth(teacher)
         _complete(client, auth(student), course[0].id)
@@ -273,9 +274,12 @@ class TestStudentCourse:
         assert notes["unread_count"] == 1
 
     def test_chapter_completion_is_saved_and_reflected_for_teacher_and_principal(
-            self, client, register_student, make_user, auth, course):
+            self, client, register_student, make_user, auth, course, db):
         s = register_student()
         teacher, principal = make_user("staff"), make_user("principal")
+        from app.models.user import User
+        db.query(User).filter(User.id == s["id"]).update({"teacher_id": teacher.id})   # student sits under the teacher
+        db.commit()
         r = _complete(client, s["headers"], course[0].id)
         assert r.status_code == 200 and r.json()["completed_chapters"] == 1
         # persisted: a fresh read shows it

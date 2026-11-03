@@ -58,6 +58,21 @@ class FakeEmail:
         FakeEmail.outbox.append({"to": to_email, "kind": "password_reset", "otp": otp})
         return True
 
+    def is_production(self):
+        return False
+
+    # Set to an exception instance to simulate a mail provider failure.
+    fail_with = None
+
+    def send_student_invite(self, to_email, student_name, teacher_name, school_name, temporary_password):
+        if FakeEmail.fail_with is not None:
+            raise FakeEmail.fail_with
+        FakeEmail.outbox.append({
+            "to": to_email, "kind": "student_invite", "student": student_name, "teacher": teacher_name,
+            "school": school_name, "password": temporary_password,
+        })
+        return True
+
 
 class FakeStorage:
     async def upload_bytes(self, data, filename, folder="", content_type="", is_private=False, custom_public_id=None):
@@ -74,6 +89,7 @@ def _isolation(monkeypatch):
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     FakeEmail.outbox.clear()
+    FakeEmail.fail_with = None
     app.dependency_overrides[get_email_service] = lambda: FakeEmail()
     app.dependency_overrides[get_storage_service] = lambda: FakeStorage()
     # No network: reverse geocoding degrades to "no place name".

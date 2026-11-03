@@ -97,4 +97,40 @@ class InstitutionApi {
       temporaryPassword: data['temporary_password'] as String,
     );
   }
+
+  /// Adds one student under the signed-in teacher and e-mails them an invite.
+  Future<StudentInviteResult> inviteStudent({
+    required String name,
+    required String email,
+    String? department,
+  }) async {
+    final data = _decode(await http
+        .post(
+          _uri('/students/invite'),
+          headers: _headers,
+          body: jsonEncode({
+            'name': name,
+            'email': email,
+            if (department != null && department.isNotEmpty) 'department': department,
+          }),
+        )
+        .timeout(const Duration(seconds: 60))) as Map<String, dynamic>;
+    return StudentInviteResult.fromJson(data);
+  }
+
+  /// Adds many students from a CSV (columns: name, email, optional department).
+  Future<BulkInviteResult> inviteStudentsCsv({
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    final request = http.MultipartRequest('POST', _uri('/students/bulk'))
+      ..headers.addAll({
+        if (ApiService().token != null) 'Authorization': 'Bearer ${ApiService().token}',
+      })
+      ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final response = await http.Response.fromStream(
+      await request.send().timeout(const Duration(seconds: 120)),
+    );
+    return BulkInviteResult.fromJson(_decode(response) as Map<String, dynamic>);
+  }
 }

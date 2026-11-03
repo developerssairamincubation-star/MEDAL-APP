@@ -162,6 +162,81 @@ class NewStaffResult {
   const NewStaffResult({required this.staff, required this.temporaryPassword});
 }
 
+/// Result of adding one student by e-mail (POST /institution/students/invite).
+class StudentInviteResult {
+  final InstitutionMember student;
+  final bool emailSent;
+
+  /// Only present when the invite e-mail could not be sent, so the teacher can pass it on.
+  final String? temporaryPassword;
+  final String message;
+  final String? error;
+
+  const StudentInviteResult({
+    required this.student,
+    required this.emailSent,
+    required this.message,
+    this.temporaryPassword,
+    this.error,
+  });
+
+  factory StudentInviteResult.fromJson(Map<String, dynamic> json) => StudentInviteResult(
+        student: InstitutionMember.fromJson(json['student'] as Map<String, dynamic>),
+        emailSent: json['email_sent'] == true,
+        temporaryPassword: json['temporary_password'] as String?,
+        message: (json['message'] ?? '') as String,
+        error: json['error'] as String?,
+      );
+}
+
+class CsvRowError {
+  final int row;
+  final String email;
+  final String error;
+
+  const CsvRowError({required this.row, required this.email, required this.error});
+}
+
+/// Result of a CSV upload (POST /institution/students/bulk).
+class BulkInviteResult {
+  final int totalRows;
+  final int created;
+  final int failed;
+  final int invitesQueued;
+  final List<CsvRowError> errors;
+
+  /// Dev only: when the server has no e-mail provider it returns the passwords instead.
+  final List<Map<String, String>> credentials;
+
+  const BulkInviteResult({
+    required this.totalRows,
+    required this.created,
+    required this.failed,
+    required this.invitesQueued,
+    required this.errors,
+    required this.credentials,
+  });
+
+  factory BulkInviteResult.fromJson(Map<String, dynamic> json) => BulkInviteResult(
+        totalRows: (json['total_rows'] ?? 0) as int,
+        created: (json['created'] ?? 0) as int,
+        failed: (json['failed'] ?? 0) as int,
+        invitesQueued: (json['invites_queued'] ?? 0) as int,
+        errors: [
+          for (final e in (json['errors'] as List? ?? const []))
+            CsvRowError(
+              row: (e['row'] ?? 0) as int,
+              email: (e['email'] ?? '').toString(),
+              error: (e['error'] ?? '').toString(),
+            ),
+        ],
+        credentials: [
+          for (final c in (json['credentials'] as List? ?? const []))
+            {'email': '${c['email']}', 'temporary_password': '${c['temporary_password']}'},
+        ],
+      );
+}
+
 /// The signed-in user's own SEEK progress (same data the student screens show).
 class OwnProgress {
   final int completedChapters;

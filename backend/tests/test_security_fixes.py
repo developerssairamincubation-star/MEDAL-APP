@@ -185,7 +185,8 @@ class TestSchoolIsolation:
         for tag, sch in (("a", a), ("b", b)):
             d[f"principal_{tag}"] = make_user("principal", school_id=sch.id, full_name=f"Principal {tag}")
             d[f"staff_{tag}"] = make_user("staff", school_id=sch.id, full_name=f"Teacher {tag}")
-            d[f"student_{tag}"] = make_user("student", school_id=sch.id, full_name=f"Student {tag}")
+            d[f"student_{tag}"] = make_user("student", school_id=sch.id, full_name=f"Student {tag}",
+                                            teacher_id=d[f"staff_{tag}"].id)
         for key in ("staff_a", "staff_b", "student_a", "student_b"):
             client.put(f"/student/chapters/{course[0].id}/completion", json={"completed": True}, headers=auth(d[key]))
         d["h"] = {k: auth(v) for k, v in d.items() if not k.startswith("h")}

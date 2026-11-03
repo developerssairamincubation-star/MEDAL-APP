@@ -15,7 +15,7 @@ import '../../widgets/medal_app_bar.dart';
 import '../../widgets/custom_bottom_nav.dart';
 import '../../widgets/member_progress_card.dart';
 
-/// Students screen — every registered student with their real SEEK progress.
+/// Students screen — the teacher's own students with their real SEEK progress.
 class MyClassScreen extends ConsumerStatefulWidget {
   const MyClassScreen({super.key});
 
@@ -80,13 +80,47 @@ class _MyClassScreenState extends ConsumerState<MyClassScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Text(
-              'Students',
-              style: GoogleFonts.inter(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Students',
+                    style: GoogleFonts.inter(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                // Top-right action: add students by e-mail or CSV (they are added under this teacher).
+                Material(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    key: const Key('add_students_button'),
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => context.push(AppRoutes.staffAddStudents),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.person_add_alt_1_rounded, size: 17, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Add Students',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 14),
@@ -172,7 +206,7 @@ class _MyClassScreenState extends ConsumerState<MyClassScreen> {
                   return const EmptyState(
                     icon: Icons.school_outlined,
                     title: 'No students yet',
-                    message: 'Students appear here once they register.',
+                    message: 'Use Add Students (top right) to invite students by email or CSV. They appear here under you.',
                   );
                 }
                 final shown = _apply(all);

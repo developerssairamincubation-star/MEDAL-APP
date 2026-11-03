@@ -53,6 +53,11 @@ class User(Base):
     school_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("schools.id", ondelete="RESTRICT"), nullable=True, index=True
     )
+    # For students: the teacher (staff user) they were added under. NULL for everyone else and for
+    # students who registered themselves with a school code.
+    teacher_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     # Bumped to invalidate every token issued before (logout, password change, role change, ...).
     token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

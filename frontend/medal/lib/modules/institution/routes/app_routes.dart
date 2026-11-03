@@ -25,6 +25,7 @@ import '../features/institution/screens/principal/add_staff_screen.dart';
 import '../features/institution/screens/principal/principal_profile_screen.dart';
 import '../features/institution/screens/staff/staff_dashboard_screen.dart';
 import '../features/institution/screens/staff/my_class_screen.dart';
+import '../features/institution/screens/staff/add_students_screen.dart';
 import '../features/institution/screens/shared/member_detail_screen.dart';
 import '../features/institution/screens/staff/staff_profile_screen.dart';
 import '../features/institution/services/auth_service.dart';
@@ -56,6 +57,7 @@ abstract final class AppRoutes {
   // Staff
   static const String staffDashboard = '/staff/dashboard';
   static const String staffMyClass = '/staff/my-class';
+  static const String staffAddStudents = '/staff/add-students';
   static const String staffStudentDetail = '/staff/student/:memberId';
   static const String staffProfile = '/staff/profile';
 }
@@ -208,6 +210,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.staffMyClass,
         name: 'staffMyClass',
         builder: (context, state) => const MyClassScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.staffAddStudents,
+        name: 'staffAddStudents',
+        builder: (context, state) => const AddStudentsScreen(),
       ),
       GoRoute(
         path: AppRoutes.staffStudentDetail,

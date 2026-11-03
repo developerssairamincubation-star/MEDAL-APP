@@ -489,6 +489,91 @@ class EmailService:
         else:
             server.login(self.smtp_user, self.smtp_password)
 
+    def send_student_invite(
+        self,
+        to_email: str,
+        student_name: str,
+        teacher_name: str,
+        school_name: str,
+        temporary_password: str,
+    ) -> bool:
+        """Invite a student added by a teacher: tells them who added them and how to sign in.
+
+        Returns False in development when no email provider is configured (nothing is sent);
+        raises EmailDeliveryError when delivery fails or production has no provider configured.
+        """
+        masked_recipient = mask_email(to_email)
+        if not self.is_configured():
+            if self.is_production():
+                raise EmailDeliveryError(
+                    "Email service is not configured on the production server "
+                    "(set RESEND_API_KEY, or SMTP_USER and SMTP_PASSWORD)."
+                )
+            logger.warning(
+                "[EMAIL SERVICE - DEV SIMULATION] Student invite for %s not sent: no email provider configured.",
+                masked_recipient,
+            )
+            return False
+
+        import html as _html
+
+        subject = f"{teacher_name} added you to MEDAL ({school_name})"
+        text_content = (
+            f"Hello {student_name},\n\n"
+            f"{teacher_name} at {school_name} has added you as a student on MEDAL.\n\n"
+            f"Sign in to the MEDAL app (Institution -> Student login) with:\n"
+            f"  Email: {to_email}\n"
+            f"  Temporary password: {temporary_password}\n\n"
+            f"Please change your password after you sign in (Profile -> Manage Password).\n"
+            f"If you were not expecting this, you can ignore this email.\n\n"
+            f"Regards,\nMEDAL Support Team"
+        )
+        e = _html.escape
+        html_content = (
+            "<!DOCTYPE html><html><body style=\"font-family:Arial,Helvetica,sans-serif;color:#111C2D\">"
+            f"<p>Hello {e(student_name)},</p>"
+            f"<p><b>{e(teacher_name)}</b> at <b>{e(school_name)}</b> has added you as a student on MEDAL.</p>"
+            "<p>Sign in to the MEDAL app (<i>Institution &rarr; Student login</i>) with:</p>"
+            f"<p>Email: <b>{e(to_email)}</b><br>Temporary password: <b>{e(temporary_password)}</b></p>"
+            "<p>Please change your password after you sign in (Profile &rarr; Manage Password).</p>"
+            "<p style=\"color:#64748B\">If you were not expecting this, you can ignore this email.</p>"
+            "<p>Regards,<br>MEDAL Support Team</p></body></html>"
+        )
+
+        if self.resend_api_key and "your_api_key" not in self.resend_api_key:
+            return self._send_via_https_api(to_email, subject, text_content, html_content)
+
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = Header(subject, "utf-8")
+            msg["From"] = formataddr((self.from_name, self.from_email))
+            msg["To"] = to_email
+            msg.attach(MIMEText(text_content, "plain", "utf-8"))
+            msg.attach(MIMEText(html_content, "html", "utf-8"))
+            if self.use_ssl or self.smtp_port == 465:
+                with smtplib.SMTP_SSL(
+                    self.smtp_host, self.smtp_port, context=ssl.create_default_context(), timeout=self.timeout
+                ) as server:
+                    self._authenticate_smtp(server)
+                    server.sendmail(self.from_email, [to_email], msg.as_string())
+            else:
+                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=self.timeout) as server:
+                    if self.use_tls:
+                        server.starttls(context=ssl.create_default_context())
+                        try:
+                            server.ehlo()
+                        except Exception:
+                            pass
+                    self._authenticate_smtp(server)
+                    server.sendmail(self.from_email, [to_email], msg.as_string())
+            logger.info("Student invite sent to %s", masked_recipient)
+            return True
+        except smtplib.SMTPAuthenticationError as exc:
+            raise EmailDeliveryError("Email authentication failed. Check the SMTP credentials.") from exc
+        except (smtplib.SMTPException, OSError) as exc:
+            logger.error("Student invite delivery failed for %s: %s", masked_recipient, exc)
+            raise EmailDeliveryError(f"Could not deliver the invite email: {exc}") from exc
+
     def _send_via_https_api(
         self,
         to_email: str,

@@ -47,9 +47,9 @@ INSTITUTION_ROLES = tuple(r for r, p in PLATFORM_BY_ROLE.items() if p == INSTITU
 
 
 # Password Hashing Functions
-def hash_password(password: str) -> str:
+def hash_password(password: str, rounds: int = 12) -> str:
     """Hash a plaintext password using bcrypt."""
-    salt = bcrypt.gensalt()
+    salt = bcrypt.gensalt(rounds=rounds)
     hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
     return hashed.decode("utf-8")
 
