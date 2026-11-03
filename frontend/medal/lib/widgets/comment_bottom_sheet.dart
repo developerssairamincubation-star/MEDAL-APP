@@ -1,6 +1,7 @@
 // lib/widgets/comment_bottom_sheet.dart
 // Production-quality, reusable comments bottom sheet matching the inline comment UI reference.
 
+import 'package:medal/widgets/medal_dialog.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -249,8 +250,7 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => MedalAlertDialog(
         title: const Text("Delete Comment"),
         content: const Text("Are you sure you want to delete this comment? This action cannot be undone."),
         actions: [

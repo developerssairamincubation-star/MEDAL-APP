@@ -3,6 +3,7 @@ import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/citizen/screens/components.dart';
 import 'package:medal/modules/citizen/authentication/forgot_password.dart';
 import 'package:medal/routes/app_routes.dart';
+import 'package:medal/widgets/medal_logo.dart';
 import 'package:medal/modules/authority/screens/auth/registration_role_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -139,6 +140,38 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
 
+  Widget _portalButton({
+    Key? key,
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton.icon(
+      key: key,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16, color: const Color(0xFF0467B6)),
+      label: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          maxLines: 1,
+          style: const TextStyle(
+            color: Color(0xFF0467B6),
+            fontWeight: FontWeight.w600,
+            fontSize: 12.5,
+          ),
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Color(0xFFC6C5D7)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        minimumSize: const Size(0, 38),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -171,11 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.military_tech_rounded,
-                      color: Color(0xFF0467B6),
-                      size: 46,
-                    ),
+                    const MedalLogo(iconSize: 34),
                     const SizedBox(height: 6),
                     const Text(
                       "MEdAL",
@@ -370,56 +399,26 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.pushNamed(context, AppRoutes.authorityLogin);
-                              },
-                              icon: const Icon(Icons.security_rounded, size: 18, color: Color(0xFF0467B6)),
-                              label: const Text(
-                                "Authority Portal",
-                                style: TextStyle(
-                                  color: Color(0xFF0467B6),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFFC6C5D7)),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              ),
-                            ),
-                          ),
                           const SizedBox(height: 8),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              key: const Key('citizen_screen_admin_login_button'),
-                              onPressed: () {
-                                Navigator.pushNamed(context, AppRoutes.adminLogin);
-                              },
-                              icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Color(0xFF0467B6)),
-                              label: const Text(
-                                "Admin Portal",
-                                style: TextStyle(
-                                  color: Color(0xFF0467B6),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _portalButton(
+                                  label: "Authority Portal",
+                                  icon: Icons.security_rounded,
+                                  onPressed: () => Navigator.pushNamed(context, AppRoutes.authorityLogin),
                                 ),
                               ),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFFC6C5D7)),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _portalButton(
+                                  key: const Key('citizen_screen_admin_login_button'),
+                                  label: "Admin Portal",
+                                  icon: Icons.admin_panel_settings_outlined,
+                                  onPressed: () => Navigator.pushNamed(context, AppRoutes.adminLogin),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               ),
-                            ),
+                            ],
                           ),
                         ],
                       ),

@@ -8,10 +8,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../theme/app_theme.dart';
 import '../../../../routes/app_routes.dart';
-import '../../providers/principal_provider.dart';
+import '../../models/member.dart';
+import '../../providers/institution_provider.dart';
+import '../../widgets/async_body.dart';
 import '../../widgets/medal_app_bar.dart';
 import '../../widgets/custom_bottom_nav.dart';
-import '../../widgets/staff_list_card.dart';
+import '../../widgets/member_progress_card.dart';
 
 /// Staff List Screen — matches Principal_login_stafflist.png
 class StaffListScreen extends ConsumerStatefulWidget {
@@ -22,7 +24,23 @@ class StaffListScreen extends ConsumerStatefulWidget {
 }
 
 class _StaffListScreenState extends ConsumerState<StaffListScreen> {
+  static const _allStaff = 'All Staff';
+
   final _searchController = TextEditingController();
+  String _query = '';
+  String _department = _allStaff;
+
+  List<InstitutionMember> _filter(List<InstitutionMember> all) {
+    final q = _query.trim().toLowerCase();
+    return all.where((m) {
+      final matchesSearch = q.isEmpty ||
+          m.name.toLowerCase().contains(q) ||
+          m.email.toLowerCase().contains(q) ||
+          (m.department ?? '').toLowerCase().contains(q);
+      final matchesDept = _department == _allStaff || m.department == _department;
+      return matchesSearch && matchesDept;
+    }).toList();
+  }
 
   @override
   void dispose() {
@@ -48,8 +66,7 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final listState = ref.watch(staffListProvider);
-    final notifier = ref.read(staffListProvider.notifier);
+    final staff = ref.watch(staffMembersProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -62,9 +79,9 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: TextField(
               controller: _searchController,
-              onChanged: notifier.search,
+              onChanged: (v) => setState(() => _query = v),
               decoration: InputDecoration(
-                hintText: 'Search teachers, IDs, or departments...',
+                hintText: 'Search teachers, emails, or departments...',
                 prefixIcon: const Icon(Icons.search_rounded,
                     color: AppTheme.textMuted, size: 20),
                 border: OutlineInputBorder(
@@ -89,45 +106,51 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
           ),
           const SizedBox(height: 12),
           // ── Department Filter chips ─────────────────────────
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: listState.departments.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 8),
-              itemBuilder: (context, i) {
-                final dep = listState.departments[i];
-                final isSelected = dep == listState.selectedDepartment;
-                return GestureDetector(
-                  onTap: () => notifier.filterByDepartment(dep),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppTheme.primary : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected
-                            ? AppTheme.primary
-                            : Colors.grey.shade200,
-                      ),
-                    ),
-                    child: Text(
-                      dep,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color:
-                            isSelected ? Colors.white : AppTheme.textSecondary,
-                      ),
-                    ),
-                  ),
-                );
+          Builder(builder: (context) {
+            final departments = [
+              _allStaff,
+              ...{
+                for (final m in staff.valueOrNull ?? const <InstitutionMember>[])
+                  if ((m.department ?? '').isNotEmpty) m.department!,
               },
-            ),
-          ),
+            ];
+            if (departments.length < 2) return const SizedBox.shrink();
+            return SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: departments.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final dep = departments[i];
+                  final isSelected = dep == _department;
+                  return GestureDetector(
+                    onTap: () => setState(() => _department = dep),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppTheme.primary : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? AppTheme.primary : Colors.grey.shade200,
+                        ),
+                      ),
+                      child: Text(
+                        dep,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? Colors.white : AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          }),
           const SizedBox(height: 16),
           // ── List header ─────────────────────────────────────
           Padding(
@@ -145,56 +168,45 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'View All',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primary,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
           const SizedBox(height: 8),
           // ── Staff cards list ────────────────────────────────
           Expanded(
-            child: listState.filteredStaff.isEmpty
-                ? Center(
-                    child: Text(
-                      'No staff members found.',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: AppTheme.textMuted,
-                      ),
-                    ),
-                  )
-                : ListView.separated(
+            child: AsyncBody<List<InstitutionMember>>(
+              value: staff,
+              onRetry: () => ref.invalidate(staffMembersProvider),
+              builder: (all) {
+                if (all.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.groups_outlined,
+                    title: 'No staff added yet',
+                    message: 'Use "Add staffs" to create the first teacher account.',
+                  );
+                }
+                final shown = _filter(all);
+                if (shown.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.search_off_rounded,
+                    title: 'No staff match your search',
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () async => ref.refresh(staffMembersProvider.future),
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    itemCount: listState.filteredStaff.length,
+                    itemCount: shown.length,
                     separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) {
-                      final staff = listState.filteredStaff[i];
-                      return StaffListCard(
-                        staff: staff,
-                        onViewProfile: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Viewing ${staff.name}\'s profile'),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                    itemBuilder: (context, i) => MemberProgressCard(
+                      member: shown[i],
+                      onTap: () => context.push('/principal/member/${shown[i].id}'),
+                    ),
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),

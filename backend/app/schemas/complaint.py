@@ -52,8 +52,14 @@ class ComplaintBase(BaseModel):
         return self
 
 
+class MentionedOfficial(BaseModel):
+    id: int
+    name: str
+
+
 class ComplaintCreate(ComplaintBase):
-    pass
+    # Ids of officials tagged with "@" in the description (validated server-side)
+    mentions: List[int] = Field(default_factory=list, max_length=10)
 
 
 class ComplaintUpdate(BaseModel):
@@ -83,16 +89,21 @@ class ComplaintStatusUpdate(BaseModel):
 
 class ComplaintResponse(ComplaintBase):
     id: int
+    mentions: List[MentionedOfficial] = Field(default_factory=list)
     status: str
     citizen_id: int
     created_at: datetime
     updated_at: datetime
+    citizen_name: Optional[str] = None
+    citizen_role: Optional[str] = None
+    profile_image_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class ComplaintFeedItem(ComplaintBase):
     id: int
+    mentions: List[MentionedOfficial] = Field(default_factory=list)
     status: str
     created_at: datetime
     citizen_name: str
@@ -102,7 +113,9 @@ class ComplaintFeedItem(ComplaintBase):
     upvotes_count: int = 0
     comments_count: int = 0
     reposts_count: int = 0
+    has_upvoted: bool = False
     has_reposted: bool = False
+    citizen_role: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

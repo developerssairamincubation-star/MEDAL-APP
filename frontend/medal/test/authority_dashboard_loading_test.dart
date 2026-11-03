@@ -127,7 +127,9 @@ void main() {
     await tester.tap(find.text('COMPLAINTS'));
     await tester.pumpAndSettle();
 
-    expect(find.text('MY COMPLAINTS'), findsOneWidget);
+    // Heading was removed from the Complaints tab; the filter pills remain.
+    expect(find.text('MY COMPLAINTS'), findsNothing);
+    expect(find.text('Assigned'), findsWidgets);
 
     // Switch back to Dashboard tab
     await tester.tap(find.text('DASHBOARD'));

@@ -4,15 +4,19 @@
 // location & SDG badge, social action row, inline comment composer,
 // and all comments visible in the same vertically scrollable container.
 
+import 'package:medal/widgets/post_subject.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/services/api_service.dart';
-import '../notifications/authority_notifications_screen.dart';
 import 'authority_comment_thread_screen.dart';
 import 'authority_main_screen.dart';
+import '../../../../core/utils/location_text.dart';
+import '../../../../widgets/medal_logo.dart';
+import '../../../../widgets/post_action_bar.dart';
+import '../../widgets/authority_nav_item.dart';
 
 class AuthorityPostDetailScreen extends StatefulWidget {
   final int? complaintId;
@@ -65,13 +69,16 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
 
     _upvotes = _complaintData['upvotes_count'] is int
         ? _complaintData['upvotes_count']
-        : (int.tryParse(_complaintData['upvotes_count']?.toString() ?? '0') ?? 0);
+        : (int.tryParse(_complaintData['upvotes_count']?.toString() ?? '0') ??
+              0);
     _commentsCount = _complaintData['comments_count'] is int
         ? _complaintData['comments_count']
-        : (int.tryParse(_complaintData['comments_count']?.toString() ?? '0') ?? 0);
+        : (int.tryParse(_complaintData['comments_count']?.toString() ?? '0') ??
+              0);
     _repostsCount = _complaintData['reposts_count'] is int
         ? _complaintData['reposts_count']
-        : (int.tryParse(_complaintData['reposts_count']?.toString() ?? '0') ?? 0);
+        : (int.tryParse(_complaintData['reposts_count']?.toString() ?? '0') ??
+              0);
     _isUpvoted = _complaintData['has_upvoted'] == true;
     _isReposted = _complaintData['has_reposted'] == true;
 
@@ -118,8 +125,10 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
         setState(() {
           _complaintData = {..._complaintData, ...details};
           _upvotes = _complaintData['upvotes_count'] as int? ?? _upvotes;
-          _commentsCount = _complaintData['comments_count'] as int? ?? _commentsCount;
-          _repostsCount = _complaintData['reposts_count'] as int? ?? _repostsCount;
+          _commentsCount =
+              _complaintData['comments_count'] as int? ?? _commentsCount;
+          _repostsCount =
+              _complaintData['reposts_count'] as int? ?? _repostsCount;
         });
       }
     } catch (e) {
@@ -155,10 +164,13 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
     } catch (_) {}
   }
 
-  Map<String, dynamic> _mapApiComment(Map<String, dynamic> c,
-      {List<Map<String, dynamic>> replies = const []}) {
+  Map<String, dynamic> _mapApiComment(
+    Map<String, dynamic> c, {
+    List<Map<String, dynamic>> replies = const [],
+  }) {
     final name = (c['user_name'] ?? 'Citizen').toString();
-    final initials = (c['user_initials'] ?? (name.isNotEmpty ? name[0] : 'C')).toString();
+    final initials = (c['user_initials'] ?? (name.isNotEmpty ? name[0] : 'C'))
+        .toString();
     final profileUrl = c['profile_image_url'] as String?;
     final timeStr = _formatRelativeTime(c['created_at']);
     final text = (c['comment'] ?? c['content'] ?? '').toString();
@@ -374,9 +386,9 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not select image: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not select image: $e')));
     }
   }
 
@@ -442,9 +454,8 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final complaintId = widget.complaintId ??
-        _complaintData['id'] as int? ??
-        101;
+    final complaintId =
+        widget.complaintId ?? _complaintData['id'] as int? ?? 101;
     final hadImage = _selectedImage != null;
 
     try {
@@ -473,12 +484,15 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
       }
 
       final currentUser = ApiService().currentUser;
-      final currentUserName = (currentUser?['full_name'] ?? 'Officer').toString();
+      final currentUserName = (currentUser?['full_name'] ?? 'Officer')
+          .toString();
       final currentUserProfile = currentUser?['profile_image_url'] as String?;
       final newComment = {
         'id': DateTime.now().millisecondsSinceEpoch % 100000,
         'author': currentUserName,
-        'initials': currentUserName.isNotEmpty ? currentUserName[0].toUpperCase() : 'O',
+        'initials': currentUserName.isNotEmpty
+            ? currentUserName[0].toUpperCase()
+            : 'O',
         'profile_image_url': currentUserProfile,
         'time': 'just now',
         'text': content.isNotEmpty ? content : '[Photo Attachment]',
@@ -499,7 +513,11 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
       } catch (_) {}
 
       setState(() {
-        if (!_comments.any((c) => c['text'] == newComment['text'] && c['author'] == newComment['author'])) {
+        if (!_comments.any(
+          (c) =>
+              c['text'] == newComment['text'] &&
+              c['author'] == newComment['author'],
+        )) {
           _comments.insert(0, newComment);
           _commentsCount++;
         }
@@ -530,9 +548,8 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
   }
 
   void _navigateToThread(Map<String, dynamic> comment) {
-    final complaintId = widget.complaintId ??
-        widget.complaintData?['id'] as int? ??
-        101;
+    final complaintId =
+        widget.complaintId ?? widget.complaintData?['id'] as int? ?? 101;
 
     Navigator.push(
       context,
@@ -681,7 +698,10 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
             child: SizedBox(
               width: 24,
               height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0467B6)),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFF0467B6),
+              ),
             ),
           ),
         );
@@ -695,11 +715,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
       height: 160,
       color: const Color(0xFFF1F5F9),
       child: const Center(
-        child: Icon(
-          Icons.image_outlined,
-          size: 40,
-          color: Color(0xFF94A3B8),
-        ),
+        child: Icon(Icons.image_outlined, size: 40, color: Color(0xFF94A3B8)),
       ),
     );
   }
@@ -708,7 +724,10 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
   Widget build(BuildContext context) {
     final data = _complaintData;
     final authorName = (data['citizen_name'] ?? 'Citizen').toString();
-    final authorInitials = (data['citizen_initials'] ?? (authorName.isNotEmpty ? authorName[0] : 'C')).toString();
+    final authorInitials =
+        (data['citizen_initials'] ??
+                (authorName.isNotEmpty ? authorName[0] : 'C'))
+            .toString();
     final authorProfileUrl = data['profile_image_url'] as String?;
     final timeAgo = _formatRelativeTime(data['created_at']);
     final description = (data['description'] ?? data['title'] ?? '').toString();
@@ -717,18 +736,18 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
     // Parse real @mentions from complaint text or fallback to departmental authorities
     final allText = '$description ${data['title'] ?? ''}';
     final mentionMatches = RegExp(r'@[A-Za-z0-9_.]+').allMatches(allText);
-    List<String> authorities = mentionMatches.map((m) => m.group(0)!).toSet().toList();
+    List<String> authorities = mentionMatches
+        .map((m) => m.group(0)!)
+        .toSet()
+        .toList();
     if (authorities.isEmpty) {
-      authorities = [
-        '@elenarodriguez',
-        '@Jane_doe',
-        '@Marcus_Chen',
-      ];
+      authorities = ['@elenarodriguez', '@Jane_doe', '@Marcus_Chen'];
     }
 
     final imageUrl = data['image_url'] as String?;
-    final location = (data['location_address'] ?? data['location'] ?? 'Municipal Zone').toString();
-    final sdgAlignment = (data['sdg_alignment'] ?? data['sdg'] ?? 'SDG 13').toString();
+    final location = displayLocation(data, fallback: 'Municipal Zone');
+    final sdgAlignment = (data['sdg_alignment'] ?? data['sdg'] ?? 'SDG 13')
+        .toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F6FD),
@@ -757,7 +776,9 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                          color: const Color(
+                            0xFF0F172A,
+                          ).withValues(alpha: 0.04),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -778,12 +799,20 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                                 children: [
                                   Builder(
                                     builder: (context) {
-                                      final resolvedUrl = (authorProfileUrl != null && authorProfileUrl.trim().isNotEmpty)
-                                          ? ApiService().resolveImageUrl(authorProfileUrl.trim())
+                                      final resolvedUrl =
+                                          (authorProfileUrl != null &&
+                                              authorProfileUrl
+                                                  .trim()
+                                                  .isNotEmpty)
+                                          ? ApiService().resolveImageUrl(
+                                              authorProfileUrl.trim(),
+                                            )
                                           : null;
                                       Widget fallbackInitials() => CircleAvatar(
                                         radius: 20,
-                                        backgroundColor: const Color(0xFFF3E8FF),
+                                        backgroundColor: const Color(
+                                          0xFFF3E8FF,
+                                        ),
                                         child: Text(
                                           authorInitials,
                                           style: GoogleFonts.inter(
@@ -793,14 +822,17 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                                           ),
                                         ),
                                       );
-                                      if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+                                      if (resolvedUrl != null &&
+                                          resolvedUrl.isNotEmpty) {
                                         return ClipOval(
                                           child: Image.network(
                                             resolvedUrl,
                                             width: 40,
                                             height: 40,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => fallbackInitials(),
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    fallbackInitials(),
                                           ),
                                         );
                                       }
@@ -849,7 +881,13 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
 
                               const SizedBox(height: 12),
 
-                              // Full complaint description
+                              // Subject (title) then full complaint description
+                              PostSubject(
+                                title: (data['title'] ?? '').toString(),
+                                description: description,
+                                fontSize: 15,
+                                bottomSpacing: 6,
+                              ),
                               Text(
                                 description,
                                 style: GoogleFonts.inter(
@@ -898,66 +936,82 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
 
                               const SizedBox(height: 10),
 
-                              // Location and SDG Badge Row
+                              // Location on its own line (full text, wraps), SDG info below it
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.location_on_outlined,
-                                        size: 15,
-                                        color: Color(0xFF0467B6),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        location,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF0467B6),
-                                        ),
-                                      ),
-                                    ],
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 1),
+                                    child: Icon(
+                                      Icons.location_on_outlined,
+                                      size: 15,
+                                      color: Color(0xFF0467B6),
+                                    ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 3.5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFFE4E6),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.eco_outlined,
-                                          size: 12,
-                                          color: Color(0xFFBE123C),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          sdgAlignment,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: const Color(0xFFBE123C),
-                                          ),
-                                        ),
-                                      ],
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      location,
+                                      softWrap: true,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF0467B6),
+                                        height: 1.35,
+                                      ),
                                     ),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFE4E6),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.eco_outlined,
+                                      size: 12,
+                                      color: Color(0xFFBE123C),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        sdgAlignment,
+                                        softWrap: true,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFFBE123C),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
                         ),
 
                         // Action Bar Row (Upvote | Comment | Repost)
-                        _buildActionRow(),
+                        PostActionBar(
+                          upvotes: _upvotes,
+                          comments: _commentsCount,
+                          reposts: _repostsCount,
+                          isUpvoted: _isUpvoted,
+                          isReposted: _isReposted,
+                          onUpvote: _toggleUpvote,
+                          onComment: () => _commentFocusNode.requestFocus(),
+                          onRepost: _toggleRepost,
+                          height: 42,
+                        ),
 
                         // 2. Inline Comment Composer
                         _buildCommentComposer(),
@@ -1007,11 +1061,21 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.military_tech_rounded,
-                color: Color(0xFF0467B6),
-                size: 26,
+              InkWell(
+                key: const Key('post_detail_back_button'),
+                onTap: () => Navigator.of(context).maybePop(),
+                borderRadius: BorderRadius.circular(20),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 20,
+                    color: Color(0xFF111C2D),
+                  ),
+                ),
               ),
+              const SizedBox(width: 6),
+              const MedalLogo(iconSize: 18),
               const SizedBox(width: 6),
               Text(
                 'MEdAL',
@@ -1023,128 +1087,6 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                 ),
               ),
             ],
-          ),
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AuthorityNotificationsScreen(),
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(
-                    Icons.notifications,
-                    color: Color(0xFF475569),
-                    size: 24,
-                  ),
-                  Positioned(
-                    top: 1,
-                    right: 2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFDC2626),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Action Bar (Upvote | Comment | Repost)
-  Widget _buildActionRow() {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border.symmetric(
-          horizontal: BorderSide(
-            color: Color(0xFFE2E8F0),
-            width: 1.0,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          // 1. Upvote
-          Expanded(
-            child: InkWell(
-              onTap: _toggleUpvote,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Center(
-                  child: Text(
-                    'Upvote ($_upvotes)',
-                    style: GoogleFonts.inter(
-                      fontSize: 11.5,
-                      fontWeight:
-                          _isUpvoted ? FontWeight.w700 : FontWeight.w600,
-                      color: const Color(0xFF0467B6),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Divider
-          Container(width: 1, height: 32, color: const Color(0xFFE2E8F0)),
-
-          // 2. Comment
-          Expanded(
-            child: InkWell(
-              onTap: () => _commentFocusNode.requestFocus(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Center(
-                  child: Text(
-                    'Comment ($_commentsCount)',
-                    style: GoogleFonts.inter(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF5D6478),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Divider
-          Container(width: 1, height: 32, color: const Color(0xFFE2E8F0)),
-
-          // 3. Repost
-          Expanded(
-            child: InkWell(
-              onTap: _toggleRepost,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Center(
-                  child: Text(
-                    'Repost($_repostsCount)',
-                    style: GoogleFonts.inter(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                      color: _isReposted
-                          ? const Color(0xFF0467B6)
-                          : const Color(0xFF5D6478),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -1165,11 +1107,14 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                 builder: (context) {
                   final user = ApiService().currentUser;
                   final rawUrl = user?['profile_image_url'] as String?;
-                  final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                  final resolvedUrl =
+                      (rawUrl != null && rawUrl.trim().isNotEmpty)
                       ? ApiService().resolveImageUrl(rawUrl.trim())
                       : null;
                   final userName = (user?['full_name'] ?? 'Officer').toString();
-                  final userInitials = userName.isNotEmpty ? userName[0].toUpperCase() : 'O';
+                  final userInitials = userName.isNotEmpty
+                      ? userName[0].toUpperCase()
+                      : 'O';
 
                   Widget fallback() => CircleAvatar(
                     radius: 16,
@@ -1191,7 +1136,8 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                         width: 32,
                         height: 32,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => fallback(),
+                        errorBuilder: (context, error, stackTrace) =>
+                            fallback(),
                       ),
                     );
                   }
@@ -1230,8 +1176,9 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                             ),
                             border: InputBorder.none,
                             isDense: true,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                            ),
                           ),
                           onSubmitted: (_) => _submitComment(),
                         ),
@@ -1358,8 +1305,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
       final initials = comment['initials']?.toString() ?? 'U';
       final time = comment['time']?.toString() ?? 'just now';
       final text = comment['text']?.toString() ?? '';
-      final upvotes =
-          _commentUpvotes[id] ?? (comment['upvotes'] as int? ?? 0);
+      final upvotes = _commentUpvotes[id] ?? (comment['upvotes'] as int? ?? 0);
       final downvotes =
           _commentDownvotes[id] ?? (comment['downvotes'] as int? ?? 0);
       final repliesCount = comment['replies'] as int? ?? 0;
@@ -1369,7 +1315,8 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           comment['avatar_color'] as Color? ?? const Color(0xFFE2E8F0);
       final avatarTextColor =
           comment['avatar_text_color'] as Color? ?? const Color(0xFF1E293B);
-      final attachedImage = (comment['image_url'] ?? comment['image']) as String?;
+      final attachedImage =
+          (comment['image_url'] ?? comment['image']) as String?;
 
       widgets.add(
         const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
@@ -1389,7 +1336,8 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                     Builder(
                       builder: (context) {
                         final rawUrl = comment['profile_image_url'] as String?;
-                        final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                        final resolvedUrl =
+                            (rawUrl != null && rawUrl.trim().isNotEmpty)
                             ? ApiService().resolveImageUrl(rawUrl.trim())
                             : null;
                         Widget fallback() => CircleAvatar(
@@ -1411,7 +1359,8 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                               width: 34,
                               height: 34,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => fallback(),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  fallback(),
                             ),
                           );
                         }
@@ -1449,7 +1398,11 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                 // Attached Photo inside comment (e.g. Kevin Xanty's comment or uploaded photo)
                 if (attachedImage != null && attachedImage.trim().isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(left: 44, top: 10, bottom: 4),
+                    padding: const EdgeInsets.only(
+                      left: 44,
+                      top: 10,
+                      bottom: 4,
+                    ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: _buildCommentImage(attachedImage),
@@ -1596,9 +1549,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
       height: 62,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0)),
       ),
       child: Row(
         children: [
@@ -1642,7 +1593,10 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
   }) {
     final isDashboard = index == 0;
 
-    return InkWell(
+    return AuthorityNavItem(
+      icon: icon,
+      label: label,
+      isSelected: isDashboard,
       onTap: () {
         if (isDashboard) {
           Navigator.pop(context);
@@ -1656,48 +1610,6 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           );
         }
       },
-      borderRadius: BorderRadius.circular(12),
-      child: Center(
-        child: isDashboard
-            ? Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F1FB),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: 21, color: const Color(0xFF0467B6)),
-                    const SizedBox(height: 2),
-                    Text(
-                      label,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0467B6),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 21, color: const Color(0xFF64748B)),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-      ),
     );
   }
 
@@ -1718,7 +1630,10 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
               child: SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0467B6)),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF0467B6),
+                ),
               ),
             ),
           );
@@ -1727,7 +1642,11 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           height: 120,
           color: const Color(0xFFF1F5F9),
           child: const Center(
-            child: Icon(Icons.broken_image_outlined, size: 32, color: Color(0xFF94A3B8)),
+            child: Icon(
+              Icons.broken_image_outlined,
+              size: 32,
+              color: Color(0xFF94A3B8),
+            ),
           ),
         ),
       );
@@ -1741,7 +1660,11 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           height: 120,
           color: const Color(0xFFF1F5F9),
           child: const Center(
-            child: Icon(Icons.broken_image_outlined, size: 32, color: Color(0xFF94A3B8)),
+            child: Icon(
+              Icons.broken_image_outlined,
+              size: 32,
+              color: Color(0xFF94A3B8),
+            ),
           ),
         ),
       );
@@ -1755,7 +1678,11 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
           height: 120,
           color: const Color(0xFFF1F5F9),
           child: const Center(
-            child: Icon(Icons.image_outlined, size: 32, color: Color(0xFF94A3B8)),
+            child: Icon(
+              Icons.image_outlined,
+              size: 32,
+              color: Color(0xFF94A3B8),
+            ),
           ),
         ),
       );

@@ -1,3 +1,4 @@
+import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import func
@@ -22,6 +23,7 @@ from app.schemas.complaint import (
     UpvoteResponse,
 )
 from app.services.ai_sdg_service import AiSdgService
+from app.services.geocoding import looks_like_coordinates, reverse_geocode
 from app.services.storage import BaseStorageService, get_storage_service
 from app.utils.file_validation import (
     MAX_IMAGE_SIZE_BYTES,
@@ -170,15 +172,47 @@ def create_complaint(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new complaint/report for the currently authenticated citizen."""
+    location_text = complaint_in.location.strip() if complaint_in.location else (complaint_in.location_address or "")
+    location_address = complaint_in.location_address
+
+    # Store a readable place name instead of raw "lat, lng" text; coordinates are kept.
+    if (
+        complaint_in.latitude is not None
+        and complaint_in.longitude is not None
+        and looks_like_coordinates(location_address)
+    ):
+        place_name = reverse_geocode(complaint_in.latitude, complaint_in.longitude)
+        if place_name:
+            location_address = place_name
+            if looks_like_coordinates(location_text):
+                location_text = place_name
+
+    mention_payload = None
+    if complaint_in.mentions:
+        officials = (
+            db.query(User)
+            .filter(
+                User.id.in_(set(complaint_in.mentions)),
+                User.role == "official",
+                User.approval_status == "approved",
+            )
+            .all()
+        )
+        if officials:
+            mention_payload = json.dumps(
+                [{"id": o.id, "name": o.full_name} for o in officials]
+            )
+
     new_complaint = Complaint(
+        mentioned_officials=mention_payload,
         title=complaint_in.title.strip(),
         description=complaint_in.description.strip(),
         category=complaint_in.category.lower().strip(),
         status="submitted",
-        location=complaint_in.location.strip() if complaint_in.location else (complaint_in.location_address or ""),
+        location=location_text,
         latitude=complaint_in.latitude,
         longitude=complaint_in.longitude,
-        location_address=complaint_in.location_address,
+        location_address=location_address,
         image_url=complaint_in.image_url,
         image_public_id=complaint_in.image_public_id,
         sdg_alignment=complaint_in.sdg_alignment,
@@ -205,7 +239,7 @@ def list_complaints(
     - Citizens only see their own complaints.
     - Officials and Admins see all complaints with optional filtering.
     """
-    query = db.query(Complaint)
+    query = db.query(Complaint).options(joinedload(Complaint.citizen))
 
     if current_user.role == "citizen":
         query = query.filter(Complaint.citizen_id == current_user.id)
@@ -280,8 +314,18 @@ def get_community_feed(
     )
 
     user_reposted_ids = set()
+    user_upvoted_ids = set()
     if current_user and complaints:
         complaint_ids = [c.id for c in complaints]
+        user_upvoted_ids = set(
+            u[0]
+            for u in db.query(ComplaintUpvote.complaint_id)
+            .filter(
+                ComplaintUpvote.user_id == current_user.id,
+                ComplaintUpvote.complaint_id.in_(complaint_ids),
+            )
+            .all()
+        )
         user_reposted_ids = set(
             r[0]
             for r in db.query(ComplaintRepost.complaint_id)
@@ -303,6 +347,7 @@ def get_community_feed(
         feed_items.append(
             ComplaintFeedItem(
                 id=c.id,
+                mentions=c.mentions,
                 title=c.title,
                 description=c.description,
                 category=c.category,
@@ -323,7 +368,9 @@ def get_community_feed(
                 upvotes_count=upvotes_total,
                 comments_count=comments_total,
                 reposts_count=reposts_total,
+                has_upvoted=(c.id in user_upvoted_ids),
                 has_reposted=(c.id in user_reposted_ids),
+                citizen_role=c.citizen.role if c.citizen else None,
             )
         )
     return feed_items

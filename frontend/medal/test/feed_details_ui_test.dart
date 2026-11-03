@@ -37,7 +37,7 @@ void main() {
 
     // 2. Verify "Comment" and action button "Repost" are present
     expect(find.text('Comment (3)'), findsOneWidget);
-    expect(find.text('Repost (0)'), findsOneWidget);
+    expect(find.text('Repost(0)'), findsOneWidget);
 
     // 3. Verify complaint details header elements
     expect(find.text('Broken Water Pipe'), findsOneWidget);
@@ -47,9 +47,10 @@ void main() {
     expect(find.text('Ward 12, Main Street'), findsOneWidget);
 
     // 4. Verify icons for Upvote, Comments, and Repost exist
-    expect(find.byIcon(Icons.thumb_up_alt_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
-    expect(find.byIcon(Icons.repeat), findsOneWidget);
+    // (shared PostActionBar, identical to the Authority login)
+    expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.repeat_rounded), findsOneWidget);
 
     // 5. Verify SDG Badge is rendered (and Tracker in bottom nav also uses track_changes)
     expect(find.text('SDG 6'), findsOneWidget);

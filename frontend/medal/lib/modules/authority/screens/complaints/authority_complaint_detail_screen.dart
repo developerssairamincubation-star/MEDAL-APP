@@ -1,20 +1,24 @@
 // lib/modules/authority/screens/complaints/authority_complaint_detail_screen.dart
 // Complaint Detail Screen for Authority Officers matching Screenshot 3, 4, and 5.
 
+import 'package:medal/widgets/post_subject.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/api_service.dart';
 import '../../models/authority_models.dart';
-import '../notifications/authority_notifications_screen.dart';
+import '../../../../widgets/medal_logo.dart';
+import '../../widgets/authority_nav_item.dart';
 
 class AuthorityComplaintDetailScreen extends StatefulWidget {
   final AuthorityComplaint complaint;
   final VoidCallback? onStatusChanged;
-  final Future<void> Function(int complaintId, String status, String? note)? onSaveStatus;
+  final Future<void> Function(int complaintId, String status, String? note)?
+  onSaveStatus;
 
   /// Global hook allowing test flows that navigate to this screen to inject mock save behavior
-  static Future<void> Function(int complaintId, String status, String? note)? globalSaveStatusOverride;
+  static Future<void> Function(int complaintId, String status, String? note)?
+  globalSaveStatusOverride;
 
   const AuthorityComplaintDetailScreen({
     super.key,
@@ -48,7 +52,8 @@ class _AuthorityComplaintDetailScreenState
     'Executive Engineer',
   ];
 
-  int _selectedStatusIndex = 0; // 0: Reviewing, 1: Assigned, 2: In Progress, 3: Resolved
+  int _selectedStatusIndex =
+      0; // 0: Reviewing, 1: Assigned, 2: In Progress, 3: Resolved
   int _selectedActionIndex = 0; // 0: Accept, 1: Redirect, 2: Reject
   String _initialNote = "";
   late int _initialStatusIndex;
@@ -102,7 +107,8 @@ class _AuthorityComplaintDetailScreenState
   }
 
   bool get _hasUnsavedChanges {
-    final noteChanged = _actionNoteController.text.trim() != _initialNote.trim();
+    final noteChanged =
+        _actionNoteController.text.trim() != _initialNote.trim();
     final statusChanged = _selectedStatusIndex != _initialStatusIndex;
     final actionChanged = _selectedActionIndex != _initialActionIndex;
     return noteChanged || statusChanged || actionChanged;
@@ -275,13 +281,19 @@ class _AuthorityComplaintDetailScreenState
                                           ),
                                           contentPadding:
                                               const EdgeInsets.fromLTRB(
-                                                  12, 8, 30, 8),
+                                                12,
+                                                8,
+                                                30,
+                                                8,
+                                              ),
                                           border: InputBorder.none,
                                         ),
                                       ),
                                       const Padding(
-                                        padding:
-                                            EdgeInsets.only(right: 8, bottom: 8),
+                                        padding: EdgeInsets.only(
+                                          right: 8,
+                                          bottom: 8,
+                                        ),
                                         child: Icon(
                                           Icons.send_rounded,
                                           size: 16,
@@ -306,7 +318,8 @@ class _AuthorityComplaintDetailScreenState
                                 const SizedBox(height: 5),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12),
+                                    horizontal: 12,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(10),
@@ -338,7 +351,8 @@ class _AuthorityComplaintDetailScreenState
                                       onChanged: (val) {
                                         if (val != null) {
                                           setDialogState(
-                                              () => selectedDept = val);
+                                            () => selectedDept = val,
+                                          );
                                         }
                                       },
                                     ),
@@ -359,7 +373,8 @@ class _AuthorityComplaintDetailScreenState
                                 const SizedBox(height: 5),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12),
+                                    horizontal: 12,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(10),
@@ -401,7 +416,8 @@ class _AuthorityComplaintDetailScreenState
                                       onChanged: (val) {
                                         if (val != null) {
                                           setDialogState(
-                                              () => selectedAuthority = val);
+                                            () => selectedAuthority = val,
+                                          );
                                         }
                                       },
                                     ),
@@ -416,16 +432,18 @@ class _AuthorityComplaintDetailScreenState
                                     height: 34,
                                     child: ElevatedButton(
                                       onPressed: () {
-                                        final text =
-                                            descriptionController.text.trim();
+                                        final text = descriptionController.text
+                                            .trim();
                                         if (text.isEmpty) {
                                           _showToast(
-                                              "Please describe cause for redirection");
+                                            "Please describe cause for redirection",
+                                          );
                                           return;
                                         }
                                         setState(() {
                                           _complaint.status =
-                                              AuthorityComplaintStatus.redirected;
+                                              AuthorityComplaintStatus
+                                                  .redirected;
                                           _complaint.redirectedDepartment =
                                               selectedDept;
                                           _complaint.redirectionReason = text;
@@ -433,16 +451,19 @@ class _AuthorityComplaintDetailScreenState
                                         widget.onStatusChanged?.call();
                                         Navigator.pop(ctx);
                                         _showToast(
-                                            "Complaint redirected to $selectedDept");
+                                          "Complaint redirected to $selectedDept",
+                                        );
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF0467B6),
+                                        backgroundColor: const Color(
+                                          0xFF0467B6,
+                                        ),
                                         foregroundColor: Colors.white,
                                         elevation: 0,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(20),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
                                         ),
                                         padding: EdgeInsets.zero,
                                       ),
@@ -592,13 +613,19 @@ class _AuthorityComplaintDetailScreenState
                                         color: const Color(0xFF94A3B8),
                                       ),
                                       contentPadding: const EdgeInsets.fromLTRB(
-                                          12, 8, 30, 8),
+                                        12,
+                                        8,
+                                        30,
+                                        8,
+                                      ),
                                       border: InputBorder.none,
                                     ),
                                   ),
                                   const Padding(
-                                    padding:
-                                        EdgeInsets.only(right: 8, bottom: 8),
+                                    padding: EdgeInsets.only(
+                                      right: 8,
+                                      bottom: 8,
+                                    ),
                                     child: Icon(
                                       Icons.send_rounded,
                                       size: 16,
@@ -620,7 +647,8 @@ class _AuthorityComplaintDetailScreenState
                                     final text = reasonController.text.trim();
                                     if (text.isEmpty) {
                                       _showToast(
-                                          "Please enter a rejection reason");
+                                        "Please enter a rejection reason",
+                                      );
                                       return;
                                     }
                                     setState(() {
@@ -681,7 +709,9 @@ class _AuthorityComplaintDetailScreenState
     if (cid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Cannot update complaint: Missing or invalid complaint ID."),
+          content: Text(
+            "Cannot update complaint: Missing or invalid complaint ID.",
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -689,7 +719,8 @@ class _AuthorityComplaintDetailScreenState
     }
 
     final note = _actionNoteController.text.trim();
-    final bool isReject = statusOverride == 'rejected' ||
+    final bool isReject =
+        statusOverride == 'rejected' ||
         _selectedActionIndex == 2 ||
         _complaint.status == AuthorityComplaintStatus.rejected;
 
@@ -717,7 +748,8 @@ class _AuthorityComplaintDetailScreenState
           backendStatus,
           note.isNotEmpty ? note : null,
         );
-      } else if (AuthorityComplaintDetailScreen.globalSaveStatusOverride != null) {
+      } else if (AuthorityComplaintDetailScreen.globalSaveStatusOverride !=
+          null) {
         await AuthorityComplaintDetailScreen.globalSaveStatusOverride!(
           cid,
           backendStatus,
@@ -746,10 +778,12 @@ class _AuthorityComplaintDetailScreenState
             _complaint.status = AuthorityComplaintStatus.rejected;
           }
         }
-        if (response.containsKey('officer_notes') && response['officer_notes'] != null) {
+        if (response.containsKey('officer_notes') &&
+            response['officer_notes'] != null) {
           _complaint.officerNotes = response['officer_notes'].toString();
         }
-        if (response.containsKey('rejection_reason') && response['rejection_reason'] != null) {
+        if (response.containsKey('rejection_reason') &&
+            response['rejection_reason'] != null) {
           _complaint.rejectionReason = response['rejection_reason'].toString();
         }
       }
@@ -793,7 +827,9 @@ class _AuthorityComplaintDetailScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            cleanMsg.isNotEmpty ? cleanMsg : "Failed to save update. Please check network and try again.",
+            cleanMsg.isNotEmpty
+                ? cleanMsg
+                : "Failed to save update. Please check network and try again.",
             style: GoogleFonts.inter(fontSize: 12, color: Colors.white),
           ),
           backgroundColor: const Color(0xFFDC2626),
@@ -1035,7 +1071,8 @@ class _AuthorityComplaintDetailScreenState
                   children: [
                     Text("Reject Complaint"),
                     Text(
-                        "A detailed reason is mandatory when rejecting a citizen grievance."),
+                      "A detailed reason is mandatory when rejecting a citizen grievance.",
+                    ),
                   ],
                 ),
               ),
@@ -1093,8 +1130,9 @@ class _AuthorityComplaintDetailScreenState
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF0F172A)
-                                .withValues(alpha: 0.04),
+                            color: const Color(
+                              0xFF0F172A,
+                            ).withValues(alpha: 0.04),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -1181,11 +1219,21 @@ class _AuthorityComplaintDetailScreenState
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.military_tech_rounded,
-                color: Color(0xFF0467B6),
-                size: 24,
+              InkWell(
+                key: const Key('complaint_detail_back_button'),
+                onTap: () => Navigator.of(context).maybePop(),
+                borderRadius: BorderRadius.circular(20),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 20,
+                    color: Color(0xFF111C2D),
+                  ),
+                ),
               ),
+              const SizedBox(width: 6),
+              const MedalLogo(iconSize: 18),
               const SizedBox(width: 6),
               Text(
                 "MEdAL",
@@ -1197,44 +1245,6 @@ class _AuthorityComplaintDetailScreenState
                 ),
               ),
             ],
-          ),
-
-          // Notification Icon with red dot badge
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AuthorityNotificationsScreen(),
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(
-                    Icons.notifications,
-                    color: Color(0xFF475569),
-                    size: 24,
-                  ),
-                  Positioned(
-                    top: 1,
-                    right: 2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFDC2626),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
@@ -1303,7 +1313,10 @@ class _AuthorityComplaintDetailScreenState
           const SizedBox(height: 3),
           _buildDetailRow("Location", _complaint.address),
           const SizedBox(height: 3),
-          _buildDetailRow("Reported by", _complaint.reportedBy),
+          _buildDetailRow(
+            "Reported by",
+            "${_complaint.reportedBy} (${_complaint.reportedByRole})",
+          ),
           const SizedBox(height: 3),
           _buildDetailRow("Date & Time", "Oct 6,2026 & 10:35am"),
           const SizedBox(height: 3),
@@ -1352,10 +1365,7 @@ class _AuthorityComplaintDetailScreenState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFFD6E4F0),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFD6E4F0), width: 1.0),
       ),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(
@@ -1438,10 +1448,7 @@ class _AuthorityComplaintDetailScreenState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFFD6E4F0),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFD6E4F0), width: 1.0),
       ),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(
@@ -1463,13 +1470,24 @@ class _AuthorityComplaintDetailScreenState
               color: const Color(0xFFF0F6FD),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Text(
-              _complaint.description,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                color: const Color(0xFF475569),
-                height: 1.25,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PostSubject(
+                  title: _complaint.title,
+                  description: _complaint.description,
+                  fontSize: 11.5,
+                  bottomSpacing: 3,
+                ),
+                Text(
+                  _complaint.description,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    color: const Color(0xFF475569),
+                    height: 1.25,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1479,22 +1497,14 @@ class _AuthorityComplaintDetailScreenState
 
   /// Section 4A: Authority Actions - Update status
   Widget _buildAuthorityStatusOptionsCard() {
-    const statuses = [
-      "Reviewing",
-      "Assigned",
-      "In Progress",
-      "Resolved",
-    ];
+    const statuses = ["Reviewing", "Assigned", "In Progress", "Resolved"];
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFFD6E4F0),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFD6E4F0), width: 1.0),
       ),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(
@@ -1572,10 +1582,7 @@ class _AuthorityComplaintDetailScreenState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFFD6E4F0),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFD6E4F0), width: 1.0),
       ),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(
@@ -1715,10 +1722,7 @@ class _AuthorityComplaintDetailScreenState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: const Color(0xFFD6E4F0),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFD6E4F0), width: 1.0),
       ),
       child: TextField(
         controller: _actionNoteController,
@@ -1747,10 +1751,7 @@ class _AuthorityComplaintDetailScreenState
       decoration: BoxDecoration(
         color: const Color(0xFFEBF5FC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFFD6E4F0),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFD6E4F0), width: 1.0),
       ),
       padding: const EdgeInsets.all(10),
       child: Row(
@@ -1816,10 +1817,7 @@ class _AuthorityComplaintDetailScreenState
       decoration: BoxDecoration(
         color: const Color(0xFFEBF5FC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFFD6E4F0),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFD6E4F0), width: 1.0),
       ),
       padding: const EdgeInsets.all(10),
       child: Column(
@@ -1914,9 +1912,7 @@ class _AuthorityComplaintDetailScreenState
       height: 60,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0)),
       ),
       child: Row(
         children: [
@@ -2004,68 +2000,11 @@ class _AuthorityComplaintDetailScreenState
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return AuthorityNavItem(
+      icon: icon,
+      label: label,
+      isSelected: isSelected,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Center(
-        child: isSelected
-            ? Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F1FB),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      icon,
-                      color: const Color(0xFF0467B6),
-                      size: 20,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      label,
-                      style: GoogleFonts.inter(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0467B6),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              )
-            : Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      icon,
-                      color: const Color(0xFF7E8B9B),
-                      size: 20,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      label,
-                      style: GoogleFonts.inter(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF7E8B9B),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-      ),
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/institution/theme/app_theme.dart';
 import '../../widgets/student_shell_scaffold.dart';
@@ -30,10 +31,87 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
   Map<String, dynamic>? _courseData;
   String _enrollmentStatus = 'not_enrolled';
 
+  // Chapters come from the API (data source: student_course_chapters).
+  List<Map<String, dynamic>> _chapterModules = [];
+  int _chaptersDone = 0;
+  int _chaptersTotal = 0;
+
+  double get _progress =>
+      _chaptersTotal == 0 ? 0.0 : _chaptersDone / _chaptersTotal;
+
+  Map<String, String> get _authHeaders {
+    final token = ApiService().token;
+    return {
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+  }
+
   @override
   void initState() {
     super.initState();
     _fetchCourseDetail();
+    _fetchChapters();
+  }
+
+  void _applyChapters(dynamic data) {
+    final modules = List<Map<String, dynamic>>.from(
+      (data['modules'] as List? ?? const []).map((m) => Map<String, dynamic>.from(m as Map)),
+    );
+    _chapterModules = modules;
+    _chaptersDone = (data['completed_chapters'] ?? 0) as int;
+    _chaptersTotal = (data['total_chapters'] ?? 0) as int;
+  }
+
+  Future<void> _fetchChapters() async {
+    try {
+      final resp = await http.get(
+        Uri.parse('${ApiService().baseUrl}/student/courses/${widget.courseId}/chapters'),
+        headers: _authHeaders,
+      );
+      if (resp.statusCode == 200 && mounted) {
+        setState(() => _applyChapters(jsonDecode(resp.body)));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _setChapterCompleted(Map<String, dynamic> chapter, bool done) async {
+    final previous = chapter['completed'] == true;
+    setState(() => chapter['completed'] = done);
+    try {
+      final resp = await http.put(
+        Uri.parse('${ApiService().baseUrl}/student/chapters/${chapter['id']}/completion'),
+        headers: _authHeaders,
+        body: jsonEncode({'completed': done}),
+      );
+      if (resp.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _applyChapters(jsonDecode(resp.body));
+            if (_enrollmentStatus == 'not_enrolled') _enrollmentStatus = 'enrolled';
+          });
+        }
+        return;
+      }
+    } catch (_) {}
+    if (mounted) {
+      setState(() => chapter['completed'] = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save your progress. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _openChapterLink(String url) async {
+    var opened = false;
+    try {
+      opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {}
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open this chapter link.')),
+      );
+    }
   }
 
   Future<void> _fetchCourseDetail() async {
@@ -111,57 +189,35 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
     }
   }
 
-  final List<Map<String, dynamic>> _courseModules = [
-    {
-      'number': 1,
-      'title': 'Introduction & Civic Foundations',
-      'duration': '35 mins',
-      'lessons_count': 3,
-      'status': 'Completed',
-      'lessons': [
-        {'title': '1.1 Welcome to the SEEK Curriculum', 'type': 'video', 'duration': '8 mins', 'completed': true},
-        {'title': '1.2 Principles of Civic Grievance Reporting', 'type': 'reading', 'duration': '12 mins', 'completed': true},
-        {'title': '1.3 Foundational Quiz: Ethics & Privacy', 'type': 'quiz', 'duration': '15 mins', 'completed': true},
-      ],
-    },
-    {
-      'number': 2,
-      'title': 'SDG Alignment & Frameworks',
-      'duration': '45 mins',
-      'lessons_count': 4,
-      'status': 'In Progress',
-      'lessons': [
-        {'title': '2.1 Mapping Local Issues to UN SDG Targets', 'type': 'video', 'duration': '14 mins', 'completed': true},
-        {'title': '2.2 Sanitation, Clean Water & Infrastructure (SDG 6 & 9)', 'type': 'reading', 'duration': '10 mins', 'completed': false},
-        {'title': '2.3 Sustainable Communities (SDG 11) in Action', 'type': 'reading', 'duration': '11 mins', 'completed': false},
-        {'title': '2.4 Assessment: Identifying SDG Indicators', 'type': 'quiz', 'duration': '10 mins', 'completed': false},
-      ],
-    },
-    {
-      'number': 3,
-      'title': 'Field Verification & Evidence Gathering',
-      'duration': '40 mins',
-      'lessons_count': 3,
-      'status': 'Upcoming',
-      'lessons': [
-        {'title': '3.1 Accurate Geolocation & GPS Coordinate Tagging', 'type': 'video', 'duration': '10 mins', 'completed': false},
-        {'title': '3.2 High-Fidelity Photo Documentation Protocols', 'type': 'reading', 'duration': '15 mins', 'completed': false},
-        {'title': '3.3 Verification Lab Exercise', 'type': 'practice', 'duration': '15 mins', 'completed': false},
-      ],
-    },
-    {
-      'number': 4,
-      'title': 'Institutional Response & Public Accountability',
-      'duration': '50 mins',
-      'lessons_count': 3,
-      'status': 'Upcoming',
-      'lessons': [
-        {'title': '4.1 Municipal Authority Escalation Paths', 'type': 'video', 'duration': '15 mins', 'completed': false},
-        {'title': '4.2 Collaborative Public Commenting & Moderation', 'type': 'reading', 'duration': '15 mins', 'completed': false},
-        {'title': '4.3 Case Analysis: Resolution from Submission to Sign-Off', 'type': 'case_study', 'duration': '20 mins', 'completed': false},
-      ],
-    },
-  ];
+  int _minutes(String? d) =>
+      int.tryParse(RegExp(r'\d+').firstMatch(d ?? '')?.group(0) ?? '') ?? 0;
+
+  /// Modules for the list, with status derived from the live completions.
+  List<Map<String, dynamic>> get _courseModules {
+    var activeAssigned = false;
+    return _chapterModules.map((m) {
+      final chapters = List<Map<String, dynamic>>.from(m['chapters'] as List);
+      final done = chapters.where((c) => c['completed'] == true).length;
+      String status;
+      if (chapters.isNotEmpty && done == chapters.length) {
+        status = 'Completed';
+      } else if (!activeAssigned) {
+        status = 'In Progress';
+        activeAssigned = true;
+      } else {
+        status = 'Upcoming';
+      }
+      final minutes = chapters.fold<int>(0, (t, c) => t + _minutes(c['duration']?.toString()));
+      return {
+        'number': m['number'],
+        'title': m['title'],
+        'duration': '$minutes mins',
+        'lessons_count': chapters.length,
+        'status': status,
+        'lessons': chapters,
+      };
+    }).toList();
+  }
 
   void _openModuleContentSheet(BuildContext context, Map<String, dynamic> module) {
     final moduleNum = module['number'];
@@ -254,9 +310,10 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
 
                       // Lessons List
                       ...lessons.map((lesson) {
-                        final lTitle = lesson['title'] ?? 'Lesson';
+                        final lTitle = '${lesson['key'] ?? ''} ${lesson['title'] ?? 'Chapter'}'.trim();
+                        final lUrl = (lesson['url'] ?? '').toString();
                         final lType = lesson['type'] ?? 'reading';
-                        final lDur = lesson['duration'] ?? '10 mins';
+                        final lDur = lesson['duration'] ?? '';
                         final isDone = lesson['completed'] == true;
 
                         IconData typeIcon = Icons.menu_book_rounded;
@@ -278,18 +335,14 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: () {
-                                setSheetState(() {
-                                  lesson['completed'] = !isDone;
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Selected: $lTitle (${lesson['completed'] ? "Completed" : "In Progress"})'),
-                                    backgroundColor: const Color(0xFF0467B6),
-                                    duration: const Duration(seconds: 2),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
+                              onTap: () async {
+                                // A chapter with a link opens it; one without toggles completion.
+                                if (lUrl.isNotEmpty) {
+                                  _openChapterLink(lUrl);
+                                } else {
+                                  await _setChapterCompleted(lesson, !isDone);
+                                  setSheetState(() {});
+                                }
                               },
                               child: Padding(
                                 padding: const EdgeInsets.all(12),
@@ -335,18 +388,26 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
                                         ],
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: isDone ? const Color(0xFFE8F8F0) : const Color(0xFF0467B6),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        isDone ? 'Done' : 'Open',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDone ? const Color(0xFF2ECC71) : Colors.white,
+                                    InkWell(
+                                      key: Key('chapter_toggle_${lesson['id']}'),
+                                      borderRadius: BorderRadius.circular(8),
+                                      onTap: () async {
+                                        await _setChapterCompleted(lesson, !isDone);
+                                        setSheetState(() {});
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: isDone ? const Color(0xFFE8F8F0) : const Color(0xFF0467B6),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          isDone ? 'Done' : 'Mark done',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDone ? const Color(0xFF2ECC71) : Colors.white,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -377,21 +438,16 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
       );
     }
 
-    final title = _courseData?['title'] ?? 'SEEK COURSE 4';
+    final title = _courseData?['title'] ?? 'SEEK Course';
     final provider = _courseData?['provider'] ?? 'UNESCO';
-    final desc = _courseData?['description'] ??
-        'Learn the fundamentals of SEEK, from key concepts to real-world applications and best practices';
-    final duration = _courseData?['duration'] ?? '4 Weeks';
+    final desc = _courseData?['description'] ?? '';
+    final duration = _courseData?['duration'] ?? '';
     final language = _courseData?['language'] ?? 'English';
-    final deadline = _courseData?['enrollment_deadline'] ?? '25 October 2026';
-    final deadlineDays = _courseData?['deadline_remaining_text'] ?? '2 days left';
+    final deadline = _courseData?['enrollment_deadline'] as String?;
+    final deadlineDays = _courseData?['deadline_remaining_text'] as String?;
+    final hasDeadline = deadline != null && deadline.isNotEmpty;
 
-    final List<dynamic> whatYoullLearn = _courseData?['what_you_will_learn'] ?? [
-      'SEEK basics and key concepts',
-      'Popular SEEK service models',
-      'Hands-on labs with real-world tools',
-      'Security and scalability best practices',
-    ];
+    final List<dynamic> whatYoullLearn = _courseData?['what_you_will_learn'] ?? const [];
 
     final isAlreadyEnrolled = _enrollmentStatus == 'enrolled' || _enrollmentStatus == 'completed';
 
@@ -456,6 +512,62 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
                         ),
                       ],
                     ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Progress from the chapters the student has completed
+            Container(
+              key: const Key('course_progress_bar'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E4EC)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Your Progress',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        '${(_progress * 100).round()}%',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0467B6),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: _progress,
+                      minHeight: 8,
+                      backgroundColor: const Color(0xFFECEFF5),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        _progress >= 1.0 ? const Color(0xFF2ECC71) : const Color(0xFF0467B6),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '$_chaptersDone of $_chaptersTotal chapters completed',
+                    style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF64748B)),
                   ),
                 ],
               ),
@@ -562,7 +674,8 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Enrollment Deadline Banner (Screenshot 6)
+            // Enrollment deadline (only when the course has one)
+            if (hasDeadline)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -603,7 +716,7 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      deadlineDays,
+                      deadlineDays ?? '',
                       style: GoogleFonts.inter(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
@@ -635,7 +748,7 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
                   ],
                 ),
                 Text(
-                  '4 Modules • 13 Lessons',
+                  '${_chapterModules.length} Modules • $_chaptersTotal Chapters',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -723,7 +836,7 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      '$lessonsCount lessons  •  $modDuration',
+                                      '$lessonsCount chapters  •  $modDuration',
                                       style: GoogleFonts.inter(
                                         fontSize: 11.5,
                                         color: const Color(0xFF64748B),
@@ -781,7 +894,16 @@ class _StudentCourseDetailScreenState extends State<StudentCourseDetailScreen> {
                     ? null
                     : () {
                         if (isAlreadyEnrolled) {
-                          _openModuleContentSheet(context, _courseModules[1]);
+                          final modules = _courseModules;
+                          if (modules.isNotEmpty) {
+                            _openModuleContentSheet(
+                              context,
+                              modules.firstWhere(
+                                (m) => m['status'] != 'Completed',
+                                orElse: () => modules.first,
+                              ),
+                            );
+                          }
                         } else {
                           _handleEnroll();
                         }

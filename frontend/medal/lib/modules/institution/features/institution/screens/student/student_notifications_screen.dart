@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/institution/routes/app_routes.dart';
+import '../../state/student_notification_state.dart';
 import '../../widgets/student_shell_scaffold.dart';
 
 class StudentNotificationsScreen extends StatefulWidget {
@@ -43,6 +44,8 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
+        // Opening this page marks everything listed as seen (per user).
+        StudentNotificationState.instance.markSeen(data);
         if (mounted) {
           setState(() {
             _last7Days = List<Map<String, dynamic>>.from(data['last_7_days'] ?? []);
@@ -121,23 +124,8 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
                         ),
                       );
                     })
-                  else ...[
-                    _buildNotificationTile(
-                      icon: Icons.groups_outlined,
-                      category: 'Academy',
-                      description: 'Course 20% pending... we would love to see your progress',
-                      showViewButton: true,
-                      onView: () => context.go(AppRoutes.studentCourseProgress),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildNotificationTile(
-                      icon: Icons.grid_view_rounded,
-                      category: '',
-                      description: '3 certificates have been issued',
-                      boldTitle: 'Certificate Issued',
-                      showViewButton: false,
-                    ),
-                  ],
+                  else
+                    _emptyNote(),
                   const SizedBox(height: 20),
 
                   // Section 2: Last 30 days (Screenshot 12)
@@ -174,32 +162,8 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
                         ),
                       );
                     })
-                  else ...[
-                    _buildNotificationTile(
-                      icon: Icons.groups_outlined,
-                      category: 'Academy',
-                      description: 'Course 1 successfully completed. View the certificate',
-                      showViewButton: true,
-                      onView: () => context.go(AppRoutes.studentAcademy),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildNotificationTile(
-                      icon: Icons.article_outlined,
-                      category: '',
-                      boldTitle: 'Streak Maintenance',
-                      description: 'Continuous 21 days of streaks maintained',
-                      showViewButton: true,
-                      onView: () => context.go(AppRoutes.studentDashboard),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildNotificationTile(
-                      icon: Icons.grid_view_rounded,
-                      category: '',
-                      boldTitle: 'Learning Spree',
-                      description: 'Learning is being spontaneous',
-                      showViewButton: false,
-                    ),
-                  ],
+                  else
+                    _emptyNote(),
                   const SizedBox(height: 36),
 
                   // Footer (Screenshot 12)
@@ -208,14 +172,6 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
                       children: [
                         Text(
                           'MEdAL v2.4.0',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Last login: Today at 08:42 AM',
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             color: const Color(0xFF94A3B8),
@@ -230,6 +186,14 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
             ),
     );
   }
+
+  Widget _emptyNote() => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'No notifications yet.',
+          style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF64748B)),
+        ),
+      );
 
   Widget _buildNotificationTile({
     required IconData icon,

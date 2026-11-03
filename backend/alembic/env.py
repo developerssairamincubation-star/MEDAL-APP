@@ -33,6 +33,7 @@ from app.models.user import User
 from app.models.complaint import Complaint
 from app.models.otp import PasswordResetOTP
 from app.models.authority_application import AuthorityApplication
+from app.models import student  # noqa: F401  (student / institution tables)
 
 target_metadata = Base.metadata
 

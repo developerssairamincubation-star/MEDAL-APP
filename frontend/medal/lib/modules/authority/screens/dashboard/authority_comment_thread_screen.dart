@@ -9,8 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/services/api_service.dart';
-import '../notifications/authority_notifications_screen.dart';
 import 'authority_main_screen.dart';
+import '../../../../widgets/medal_logo.dart';
+import '../../widgets/authority_nav_item.dart';
 
 class AuthorityCommentThreadScreen extends StatefulWidget {
   final int complaintId;
@@ -142,9 +143,9 @@ class _AuthorityCommentThreadScreenState
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not select image: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not select image: $e')));
     }
   }
 
@@ -206,12 +207,15 @@ class _AuthorityCommentThreadScreenState
 
       // Add to local thread replies list
       final currentUser = ApiService().currentUser;
-      final currentUserName = (currentUser?['full_name'] ?? 'Officer').toString();
+      final currentUserName = (currentUser?['full_name'] ?? 'Officer')
+          .toString();
       final currentUserProfile = currentUser?['profile_image_url'] as String?;
       final newReply = {
         'id': DateTime.now().millisecondsSinceEpoch % 100000,
         'author': currentUserName,
-        'initials': currentUserName.isNotEmpty ? currentUserName[0].toUpperCase() : 'O',
+        'initials': currentUserName.isNotEmpty
+            ? currentUserName[0].toUpperCase()
+            : 'O',
         'profile_image_url': currentUserProfile,
         'time': 'just now',
         'text': content.isNotEmpty ? content : '[Photo Attachment]',
@@ -323,21 +327,25 @@ class _AuthorityCommentThreadScreenState
   @override
   Widget build(BuildContext context) {
     final authorName =
-        widget.commentData['author'] ?? widget.commentData['user_name'] ?? 'Kevin Xanty';
+        widget.commentData['author'] ??
+        widget.commentData['user_name'] ??
+        'Kevin Xanty';
     final authorInitials = widget.commentData['initials'] ?? 'KX';
     final timeAgo = widget.commentData['time'] ?? '10 mins ago';
-    final commentText = widget.commentData['text'] ??
+    final commentText =
+        widget.commentData['text'] ??
         widget.commentData['comment'] ??
         'Yes , i too have seen this issue and reported it a immediate action would be perfect.';
-    final authorities = widget.commentData['authorities'] as List<String>? ??
+    final authorities =
+        widget.commentData['authorities'] as List<String>? ??
         ['@elenarodriguez', '@Jane_doe', '@Marcus_Chen'];
-    final imageAsset = widget.commentData['image_url'] as String? ??
+    final imageAsset =
+        widget.commentData['image_url'] as String? ??
         widget.commentData['image'] as String? ??
         'assets/images/sample_trash_overflow.jpg';
     final location =
         widget.parentComplaint?['location'] ?? 'Bharathiyar street';
-    final sdgAlignment =
-        widget.parentComplaint?['sdg_alignment'] ?? 'SDG 13';
+    final sdgAlignment = widget.parentComplaint?['sdg_alignment'] ?? 'SDG 13';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F6FD),
@@ -366,7 +374,9 @@ class _AuthorityCommentThreadScreenState
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                          color: const Color(
+                            0xFF0F172A,
+                          ).withValues(alpha: 0.04),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -387,13 +397,21 @@ class _AuthorityCommentThreadScreenState
                                 children: [
                                   Builder(
                                     builder: (context) {
-                                      final rawUrl = widget.commentData['profile_image_url'] as String?;
-                                      final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
-                                          ? ApiService().resolveImageUrl(rawUrl.trim())
+                                      final rawUrl =
+                                          widget.commentData['profile_image_url']
+                                              as String?;
+                                      final resolvedUrl =
+                                          (rawUrl != null &&
+                                              rawUrl.trim().isNotEmpty)
+                                          ? ApiService().resolveImageUrl(
+                                              rawUrl.trim(),
+                                            )
                                           : null;
                                       Widget fallback() => CircleAvatar(
                                         radius: 20,
-                                        backgroundColor: const Color(0xFF86EFAC),
+                                        backgroundColor: const Color(
+                                          0xFF86EFAC,
+                                        ),
                                         child: Text(
                                           authorInitials,
                                           style: GoogleFonts.inter(
@@ -404,14 +422,17 @@ class _AuthorityCommentThreadScreenState
                                         ),
                                       );
 
-                                      if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+                                      if (resolvedUrl != null &&
+                                          resolvedUrl.isNotEmpty) {
                                         return ClipOval(
                                           child: Image.network(
                                             resolvedUrl,
                                             width: 40,
                                             height: 40,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => fallback(),
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    fallback(),
                                           ),
                                         );
                                       }
@@ -496,7 +517,10 @@ class _AuthorityCommentThreadScreenState
                               // Attached Photo (Overflowing trash bins or uploaded photo)
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: _buildAttachmentWidget(imageAsset, height: 180),
+                                child: _buildAttachmentWidget(
+                                  imageAsset,
+                                  height: 180,
+                                ),
                               ),
 
                               const SizedBox(height: 10),
@@ -610,11 +634,7 @@ class _AuthorityCommentThreadScreenState
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.military_tech_rounded,
-                color: Color(0xFF0467B6),
-                size: 26,
-              ),
+              const MedalLogo(iconSize: 18),
               const SizedBox(width: 6),
               Text(
                 'MEdAL',
@@ -627,42 +647,6 @@ class _AuthorityCommentThreadScreenState
               ),
             ],
           ),
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AuthorityNotificationsScreen(),
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(
-                    Icons.notifications,
-                    color: Color(0xFF475569),
-                    size: 24,
-                  ),
-                  Positioned(
-                    top: 1,
-                    right: 2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFDC2626),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -673,10 +657,7 @@ class _AuthorityCommentThreadScreenState
     return Container(
       decoration: const BoxDecoration(
         border: Border.symmetric(
-          horizontal: BorderSide(
-            color: Color(0xFFE2E8F0),
-            width: 1.0,
-          ),
+          horizontal: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
         ),
       ),
       child: Row(
@@ -697,8 +678,9 @@ class _AuthorityCommentThreadScreenState
                     'Upvote ($_upvotes)',
                     style: GoogleFonts.inter(
                       fontSize: 11.5,
-                      fontWeight:
-                          _isUpvoted ? FontWeight.w700 : FontWeight.w600,
+                      fontWeight: _isUpvoted
+                          ? FontWeight.w700
+                          : FontWeight.w600,
                       color: const Color(0xFF0467B6),
                     ),
                   ),
@@ -778,11 +760,14 @@ class _AuthorityCommentThreadScreenState
                 builder: (context) {
                   final user = ApiService().currentUser;
                   final rawUrl = user?['profile_image_url'] as String?;
-                  final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                  final resolvedUrl =
+                      (rawUrl != null && rawUrl.trim().isNotEmpty)
                       ? ApiService().resolveImageUrl(rawUrl.trim())
                       : null;
                   final userName = (user?['full_name'] ?? 'Officer').toString();
-                  final userInitials = userName.isNotEmpty ? userName[0].toUpperCase() : 'O';
+                  final userInitials = userName.isNotEmpty
+                      ? userName[0].toUpperCase()
+                      : 'O';
 
                   Widget fallback() => CircleAvatar(
                     radius: 16,
@@ -804,7 +789,8 @@ class _AuthorityCommentThreadScreenState
                         width: 32,
                         height: 32,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => fallback(),
+                        errorBuilder: (context, error, stackTrace) =>
+                            fallback(),
                       ),
                     );
                   }
@@ -843,8 +829,9 @@ class _AuthorityCommentThreadScreenState
                             ),
                             border: InputBorder.none,
                             isDense: true,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                            ),
                           ),
                           onSubmitted: (_) => _submitReply(),
                         ),
@@ -977,7 +964,8 @@ class _AuthorityCommentThreadScreenState
       final repliesCount = reply['replies'] as int? ?? 0;
       final isLiked = _replyLiked[id] ?? false;
       final userVote = _replyUserVote[id] ?? 0;
-      final avatarBg = reply['avatar_color'] as Color? ?? const Color(0xFFE2E8F0);
+      final avatarBg =
+          reply['avatar_color'] as Color? ?? const Color(0xFFE2E8F0);
       final avatarTextColor =
           reply['avatar_text_color'] as Color? ?? const Color(0xFF1E293B);
       final localImage = reply['local_image'] as XFile?;
@@ -998,7 +986,8 @@ class _AuthorityCommentThreadScreenState
                   Builder(
                     builder: (context) {
                       final rawUrl = reply['profile_image_url'] as String?;
-                      final resolvedUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+                      final resolvedUrl =
+                          (rawUrl != null && rawUrl.trim().isNotEmpty)
                           ? ApiService().resolveImageUrl(rawUrl.trim())
                           : null;
                       Widget fallback() => CircleAvatar(
@@ -1021,7 +1010,8 @@ class _AuthorityCommentThreadScreenState
                             width: 34,
                             height: 34,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => fallback(),
+                            errorBuilder: (context, error, stackTrace) =>
+                                fallback(),
                           ),
                         );
                       }
@@ -1057,13 +1047,16 @@ class _AuthorityCommentThreadScreenState
               ),
 
               // Image attachment preview if present
-              if (reply['image_url'] != null || reply['image'] != null || localImage != null)
+              if (reply['image_url'] != null ||
+                  reply['image'] != null ||
+                  localImage != null)
                 Padding(
                   padding: const EdgeInsets.only(left: 44, top: 8),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: _buildAttachmentWidget(
-                      (reply['image_url'] ?? reply['image'] ?? localImage?.path).toString(),
+                      (reply['image_url'] ?? reply['image'] ?? localImage?.path)
+                          .toString(),
                       height: 120,
                     ),
                   ),
@@ -1137,7 +1130,8 @@ class _AuthorityCommentThreadScreenState
                     // Reply Icon
                     InkWell(
                       onTap: () {
-                        _replyController.text = '@${author.replaceAll(' ', '')} ';
+                        _replyController.text =
+                            '@${author.replaceAll(' ', '')} ';
                         _replyFocusNode.requestFocus();
                       },
                       child: Row(
@@ -1211,9 +1205,7 @@ class _AuthorityCommentThreadScreenState
       height: 62,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0)),
       ),
       child: Row(
         children: [
@@ -1257,7 +1249,10 @@ class _AuthorityCommentThreadScreenState
   }) {
     final isDashboard = index == 0;
 
-    return InkWell(
+    return AuthorityNavItem(
+      icon: icon,
+      label: label,
+      isSelected: isDashboard,
       onTap: () {
         if (isDashboard) {
           // Return all the way to Dashboard
@@ -1272,48 +1267,6 @@ class _AuthorityCommentThreadScreenState
           );
         }
       },
-      borderRadius: BorderRadius.circular(12),
-      child: Center(
-        child: isDashboard
-            ? Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F1FB),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: 21, color: const Color(0xFF0467B6)),
-                    const SizedBox(height: 2),
-                    Text(
-                      label,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0467B6),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 21, color: const Color(0xFF64748B)),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-      ),
     );
   }
 
@@ -1334,7 +1287,10 @@ class _AuthorityCommentThreadScreenState
               child: SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0467B6)),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF0467B6),
+                ),
               ),
             ),
           );
@@ -1343,7 +1299,11 @@ class _AuthorityCommentThreadScreenState
           height: height > 40 ? height - 20 : height,
           color: const Color(0xFFF1F5F9),
           child: const Center(
-            child: Icon(Icons.broken_image_outlined, size: 36, color: Color(0xFF94A3B8)),
+            child: Icon(
+              Icons.broken_image_outlined,
+              size: 36,
+              color: Color(0xFF94A3B8),
+            ),
           ),
         ),
       );
@@ -1357,7 +1317,11 @@ class _AuthorityCommentThreadScreenState
           height: height > 40 ? height - 20 : height,
           color: const Color(0xFFF1F5F9),
           child: const Center(
-            child: Icon(Icons.broken_image_outlined, size: 36, color: Color(0xFF94A3B8)),
+            child: Icon(
+              Icons.broken_image_outlined,
+              size: 36,
+              color: Color(0xFF94A3B8),
+            ),
           ),
         ),
       );
@@ -1371,7 +1335,11 @@ class _AuthorityCommentThreadScreenState
           height: height > 40 ? height - 20 : height,
           color: const Color(0xFFF1F5F9),
           child: const Center(
-            child: Icon(Icons.image_outlined, size: 36, color: Color(0xFF94A3B8)),
+            child: Icon(
+              Icons.image_outlined,
+              size: 36,
+              color: Color(0xFF94A3B8),
+            ),
           ),
         ),
       );

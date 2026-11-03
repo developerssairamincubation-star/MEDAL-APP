@@ -1,7 +1,11 @@
+import 'package:medal/widgets/post_subject.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/utils/location_text.dart';
+import '../../../../widgets/post_action_bar.dart';
 import 'authority_post_detail_screen.dart';
+import '../../widgets/authority_filter_tabs.dart';
 
 class AuthorityDashboardScreen extends StatefulWidget {
   final VoidCallback onNavigateToComplaints;
@@ -9,7 +13,8 @@ class AuthorityDashboardScreen extends StatefulWidget {
     String? category,
     int? limit,
     int? offset,
-  })? feedLoader;
+  })?
+  feedLoader;
 
   const AuthorityDashboardScreen({
     super.key,
@@ -36,8 +41,6 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
   ];
 
   List<Map<String, dynamic>> _feedItems = [];
-  final Set<int> _upvotedIds = {};
-  final Set<int> _repostedIds = {};
 
   @override
   void initState() {
@@ -73,11 +76,7 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
 
     try {
       final loader = widget.feedLoader ?? ApiService().getCommunityFeed;
-      final items = await loader(
-        category: category,
-        limit: 30,
-        offset: 0,
-      );
+      final items = await loader(category: category, limit: 30, offset: 0);
 
       if (!mounted || requestId != _currentRequestId) return;
 
@@ -90,7 +89,8 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
       if (!mounted || requestId != _currentRequestId) return;
 
       // In Flutter test runner without custom feedLoader, provide mock data so standalone widget tests pass
-      final isTestEnv = widget.feedLoader == null &&
+      final isTestEnv =
+          widget.feedLoader == null &&
           WidgetsBinding.instance.runtimeType.toString().contains('Test');
       if (isTestEnv) {
         _feedItems = _getFallbackFeedItems();
@@ -118,7 +118,9 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
         'id': 101,
         'citizen_name': 'James Doe',
         'citizen_initials': 'JD',
-        'created_at': DateTime.now().subtract(const Duration(hours: 2)).toIso8601String(),
+        'created_at': DateTime.now()
+            .subtract(const Duration(hours: 2))
+            .toIso8601String(),
         'status': 'in_progress',
         'title': 'Critical Canal Junction Waste Blockage',
         'description':
@@ -135,7 +137,9 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
         'id': 102,
         'citizen_name': 'Maria Lopez',
         'citizen_initials': 'ML',
-        'created_at': DateTime.now().subtract(const Duration(hours: 5)).toIso8601String(),
+        'created_at': DateTime.now()
+            .subtract(const Duration(hours: 5))
+            .toIso8601String(),
         'status': 'resolved',
         'title': 'Street light outage at the main intersection',
         'description':
@@ -152,7 +156,9 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
         'id': 103,
         'citizen_name': 'Olivia Iver',
         'citizen_initials': 'OI',
-        'created_at': DateTime.now().subtract(const Duration(hours: 12)).toIso8601String(),
+        'created_at': DateTime.now()
+            .subtract(const Duration(hours: 12))
+            .toIso8601String(),
         'status': 'in_progress',
         'title': 'Critical road management failure',
         'description':
@@ -204,10 +210,8 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AuthorityPostDetailScreen(
-          complaintId: id,
-          complaintData: item,
-        ),
+        builder: (context) =>
+            AuthorityPostDetailScreen(complaintId: id, complaintData: item),
       ),
     );
     if (mounted) {
@@ -229,9 +233,7 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
           _buildCategoryFilters(),
 
           // 2. Scrollable Complaint Feed
-          Expanded(
-            child: _buildFeedContent(),
-          ),
+          Expanded(child: _buildFeedContent()),
         ],
       ),
     );
@@ -240,9 +242,7 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
   Widget _buildFeedContent() {
     if (_isLoading && _feedItems.isEmpty) {
       return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFF0467B6),
-        ),
+        child: CircularProgressIndicator(color: Color(0xFF0467B6)),
       );
     }
 
@@ -300,7 +300,10 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0467B6),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -323,7 +326,10 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -372,7 +378,10 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF0467B6),
                           side: const BorderSide(color: Color(0xFF0467B6)),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 11,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -439,43 +448,17 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
 
   /// Horizontal category filter pills matching reference
   Widget _buildCategoryFilters() {
-    return Container(
-      color: Colors.transparent,
-      height: 48,
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _categories.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final isSelected = _selectedCategoryIndex == index;
-          return GestureDetector(
-            onTap: () {
-              if (_selectedCategoryIndex != index) {
-                setState(() => _selectedCategoryIndex = index);
-                _fetchFeed();
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF0467B6)
-                    : const Color(0xFFE2EDF9),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                _categories[index],
-                style: GoogleFonts.inter(
-                  color: isSelected ? Colors.white : const Color(0xFF475569),
-                  fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                ),
-              ),
-            ),
-          );
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 12),
+      child: AuthorityFilterTabs(
+        labels: _categories,
+        selectedIndex: _selectedCategoryIndex,
+        size: AuthorityTabSize.compact,
+        onSelected: (index) {
+          if (_selectedCategoryIndex != index) {
+            setState(() => _selectedCategoryIndex = index);
+            _fetchFeed();
+          }
         },
       ),
     );
@@ -485,29 +468,31 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
   Widget _buildComplaintCard(Map<String, dynamic> item) {
     final id = item['id'] as int? ?? 0;
     final name = (item['citizen_name'] ?? 'Citizen').toString();
-    final initials = (item['citizen_initials'] ?? (name.isNotEmpty ? name[0] : 'C')).toString();
+    final initials =
+        (item['citizen_initials'] ?? (name.isNotEmpty ? name[0] : 'C'))
+            .toString();
     final timeAgo = _formatTime(item['created_at'], id);
     final status = (item['status'] ?? 'in_progress').toString().toLowerCase();
     final description = (item['description'] ?? item['title'] ?? '').toString();
-    final location = (item['location_address'] ?? item['location'] ?? 'Bharathiyar street').toString();
+    final location = displayLocation(item, fallback: 'Bharathiyar street');
     final imageUrl = item['image_url'] as String?;
-    final sdgText = (item['sdg_alignment'] ?? item['sdg'] ?? 'SDG 13').toString();
+    final sdgText = (item['sdg_alignment'] ?? item['sdg'] ?? 'SDG 13')
+        .toString();
 
-    final isUpvoted = _upvotedIds.contains(id);
-    final isReposted = _repostedIds.contains(id);
-    final upvotesCount = (item['upvotes_count'] as int? ?? 0) + (isUpvoted ? 1 : 0);
-    final commentsCount = item['comments_count'] as int? ?? 0;
-    final repostsCount = (item['reposts_count'] as int? ?? 0) + (isReposted ? 1 : 0);
+    // Engagement state comes from the server (has_upvoted / has_reposted) and is
+    // updated in place after each toggle, so it survives reloads and tab switches.
+    final isUpvoted = item['has_upvoted'] == true;
+    final isReposted = item['has_reposted'] == true;
+    final upvotesCount = (item['upvotes_count'] as num?)?.toInt() ?? 0;
+    final commentsCount = (item['comments_count'] as num?)?.toInt() ?? 0;
+    final repostsCount = (item['reposts_count'] as num?)?.toInt() ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFD6E4F0),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFD6E4F0), width: 1.0),
         boxShadow: const [
           BoxShadow(
             color: Color(0x06000000),
@@ -535,13 +520,24 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                       Builder(
                         builder: (context) {
                           final currentUserId = ApiService().currentUser?['id'];
-                          final isCurrentUser = (currentUserId != null && item['citizen_id'] == currentUserId);
-                          String? rawProfileUrl = item['profile_image_url'] as String?;
-                          if ((rawProfileUrl == null || rawProfileUrl.trim().isEmpty) && isCurrentUser) {
-                            rawProfileUrl = ApiService().currentUser?['profile_image_url'] as String?;
+                          final isCurrentUser =
+                              (currentUserId != null &&
+                              item['citizen_id'] == currentUserId);
+                          String? rawProfileUrl =
+                              item['profile_image_url'] as String?;
+                          if ((rawProfileUrl == null ||
+                                  rawProfileUrl.trim().isEmpty) &&
+                              isCurrentUser) {
+                            rawProfileUrl =
+                                ApiService().currentUser?['profile_image_url']
+                                    as String?;
                           }
-                          final resolvedUrl = (rawProfileUrl != null && rawProfileUrl.trim().isNotEmpty)
-                              ? ApiService().resolveImageUrl(rawProfileUrl.trim())
+                          final resolvedUrl =
+                              (rawProfileUrl != null &&
+                                  rawProfileUrl.trim().isNotEmpty)
+                              ? ApiService().resolveImageUrl(
+                                  rawProfileUrl.trim(),
+                                )
                               : null;
 
                           Widget fallbackInitials() => Container(
@@ -569,7 +565,8 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                                 width: 32,
                                 height: 32,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => fallbackInitials(),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    fallbackInitials(),
                               ),
                             );
                           }
@@ -585,6 +582,7 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                           children: [
                             Text(
                               name,
+                              softWrap: true,
                               style: GoogleFonts.inter(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
@@ -613,21 +611,35 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                 // Complaint Description
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-                  child: Text(
-                    description,
-                    style: GoogleFonts.inter(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF334155),
-                      height: 1.35,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      PostSubject(
+                        title: (item['title'] ?? '').toString(),
+                        description: description,
+                        fontSize: 13.5,
+                      ),
+                      Text(
+                        description,
+                        style: GoogleFonts.inter(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF334155),
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
                 // Evidence Photo (only when present)
                 if (imageUrl != null && imageUrl.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(left: 14, right: 14, bottom: 10),
+                    padding: const EdgeInsets.only(
+                      left: 14,
+                      right: 14,
+                      bottom: 10,
+                    ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: _buildEvidenceImage(imageUrl, id),
@@ -637,27 +649,37 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                 // Location and SDG Badge Row
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-                  child: Row(
+                  // Location on its own line (full text wraps), SDG badge below it
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        size: 14,
-                        color: Color(0xFF0467B6),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          location,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF0467B6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 1),
+                            child: Icon(
+                              Icons.location_on_outlined,
+                              size: 14,
+                              color: Color(0xFF0467B6),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              location,
+                              softWrap: true,
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0467B6),
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 6),
                       _buildSdgBadge(sdgText, id),
                     ],
                   ),
@@ -667,7 +689,16 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
           ),
 
           // Bottom Action Row (Upvote | Comment | Repost)
-          _buildActionRow(id, upvotesCount, commentsCount, repostsCount, isUpvoted, item),
+          PostActionBar(
+            upvotes: upvotesCount,
+            comments: commentsCount,
+            reposts: repostsCount,
+            isUpvoted: isUpvoted,
+            isReposted: isReposted,
+            onUpvote: () => _toggleEngagement(item, repost: false),
+            onComment: () => _openComments(id, item),
+            onRepost: () => _toggleEngagement(item, repost: true),
+          ),
         ],
       ),
     );
@@ -738,7 +769,7 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                 color: const Color(0xFF0467B6),
                 value: loadingProgress.expectedTotalBytes != null
                     ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
+                          loadingProgress.expectedTotalBytes!
                     : null,
               ),
             ),
@@ -754,7 +785,8 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
           height: 155,
           width: double.infinity,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
+          errorBuilder: (context, error, stackTrace) =>
+              _buildPlaceholderImage(),
         );
       },
     );
@@ -818,115 +850,58 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
     );
   }
 
-  /// Bottom action row (Upvote (124) | Comment (12) | Repost(24))
-  Widget _buildActionRow(
-    int id,
-    int upvotes,
-    int comments,
-    int reposts,
-    bool isUpvoted,
-    Map<String, dynamic> item,
-  ) {
-    return Column(
-      children: [
-        const Divider(height: 1, thickness: 1, color: Color(0xFFE5EDF5)),
-        SizedBox(
-          height: 38,
-          child: Row(
-            children: [
-              // 1. Upvote
-              Expanded(
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (_upvotedIds.contains(id)) {
-                        _upvotedIds.remove(id);
-                      } else {
-                        _upvotedIds.add(id);
-                      }
-                    });
-                    try {
-                      ApiService().toggleUpvote(id);
-                    } catch (_) {}
-                  },
-                  child: Center(
-                    child: Text(
-                      'Upvote ($upvotes)',
-                      style: GoogleFonts.inter(
-                        fontSize: 11.5,
-                        fontWeight: isUpvoted ? FontWeight.w700 : FontWeight.w600,
-                        color: const Color(0xFF0467B6),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Divider
-              Container(width: 1, height: 38, color: const Color(0xFFE5EDF5)),
-
-              // 2. Comment
-              Expanded(
-                child: InkWell(
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AuthorityPostDetailScreen(
-                          complaintId: id,
-                          complaintData: item,
-                          autoFocusComment: true,
-                        ),
-                      ),
-                    );
-                    if (mounted) {
-                      _fetchFeed(forceRefresh: true);
-                    }
-                  },
-                  child: Center(
-                    child: Text(
-                      'Comment ($comments)',
-                      style: GoogleFonts.inter(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF5D6478),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Divider
-              Container(width: 1, height: 38, color: const Color(0xFFE5EDF5)),
-
-              // 3. Repost
-              Expanded(
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (_repostedIds.contains(id)) {
-                        _repostedIds.remove(id);
-                      } else {
-                        _repostedIds.add(id);
-                      }
-                    });
-                  },
-                  child: Center(
-                    child: Text(
-                      'Repost($reposts)',
-                      style: GoogleFonts.inter(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF5D6478),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+  Future<void> _openComments(int id, Map<String, dynamic> item) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AuthorityPostDetailScreen(
+          complaintId: id,
+          complaintData: item,
+          autoFocusComment: true,
         ),
-      ],
+      ),
     );
+    if (mounted) {
+      _fetchFeed(forceRefresh: true);
+    }
+  }
+
+  /// Optimistically toggles upvote/repost, then reconciles with the server
+  /// response (or reverts if the request fails).
+  Future<void> _toggleEngagement(
+    Map<String, dynamic> item, {
+    required bool repost,
+  }) async {
+    final id = item['id'] as int?;
+    final activeKey = repost ? 'has_reposted' : 'has_upvoted';
+    final countKey = repost ? 'reposts_count' : 'upvotes_count';
+    final wasActive = item[activeKey] == true;
+    final oldCount = (item[countKey] as num?)?.toInt() ?? 0;
+
+    setState(() {
+      item[activeKey] = !wasActive;
+      item[countKey] = (oldCount + (wasActive ? -1 : 1)).clamp(0, 1 << 31);
+    });
+    if (id == null) return;
+
+    try {
+      final res = repost
+          ? await ApiService().repostComplaint(id)
+          : await ApiService().toggleUpvote(id);
+      if (!mounted) return;
+      setState(() {
+        item[activeKey] = res[repost ? 'has_reposted' : 'has_upvoted'] == true;
+        item[countKey] =
+            (res[repost ? 'total_reposts' : 'total_upvotes'] as num?)
+                ?.toInt() ??
+            item[countKey];
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        item[activeKey] = wasActive;
+        item[countKey] = oldCount;
+      });
+    }
   }
 }

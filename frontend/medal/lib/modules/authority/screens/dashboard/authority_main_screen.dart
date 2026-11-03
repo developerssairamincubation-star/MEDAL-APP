@@ -5,18 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/authority_models.dart';
 import '../notifications/authority_notifications_screen.dart';
+import '../../widgets/notification_bell.dart';
+import '../../widgets/authority_nav_item.dart';
 import 'authority_dashboard_screen.dart';
 import '../complaints/authority_complaints_screen.dart';
 import '../academy/authority_academy_screen.dart';
 import '../profile/authority_profile_screen.dart';
+import '../../../../widgets/medal_logo.dart';
 
 class AuthorityMainScreen extends StatefulWidget {
   final int initialIndex;
 
-  const AuthorityMainScreen({
-    super.key,
-    this.initialIndex = 0,
-  });
+  const AuthorityMainScreen({super.key, this.initialIndex = 0});
 
   @override
   State<AuthorityMainScreen> createState() => _AuthorityMainScreenState();
@@ -39,9 +39,7 @@ class _AuthorityMainScreenState extends State<AuthorityMainScreen> {
     return IndexedStack(
       index: _currentIndex,
       children: [
-        AuthorityDashboardScreen(
-          onNavigateToComplaints: _navigateToComplaints,
-        ),
+        AuthorityDashboardScreen(onNavigateToComplaints: _navigateToComplaints),
         const AuthorityComplaintsScreen(),
         const AuthorityAcademyScreen(),
         const AuthorityProfileScreen(),
@@ -51,8 +49,9 @@ class _AuthorityMainScreenState extends State<AuthorityMainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final unreadAlerts =
-        MockAuthorityRepository.notifications.where((n) => !n.isRead).length;
+    final unreadAlerts = MockAuthorityRepository.notifications
+        .where((n) => !n.isRead)
+        .length;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -66,9 +65,7 @@ class _AuthorityMainScreenState extends State<AuthorityMainScreen> {
             _buildTopHeader(unreadAlerts),
 
             // Tab Body
-            Expanded(
-              child: _buildBody(),
-            ),
+            Expanded(child: _buildBody()),
 
             // Modern Bottom Navigation Bar
             _buildBottomNavigationBar(),
@@ -106,11 +103,7 @@ class _AuthorityMainScreenState extends State<AuthorityMainScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.military_tech_rounded,
-                color: Color(0xFF0467B6),
-                size: 26,
-              ),
+              const MedalLogo(iconSize: 18),
               const SizedBox(width: 6),
               Text(
                 "MEdAL",
@@ -124,43 +117,18 @@ class _AuthorityMainScreenState extends State<AuthorityMainScreen> {
             ],
           ),
 
-          // Right: Notification Bell with red badge
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AuthorityNotificationsScreen(),
-                ),
-              ).then((_) => setState(() {}));
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(
-                    Icons.notifications,
-                    color: Color(0xFF475569),
-                    size: 24,
+          // Right: Notification bell, shown only on Dashboard (0) and Profile (3)
+          if (_currentIndex == 0 || _currentIndex == 3)
+            NotificationBell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AuthorityNotificationsScreen(),
                   ),
-                  Positioned(
-                    top: 1,
-                    right: 2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFDC2626),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
-          ),
         ],
       ),
     );
@@ -172,9 +140,7 @@ class _AuthorityMainScreenState extends State<AuthorityMainScreen> {
       height: 62,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0)),
       ),
       child: Row(
         children: [
@@ -221,82 +187,12 @@ class _AuthorityMainScreenState extends State<AuthorityMainScreen> {
     required String label,
     required String compatLabel,
   }) {
-    final isSelected = _currentIndex == index;
-
-    return InkWell(
+    return AuthorityNavItem(
+      icon: icon,
+      label: label,
+      compatLabel: compatLabel,
+      isSelected: _currentIndex == index,
       onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Visible styled nav button
-          if (isSelected)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F1FB),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    color: const Color(0xFF0467B6),
-                    size: 20,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF0467B6),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    color: const Color(0xFF7E8B9B),
-                    size: 20,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF7E8B9B),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          // Test compatibility label on top
-          Positioned.fill(
-            child: Center(
-              child: Text(
-                compatLabel,
-                style: const TextStyle(fontSize: 10, color: Colors.transparent),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

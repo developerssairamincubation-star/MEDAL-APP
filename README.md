@@ -167,7 +167,7 @@ const String kPcWifiIp = '172.16.127.223';
 
 #### Step 1: Configure Cloudinary Credentials
 Configure `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in `backend/.env`.
-Verify storage readiness with the health check endpoint: `GET /health`.
+Verify storage readiness with `GET /health/storage`. `GET /health` is a lightweight liveness probe (no DB/storage I/O) for uptime pingers.
 
 #### Step 2: Initialize Database & Run Backend
 ```powershell

@@ -7,6 +7,7 @@ import '../core/constants/app_constants.dart';
 import '../core/services/api_service.dart';
 import '../core/theme/app_theme.dart';
 import '../routes/app_routes.dart';
+import '../widgets/medal_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -96,22 +97,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // MEdAL Logo Icon (styled premium badge/medal)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        width: 2,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.military_tech_rounded,
-                      color: Colors.white,
-                      size: 72,
-                    ),
-                  ),
+                  const MedalLogo(onGradient: true),
                   const SizedBox(height: 24),
                   // App Name
                   const Text(

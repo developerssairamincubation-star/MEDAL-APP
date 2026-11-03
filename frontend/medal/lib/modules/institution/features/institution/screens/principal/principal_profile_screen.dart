@@ -1,6 +1,7 @@
 // lib/features/institution/screens/principal/principal_profile_screen.dart
 // Place at: lib/features/institution/screens/principal/principal_profile_screen.dart
 
+import 'package:medal/widgets/profile_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,11 +9,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../theme/app_theme.dart';
 import '../../../../routes/app_routes.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/principal_provider.dart';
+import 'package:medal/core/services/api_service.dart';
+import '../../providers/institution_provider.dart';
 import '../../widgets/medal_app_bar.dart';
 import '../../widgets/custom_bottom_nav.dart';
-import '../../widgets/custom_profile_tile.dart';
+import '../../widgets/logout_dialog.dart';
 
 /// Principal Profile Screen — matches Principal_login_Profile.png
 class PrincipalProfileScreen extends ConsumerWidget {
@@ -36,7 +37,8 @@ class PrincipalProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final principal = ref.watch(principalDataProvider);
+    final user = ApiService().currentUser ?? const <String, dynamic>{};
+    final overview = ref.watch(institutionOverviewProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -46,102 +48,14 @@ class PrincipalProfileScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Profile Card ──────────────────────────────────
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Avatar with edit button
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 52,
-                        backgroundColor:
-                            AppTheme.primary.withValues(alpha: 0.10),
-                        child: Text(
-                          principal.name.substring(0, 1),
-                          style: GoogleFonts.inter(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.primary,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.edit_rounded,
-                            color: Colors.white,
-                            size: 15,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Name
-                  Text(
-                    principal.name,
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Role badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppTheme.statusInProgressLight,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'PRINCIPAL',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.statusInProgress,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Email row
-                  _ContactRow(
-                    icon: Icons.email_outlined,
-                    text: principal.email,
-                  ),
-                  const SizedBox(height: 10),
-                  // Phone row
-                  _ContactRow(
-                    icon: Icons.phone_android_rounded,
-                    text: principal.phone,
-                  ),
-                ],
-              ),
+            // ── Profile hero (shared layout, same as every login) ──
+            ProfileHeroCard(
+              roleLabel: 'Principal',
+              name: (user['full_name'] ?? '').toString(),
+              email: (user['email'] ?? '').toString(),
+              phone: (user['phone'] ?? '').toString(),
+              badgeBackground: const Color(0xFFE8F4FD),
+              badgeForeground: const Color(0xFF0467B6),
             ),
             const SizedBox(height: 16),
             // ── Institution Overview card ──────────────────────
@@ -171,77 +85,57 @@ class PrincipalProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          principal.institution.name,
-                          style: GoogleFonts.inter(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.school_rounded,
-                        color: Color(0xFFD0D0E8),
-                        size: 32,
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      _StatColumn(
-                        label: 'Active Students',
-                        value:
-                            principal.institution.activeStudents.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},'),
+                  overview.when(
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-                      const SizedBox(width: 32),
-                      _StatColumn(
-                        label: 'Total Faculty',
-                        value: '${principal.institution.totalFaculty}',
-                      ),
-                    ],
+                    ),
+                    error: (e, _) => Text(
+                      describeError(e),
+                      style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
+                    ),
+                    data: (o) => o.isEmpty
+                        ? Text(
+                            'No staff added yet.',
+                            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
+                          )
+                        : Row(
+                            children: [
+                              _StatColumn(label: 'Students', value: '${o.totalStudents}'),
+                              const SizedBox(width: 32),
+                              _StatColumn(label: 'Staff', value: '${o.totalStaff}'),
+                            ],
+                          ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            // ── Account Management ────────────────────────────
-            Text(
-              'Account Management',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            CustomProfileTile(
-              icon: Icons.lock_outline_rounded,
+            // ── Account Management (shared tiles) ──
+            const ProfileSectionTitle('Account Management'),
+            const SizedBox(height: 10),
+            ProfileAccountTile(
+              icon: Icons.sync_lock_rounded,
               title: 'Manage Password',
               subtitle: 'Update your security credentials',
               onTap: () {},
             ),
-            const SizedBox(height: 10),
-            CustomProfileTile(
+            const SizedBox(height: 8),
+            ProfileAccountTile(
               icon: Icons.account_balance_outlined,
+              iconColor: const Color(0xFF6D28D9),
+              iconBgColor: const Color(0xFFEDE9FE),
               title: 'Institution Details',
               subtitle: 'Profile and academic records',
               onTap: () {},
             ),
-            const SizedBox(height: 10),
-            CustomProfileTile(
-              icon: Icons.logout_rounded,
-              title: 'Log Out',
-              subtitle: '',
-              isDestructive: true,
-              onTap: () => _confirmLogout(context, ref),
-            ),
+            const SizedBox(height: 8),
+            ProfileLogoutTile(onTap: () => confirmAndLogout(context)),
             const SizedBox(height: 24),
             // ── Footer ────────────────────────────────────────
             Center(
@@ -249,13 +143,6 @@ class PrincipalProfileScreen extends ConsumerWidget {
                 children: [
                   Text(
                     'MEdAL v2.4.0 Institutional Core',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppTheme.textMuted,
-                    ),
-                  ),
-                  Text(
-                    'Last login: Today at 08:42 AM',
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       color: AppTheme.textMuted,
@@ -273,65 +160,6 @@ class PrincipalProfileScreen extends ConsumerWidget {
         currentIndex: 3,
         onTap: (i) => _onNavTap(context, i),
       ),
-    );
-  }
-
-  void _confirmLogout(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Log Out',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          'Are you sure you want to log out?',
-          style: GoogleFonts.inter(color: AppTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: GoogleFonts.inter(color: AppTheme.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(authProvider.notifier).logout();
-              context.go(AppRoutes.login);
-            },
-            child: Text('Log Out',
-                style: GoogleFonts.inter(
-                    color: AppTheme.statusInactive,
-                    fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContactRow extends StatelessWidget {
-  const _ContactRow({required this.icon, required this.text});
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18, color: AppTheme.primary),
-        const SizedBox(width: 10),
-        Text(
-          text,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            color: AppTheme.textSecondary,
-          ),
-        ),
-      ],
     );
   }
 }

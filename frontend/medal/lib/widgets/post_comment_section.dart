@@ -1,6 +1,7 @@
 // lib/widgets/post_comment_section.dart
 // Production-quality, reusable comment interaction & display widget matching the reference UI.
 
+import 'package:medal/widgets/medal_dialog.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -223,8 +224,7 @@ class _PostCommentSectionState extends State<PostCommentSection> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => MedalAlertDialog(
         title: const Text("Delete Comment"),
         content: const Text("Are you sure you want to delete this comment? This action cannot be undone."),
         actions: [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'medal_logo.dart';
 
 /// Common application header shell matching the Figma reference design.
 /// Features a pure white background, the indigo MEDAL medal logo and stylized
@@ -41,11 +42,7 @@ class MedalAppBar extends StatelessWidget implements PreferredSizeWidget {
           const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.military_tech_rounded,
-                color: Color(0xFF0467B6),
-                size: 26,
-              ),
+              MedalLogo(iconSize: 18),
               SizedBox(width: 8),
               Text(
                 "MEdAL",

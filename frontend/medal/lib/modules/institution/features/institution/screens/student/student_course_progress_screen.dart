@@ -193,7 +193,7 @@ class _StudentCourseProgressScreenState extends State<StudentCourseProgressScree
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '$completedM of $totalM modules completed',
+                                  '$completedM of $totalM chapters completed',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
                                     color: const Color(0xFF64748B),

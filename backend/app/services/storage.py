@@ -133,9 +133,9 @@ class CloudinaryStorageService(BaseStorageService):
         api_secret: Optional[str] = None,
     ):
         load_dotenv()
-        self.cloud_name = cloud_name or os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
-        self.api_key = api_key or os.getenv("CLOUDINARY_API_KEY", "").strip()
-        self.api_secret = api_secret or os.getenv("CLOUDINARY_API_SECRET", "").strip()
+        self.cloud_name = cloud_name or os.getenv("CLOUDINARY_CLOUD_NAME", "").strip().strip("\"\'").strip()
+        self.api_key = api_key or os.getenv("CLOUDINARY_API_KEY", "").strip().strip("\"\'").strip()
+        self.api_secret = api_secret or os.getenv("CLOUDINARY_API_SECRET", "").strip().strip("\"\'").strip()
 
         if not self.cloud_name or not self.api_key or not self.api_secret:
             missing = []
@@ -182,6 +182,49 @@ class CloudinaryStorageService(BaseStorageService):
             "cloud_name": self.cloud_name,
             "secure": True,
         }
+
+    def _redact(self, text: str) -> str:
+        """Removes configured credentials from error text before logging/returning it."""
+        for secret in (self.api_secret, self.api_key):
+            if secret:
+                text = text.replace(secret, "***")
+        return text
+
+    @staticmethod
+    def _describe_upload_error(reason: str) -> str:
+        """Maps Cloudinary SDK errors to a safe, actionable message (no secrets)."""
+        low = reason.lower()
+        if "invalid signature" in low or "invalid api_key" in low or "api_key" in low and "invalid" in low:
+            return (
+                "Cloud asset storage upload failed: storage credentials were rejected. "
+                "Check CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET on the server."
+            )
+        if "cloud_name" in low or "cloud name" in low:
+            return (
+                "Cloud asset storage upload failed: unknown cloud. "
+                "Check CLOUDINARY_CLOUD_NAME on the server."
+            )
+        if "must supply api_key" in low or "must supply" in low:
+            return "Cloud asset storage upload failed: storage credentials are not configured on the server."
+        if "file size too large" in low or "too large" in low:
+            return "Cloud asset storage upload failed: image is too large. Please choose a smaller image."
+        if "timed out" in low or "timeout" in low:
+            return "Cloud asset storage upload timed out. Please try again."
+        return "Cloud asset storage upload failed. Please try again."
+
+    def check_connection(self) -> Dict[str, Any]:
+        """Makes one authenticated API call to verify the credentials really work."""
+        try:
+            self._api.ping()
+            return {"status": "healthy", "provider": "cloudinary", "credentials": "valid"}
+        except Exception as err:
+            return {
+                "status": "unhealthy",
+                "provider": "cloudinary",
+                "credentials": "rejected",
+                "error_type": type(err).__name__,
+                "error": self._redact(str(err))[:300],
+            }
 
     def _determine_resource_type(self, ext: str, mime_type: str) -> str:
         """Determines appropriate Cloudinary resource_type: image, raw, or auto."""
@@ -268,10 +311,16 @@ class CloudinaryStorageService(BaseStorageService):
                 lambda: self._uploader.upload(stream, **upload_options),
             )
         except Exception as err:
-            logger.error("Cloudinary upload failed for public_id '%s': %s", full_public_id, err)
+            reason = self._redact(str(err))
+            logger.error(
+                "Cloudinary upload failed for public_id '%s' (%s): %s",
+                full_public_id,
+                type(err).__name__,
+                reason,
+            )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Cloud asset storage upload failed. Please try again.",
+                detail=self._describe_upload_error(reason),
             ) from err
 
         secure_url = response.get("secure_url") or response.get("url")

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -7,8 +7,16 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.user import User
-from app.models.student import StudentCourse, StudentEnrollment, StudentCertificate, StudentNotification
+from app.models.student import (
+    StudentCertificate,
+    StudentChapterCompletion,
+    StudentCourse,
+    StudentCourseChapter,
+    StudentEnrollment,
+    StudentNotification,
+)
 from app.routers.auth import get_current_user
+from app.services.seek_chapters import get_seek_course
 from app.services.storage import BaseStorageService, get_storage_service
 from app.utils.file_validation import (
     MAX_DOCUMENT_SIZE_BYTES,
@@ -42,6 +50,138 @@ class StudentProfileUpdateRequest(BaseModel):
 class PasswordChangeRequest(BaseModel):
     current_password: str
     new_password: str
+
+
+# ── Chapter progress helpers ────────────────────────────────────────────
+
+def _course_chapters(db: Session, course_id: int):
+    return (
+        db.query(StudentCourseChapter)
+        .filter(StudentCourseChapter.course_id == course_id)
+        .order_by(StudentCourseChapter.position.asc(), StudentCourseChapter.id.asc())
+        .all()
+    )
+
+
+def _completion_map(db: Session, user_id: int, chapter_ids):
+    if not chapter_ids:
+        return {}
+    rows = (
+        db.query(StudentChapterCompletion)
+        .filter(
+            StudentChapterCompletion.user_id == user_id,
+            StudentChapterCompletion.chapter_id.in_(list(chapter_ids)),
+        )
+        .all()
+    )
+    return {r.chapter_id: r for r in rows}
+
+
+def _course_progress(db: Session, user_id: int, course_id: int):
+    """(completed, total, fraction) from the student's real chapter completions."""
+    chapters = _course_chapters(db, course_id)
+    done = _completion_map(db, user_id, [c.id for c in chapters])
+    total = len(chapters)
+    completed = len(done)
+    return completed, total, (completed / total if total else 0.0)
+
+
+def _sync_enrollment(db: Session, user_id: int, course_id: int):
+    """Keep the enrollment row in step with chapter completions."""
+    chapters = _course_chapters(db, course_id)
+    done = _completion_map(db, user_id, [c.id for c in chapters])
+    total, completed = len(chapters), len(done)
+    pct = completed / total if total else 0.0
+
+    modules = {}
+    for c in chapters:
+        modules.setdefault(c.module_number, []).append(c.id in done)
+    done_modules = sum(1 for flags in modules.values() if all(flags))
+
+    enr = db.query(StudentEnrollment).filter(
+        StudentEnrollment.user_id == user_id,
+        StudentEnrollment.course_id == course_id,
+    ).first()
+    if not enr:
+        enr = StudentEnrollment(
+            user_id=user_id,
+            course_id=course_id,
+            start_date=datetime.now(timezone.utc).strftime("%d %b %Y"),
+        )
+        db.add(enr)
+    enr.progress_pct = pct
+    enr.completed_modules = done_modules
+    enr.status = "completed" if total and completed == total else "enrolled"
+    db.commit()
+    return enr
+
+
+def _minutes(duration: str) -> int:
+    digits = "".join(c for c in str(duration or "").split(" ")[0] if c.isdigit())
+    return int(digits) if digits else 0
+
+
+def _learning_streak(db: Session, user_id: int) -> int:
+    """Consecutive days (ending today or yesterday) with a completed chapter."""
+    rows = db.query(StudentChapterCompletion.completed_at).filter(
+        StudentChapterCompletion.user_id == user_id
+    ).all()
+    days = {r[0].date() for r in rows if r[0]}
+    if not days:
+        return 0
+    today = datetime.now(timezone.utc).date()
+    day = today if today in days else today - timedelta(days=1)
+    streak = 0
+    while day in days:
+        streak += 1
+        day -= timedelta(days=1)
+    return streak
+
+
+def _time_ago(when: Optional[datetime]) -> str:
+    if not when:
+        return ""
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    secs = int((datetime.now(timezone.utc) - when).total_seconds())
+    if secs < 60:
+        return "just now"
+    if secs < 3600:
+        return f"{secs // 60}m ago"
+    if secs < 86400:
+        return f"{secs // 3600}h ago"
+    return f"{secs // 86400}d ago"
+
+
+def _chapters_payload(db: Session, user_id: int, course_id: int):
+    chapters = _course_chapters(db, course_id)
+    done = _completion_map(db, user_id, [c.id for c in chapters])
+    modules = {}
+    for c in chapters:
+        mod = modules.setdefault(
+            c.module_number,
+            {"number": c.module_number, "title": c.module_title, "chapters": []},
+        )
+        comp = done.get(c.id)
+        mod["chapters"].append({
+            "id": c.id,
+            "key": c.chapter_key,
+            "title": c.title,
+            "type": c.chapter_type,
+            "duration": c.duration,
+            "url": c.content_url,
+            "completed": comp is not None,
+            "completed_at": comp.completed_at.isoformat() if comp else None,
+        })
+    total = len(chapters)
+    completed = len(done)
+    return {
+        "course_id": course_id,
+        "total_chapters": total,
+        "completed_chapters": completed,
+        "progress_pct": completed / total if total else 0.0,
+        "modules": [modules[k] for k in sorted(modules)],
+    }
 
 
 # ── 1. Student Registration ─────────────────────────────────────────────
@@ -115,7 +255,6 @@ def register_student(req: StudentRegisterRequest, db: Session = Depends(get_db))
             progress_pct=0.0,
             completed_modules=0,
             start_date=datetime.now(timezone.utc).strftime("%d %b %Y"),
-            end_date="30 Nov 2026",
             credits_earned=0,
         )
         db.add(enrollment)
@@ -157,70 +296,62 @@ def get_student_dashboard(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Fetch student's enrollments
+    # Single SEEK course: every figure below is derived from live chapter completions.
     enrollments = db.query(StudentEnrollment).filter(StudentEnrollment.user_id == current_user.id).all()
-    certificates = db.query(StudentCertificate).filter(StudentCertificate.user_id == current_user.id).all()
+    seek = get_seek_course(db)
 
     enrolled_active = [e for e in enrollments if e.status in ("enrolled", "completed")]
     pending_enrollments = [e for e in enrollments if e.status == "pending"]
 
-    # Calculate overall completion
-    if enrolled_active:
-        overall_pct = int(sum(e.progress_pct for e in enrolled_active) / len(enrolled_active) * 100)
-    else:
-        overall_pct = 32  # default baseline from design reference
+    completed_ch, total_ch, fraction = (0, 0, 0.0)
+    if seek:
+        completed_ch, total_ch, fraction = _course_progress(db, current_user.id, seek.id)
 
+    # Daily insights / recent activity: the chapters the student finished most recently.
+    recent_rows = (
+        db.query(StudentChapterCompletion, StudentCourseChapter)
+        .join(StudentCourseChapter, StudentCourseChapter.id == StudentChapterCompletion.chapter_id)
+        .filter(StudentChapterCompletion.user_id == current_user.id)
+        .order_by(StudentChapterCompletion.completed_at.desc(), StudentChapterCompletion.id.desc())
+        .limit(5)
+        .all()
+    )
+    recent_activity = [
+        {
+            "chapter_id": ch.id,
+            "course_id": ch.course_id,
+            "title": ch.title,
+            "module_title": ch.module_title,
+            "chapter_type": ch.chapter_type,
+            "completed_at": comp.completed_at.isoformat(),
+        }
+        for comp, ch in recent_rows
+    ]
+
+    study_minutes = sum(
+        _minutes(ch.duration)
+        for _, ch in db.query(StudentChapterCompletion, StudentCourseChapter)
+        .join(StudentCourseChapter, StudentCourseChapter.id == StudentChapterCompletion.chapter_id)
+        .filter(StudentChapterCompletion.user_id == current_user.id)
+        .all()
+    )
     credits_sum = sum(e.credits_earned for e in enrollments)
-    if credits_sum == 0 and enrolled_active:
-        credits_sum = 115  # baseline from design reference
-
-    # Recent activity
-    recent_activity = []
-    for e in enrolled_active[:3]:
-        course = db.query(StudentCourse).filter(StudentCourse.id == e.course_id).first()
-        if course:
-            recent_activity.append({
-                "course_id": course.id,
-                "title": course.title,
-                "provider": course.provider,
-                "start_date": e.start_date or "06 Oct 2026",
-                "end_date": e.end_date or "26 Oct 2026",
-                "image_url": course.image_url,
-                "progress_pct": e.progress_pct,
-                "status": e.status,
-            })
-
-    # If empty, provide standard SEEK courses from catalog
-    if not recent_activity:
-        courses = db.query(StudentCourse).limit(2).all()
-        for idx, c in enumerate(courses):
-            recent_activity.append({
-                "course_id": c.id,
-                "title": c.title,
-                "provider": c.provider,
-                "start_date": "06 Oct 2026" if idx == 0 else "09 Oct 2026",
-                "end_date": "26 Oct 2026" if idx == 0 else "30 Oct 2026",
-                "image_url": c.image_url,
-                "progress_pct": 0.32 if idx == 0 else 0.0,
-                "status": "enrolled",
-            })
-
-    cert_count = len(certificates) if certificates else 2
-    enrolled_count = len(enrolled_active) if enrolled_active else 3
-    pending_count = len(pending_enrollments) if pending_enrollments else 2
+    cert_count = len([e for e in enrollments if e.status == "completed" or (e.progress_pct or 0) >= 1.0])
 
     return {
         "welcome_name": current_user.full_name,
-        "streak_days": 21,
-        "overall_completion_pct": overall_pct,
+        "streak_days": _learning_streak(db, current_user.id),
+        "overall_completion_pct": int(round(fraction * 100)),
         "stats": {
             "certifications_ready": cert_count,
-            "enrolled_courses": enrolled_count,
+            "enrolled_courses": len(enrolled_active),
             "credits_earned": credits_sum,
-            "enrollment_pending": pending_count,
+            "enrollment_pending": len(pending_enrollments),
         },
+        "chapters": {"completed": completed_ch, "total": total_ch},
         "recent_activity": recent_activity,
-        "study_hours": 7,
+        "study_minutes": study_minutes,
+        "study_hours": round(study_minutes / 60, 1),
     }
 
 
@@ -233,7 +364,11 @@ def get_courses(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(StudentCourse)
+    seek = get_seek_course(db)
+    if not seek:
+        return []
+    # There is exactly one SEEK course; its chapters carry the content.
+    query = db.query(StudentCourse).filter(StudentCourse.id == seek.id)
 
     if search:
         s = f"%{search.strip().lower()}%"
@@ -258,12 +393,11 @@ def get_courses(
     results = []
     for c in courses:
         enr = enrollment_map.get(c.id)
+        completed_ch, total_ch, progress = _course_progress(db, current_user.id, c.id)
         if enr:
             enr_status = enr.status  # enrolled, pending, completed
-            progress = enr.progress_pct
         else:
             enr_status = "not_enrolled"
-            progress = 0.0
 
         results.append({
             "id": c.id,
@@ -282,6 +416,8 @@ def get_courses(
             "image_url": c.image_url,
             "enrollment_status": enr_status,
             "progress_pct": progress,
+            "completed_chapters": completed_ch,
+            "total_chapters": total_ch,
         })
 
     return results
@@ -305,7 +441,7 @@ def get_course_detail(
     ).first()
 
     status_str = enr.status if enr else "not_enrolled"
-    progress = enr.progress_pct if enr else 0.0
+    completed_ch, total_ch, progress = _course_progress(db, current_user.id, course.id)
 
     return {
         "id": course.id,
@@ -324,7 +460,68 @@ def get_course_detail(
         "image_url": course.image_url,
         "enrollment_status": status_str,
         "progress_pct": progress,
+        "completed_chapters": completed_ch,
+        "total_chapters": total_ch,
     }
+
+
+@router.get("/courses/{course_id}/chapters")
+def get_course_chapters(
+    course_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not db.query(StudentCourse).filter(StudentCourse.id == course_id).first():
+        raise HTTPException(status_code=404, detail="Course not found")
+    return _chapters_payload(db, current_user.id, course_id)
+
+
+class ChapterCompletionRequest(BaseModel):
+    completed: bool = True
+
+
+@router.put("/chapters/{chapter_id}/completion")
+def set_chapter_completion(
+    chapter_id: int,
+    req: ChapterCompletionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    chapter = db.query(StudentCourseChapter).filter(StudentCourseChapter.id == chapter_id).first()
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    existing = db.query(StudentChapterCompletion).filter(
+        StudentChapterCompletion.user_id == current_user.id,
+        StudentChapterCompletion.chapter_id == chapter_id,
+    ).first()
+    if req.completed and not existing:
+        db.add(StudentChapterCompletion(user_id=current_user.id, chapter_id=chapter_id))
+        db.commit()
+    elif not req.completed and existing:
+        db.delete(existing)
+        db.commit()
+
+    was_done = (
+        db.query(StudentEnrollment)
+        .filter(StudentEnrollment.user_id == current_user.id,
+                StudentEnrollment.course_id == chapter.course_id,
+                StudentEnrollment.status == "completed")
+        .first()
+        is not None
+    )
+    enr = _sync_enrollment(db, current_user.id, chapter.course_id)
+    if enr.status == "completed" and not was_done:
+        course = db.query(StudentCourse).filter(StudentCourse.id == chapter.course_id).first()
+        db.add(StudentNotification(
+            user_id=current_user.id,
+            category="Certificate Issued",
+            title="Certificate ready",
+            description=f"You completed {course.title if course else 'the course'}. View your certificate.",
+            period_group="last_7_days",
+        ))
+        db.commit()
+    return _chapters_payload(db, current_user.id, chapter.course_id)
 
 
 # ── 5. Course Enrollment Action ────────────────────────────────────────
@@ -359,8 +556,6 @@ def enroll_in_course(
             progress_pct=0.0,
             completed_modules=0,
             start_date=datetime.now(timezone.utc).strftime("%d %b %Y"),
-            end_date="30 Nov 2026",
-            credits_earned=25,
         )
         db.add(enr)
     else:
@@ -391,10 +586,14 @@ def get_pending_courses(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Retrieve courses that are marked pending or available to enroll (Courses 4, 5, 6)
-    courses = db.query(StudentCourse).filter(StudentCourse.id.in_([4, 5, 6])).all()
-    if not courses:
-        courses = db.query(StudentCourse).all()
+    # Courses this user has requested but is not yet enrolled in.
+    pending_ids = [
+        e.course_id for e in db.query(StudentEnrollment).filter(
+            StudentEnrollment.user_id == current_user.id,
+            StudentEnrollment.status == "pending",
+        ).all()
+    ]
+    courses = db.query(StudentCourse).filter(StudentCourse.id.in_(pending_ids)).all() if pending_ids else []
 
     enrollment_map = {
         e.course_id: e
@@ -421,27 +620,30 @@ def get_course_progress(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    seek = get_seek_course(db)
     enrollments = db.query(StudentEnrollment).filter(
         StudentEnrollment.user_id == current_user.id,
         StudentEnrollment.status.in_(["enrolled", "completed"]),
+        StudentEnrollment.course_id == (seek.id if seek else -1),
     ).all()
 
     progress_list = []
     for e in enrollments:
         course = db.query(StudentCourse).filter(StudentCourse.id == e.course_id).first()
         if course:
-            total_m = course.total_modules or 5
-            comp_m = int(e.progress_pct * total_m)
+            comp_m, total_m, live_pct = _course_progress(db, current_user.id, course.id)
             progress_list.append({
                 "course_id": course.id,
                 "title": course.title,
                 "provider": course.provider,
                 "category": course.category,
-                "progress_pct": e.progress_pct,
+                "progress_pct": live_pct,
                 "completed_modules": comp_m,
                 "total_modules": total_m,
+                "completed_chapters": comp_m,
+                "total_chapters": total_m,
                 "remaining_modules": max(0, total_m - comp_m),
-                "status": "Completed" if e.progress_pct >= 1.0 else "In Progress",
+                "status": "Completed" if total_m and comp_m >= total_m else "In Progress",
                 "image_url": course.image_url,
             })
     return progress_list
@@ -454,10 +656,43 @@ def get_student_certificates(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    certs = db.query(StudentCertificate).filter(
-        StudentCertificate.user_id == current_user.id
-    ).order_by(StudentCertificate.id.desc()).all()
+    """Certificates exist only for courses the student has completed.
 
+    A certificate is issued (once) for every enrollment that is completed
+    (status "completed" or progress at 100%). Nothing is returned for
+    courses still in progress.
+    """
+    completed = db.query(StudentEnrollment).filter(
+        StudentEnrollment.user_id == current_user.id,
+    ).all()
+    completed = [e for e in completed if e.status == "completed" or (e.progress_pct or 0) >= 1.0]
+
+    issued = []
+    for enr in completed:
+        course = db.query(StudentCourse).filter(StudentCourse.id == enr.course_id).first()
+        if not course:
+            continue
+        cert_no = f"MED-C{course.id}-U{current_user.id}"
+        cert = db.query(StudentCertificate).filter(
+            StudentCertificate.user_id == current_user.id,
+            StudentCertificate.certificate_no == cert_no,
+        ).first()
+        if not cert:
+            when = datetime.now(timezone.utc)
+            cert = StudentCertificate(
+                user_id=current_user.id,
+                title=course.title,
+                certificate_no=cert_no,
+                completed_date_str=f"COMPLETED {when.strftime('%b %Y').upper()}",
+                issuing_institution=course.provider or "Academic Excellence Academy",
+                badge_type="verified",
+            )
+            db.add(cert)
+            db.commit()
+            db.refresh(cert)
+        issued.append(cert)
+
+    issued.sort(key=lambda c: c.id, reverse=True)
     return [
         {
             "id": c.id,
@@ -468,7 +703,7 @@ def get_student_certificates(
             "badge_type": c.badge_type,
             "download_url": c.download_url or f"/certificates/download/{c.certificate_no}.pdf",
         }
-        for c in certs
+        for c in issued
     ]
 
 
@@ -522,9 +757,10 @@ def get_student_notifications(
             "title": n.title,
             "description": n.description,
             "is_read": n.is_read,
-            "time_ago": "2m ago" if n.period_group == "last_7_days" else "15d ago",
+            "time_ago": _time_ago(n.created_at),
         }
-        if n.period_group == "last_7_days":
+        created = n.created_at if n.created_at.tzinfo else n.created_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) - created <= timedelta(days=7):
             last_7.append(item)
         else:
             last_30.append(item)

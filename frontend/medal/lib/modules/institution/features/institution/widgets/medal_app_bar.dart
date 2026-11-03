@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../../widgets/medal_logo.dart';
 import '../../../theme/app_theme.dart';
 
 /// Reusable MEdAL top app bar.
@@ -49,11 +50,7 @@ class _MedalLogo extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
-          Icons.military_tech_rounded,
-          color: AppTheme.primary,
-          size: 26,
-        ),
+        const MedalLogo(iconSize: 18),
         const SizedBox(width: 6),
         Text(
           'MEdAL',
@@ -78,18 +75,7 @@ class MedalLogoLarge extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(
-            Icons.military_tech_rounded,
-            color: AppTheme.primary,
-            size: 40,
-          ),
-        ),
+        const MedalLogo(iconSize: 34),
         const SizedBox(height: 12),
         Text(
           'MEdAL',

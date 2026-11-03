@@ -1,4 +1,7 @@
+import 'package:medal/widgets/medal_dialog.dart';
+import 'package:medal/widgets/post_action_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:medal/core/utils/location_text.dart';
 import 'package:flutter/services.dart';
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/citizen/screens/common_button.dart';
@@ -189,8 +192,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => MedalAlertDialog(
         title: const Text("Delete Report"),
         content: const Text("Are you sure you want to delete this civic report? This action cannot be undone."),
         actions: [
@@ -391,7 +393,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
     final title = (_data['title'] ?? 'Civic Issue').toString();
     final description = (_data['description'] ?? 'No description provided.').toString();
     final imageUrl = _data['image_url'] as String?;
-    final location = (_data['location'] ?? 'Location not specified').toString();
+    final location = displayLocation(_data);
     final sdgText = _getSdgText();
     final authorityName = (_data['assigned_authority'] ?? _data['assigned_officer'] ?? 'Ward Municipal Officer').toString();
     final departmentName = (_data['department'] ?? 'Civic Works Department').toString();
@@ -604,181 +606,79 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                     ),
                   ],
 
-                  // Location and SDG Row
+                  // Location (own line, full text) above the SDG info
                   const SizedBox(height: 9),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 15,
-                        color: Color(0xFF0467B6),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 1),
+                        child: Icon(
+                          Icons.location_on,
+                          size: 15,
+                          color: Color(0xFF0467B6),
+                        ),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           location,
+                          key: const Key('post_location'),
+                          softWrap: true,
                           style: const TextStyle(
                             fontSize: 12,
+                            height: 1.3,
                             color: Color(0xFF0467B6),
                             fontWeight: FontWeight.w500,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (sdgText.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFDE8E8),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.track_changes, size: 11, color: Color(0xFF9B1C1C)),
-                              const SizedBox(width: 3),
-                              Text(
-                                sdgText,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF9B1C1C),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                     ],
                   ),
+                  if (sdgText.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFDE8E8),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.track_changes, size: 11, color: Color(0xFF9B1C1C)),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              sdgText,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF9B1C1C),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
 
             const SizedBox(height: 10),
 
-            /// 2. INTERACTION ROW — Upvote | Comment | Repost (matches reference design)
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEF0F8),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFDDE1F0), width: 1),
-              ),
-              child: IntrinsicHeight(
-                child: Row(
-                  children: [
-                    // ── Upvote ──────────────────────────────────────────────
-                    Expanded(
-                      child: InkWell(
-                        onTap: _handleToggleUpvote,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          bottomLeft: Radius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                _hasUpvoted ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-                                size: 16,
-                                color: _hasUpvoted ? const Color(0xFF0467B6) : const Color(0xFF555E8A),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Upvote ($_upvotes)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: _hasUpvoted ? FontWeight.w700 : FontWeight.w600,
-                                  color: _hasUpvoted ? const Color(0xFF0467B6) : const Color(0xFF555E8A),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Divider
-                    const VerticalDivider(width: 1, thickness: 1, color: Color(0xFFDDE1F0), indent: 8, endIndent: 8),
-
-                    // ── Comment ─────────────────────────────────────────────
-                    Expanded(
-                      child: InkWell(
-                        onTap: _handleOpenComments,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.chat_bubble_outline,
-                                size: 16,
-                                color: Color(0xFF555E8A),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Comment ($_comments)',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF555E8A),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Divider
-                    const VerticalDivider(width: 1, thickness: 1, color: Color(0xFFDDE1F0), indent: 8, endIndent: 8),
-
-                    // ── Repost ──────────────────────────────────────────────
-                    Expanded(
-                      child: InkWell(
-                        onTap: _handleRepost,
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(12),
-                          bottomRight: Radius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          child: _isLoadingRepost
-                              ? const Center(
-                                  child: SizedBox(
-                                    width: 16, height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0467B6)),
-                                  ),
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      _hasReposted ? Icons.repeat_one : Icons.repeat,
-                                      size: 16,
-                                      color: _hasReposted ? const Color(0xFF0467B6) : const Color(0xFF555E8A),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Repost ($_reposts)',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: _hasReposted ? FontWeight.w700 : FontWeight.w600,
-                                        color: _hasReposted ? const Color(0xFF0467B6) : const Color(0xFF555E8A),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            /// 2. INTERACTION ROW — shared Upvote | Comment | Repost bar
+            PostActionBar(
+              upvotes: _upvotes,
+              comments: _comments,
+              reposts: _reposts,
+              isUpvoted: _hasUpvoted,
+              isReposted: _hasReposted,
+              onUpvote: _handleToggleUpvote,
+              onComment: _handleOpenComments,
+              onRepost: _handleRepost,
+              height: 42,
             ),
 
             const SizedBox(height: 10),

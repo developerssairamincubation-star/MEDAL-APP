@@ -98,6 +98,69 @@ class LocationService {
     }
   }
 
+  /// Reads Google's JSON error body (Places API New) into a short description.
+  /// Never includes the request URL, so the API key can't leak into messages.
+  static String _describeNewApiError(http.Response response) {
+    try {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final err = (body['error'] as Map?)?.cast<String, dynamic>() ?? const {};
+      final status = err['status']?.toString() ?? 'HTTP ${response.statusCode}';
+      final message = err['message']?.toString() ?? '';
+      String reason = '';
+      final details = err['details'];
+      if (details is List) {
+        for (final d in details) {
+          if (d is Map && d['reason'] != null) {
+            reason = d['reason'].toString();
+            break;
+          }
+        }
+      }
+      return [status, if (reason.isNotEmpty) reason, message]
+          .where((e) => e.isNotEmpty)
+          .join(' | ');
+    } catch (_) {
+      return 'HTTP ${response.statusCode}';
+    }
+  }
+
+  /// Turns Google's error text into the exact Cloud Console fix.
+  static String explainPlacesFailure(String newApiError, String legacyError) {
+    final all = '$newApiError $legacyError'.toLowerCase();
+    if (all.contains('billing')) {
+      return 'Google Places is blocked because billing is not enabled on the '
+          'Google Cloud project. Enable billing for the project that owns the API key.';
+    }
+    if (all.contains('service_disabled') ||
+        all.contains('has not been used') ||
+        all.contains('is not enabled') ||
+        all.contains('api project is not authorized')) {
+      return 'The Places API is not enabled for this API key\'s project. In Google Cloud '
+          'Console enable "Places API (New)" (and "Geocoding API").';
+    }
+    if (all.contains('android_app_blocked') ||
+        all.contains('android client application') ||
+        all.contains('ip_address_blocked') ||
+        all.contains('referer') ||
+        all.contains('referrer') ||
+        all.contains('api_key_http_referrer_blocked')) {
+      return 'The API key\'s application restriction is rejecting this request. '
+          'Places web-service calls from the app need a key with no Android/HTTP-referrer '
+          'restriction (restrict it by API instead), or add the app\'s package name and SHA-1.';
+    }
+    if (all.contains('api_key_service_blocked') ||
+        all.contains('api_target_blocked') ||
+        all.contains('requests to this api') ) {
+      return 'The API key\'s "API restrictions" do not include Places API (New). '
+          'Add "Places API (New)" and "Geocoding API" to the key\'s allowed APIs.';
+    }
+    if (all.contains('api key not valid') || all.contains('invalid')) {
+      return 'The Google Maps API key is invalid. Check MAPS_API_KEY.';
+    }
+    return 'Google Places rejected the request. Verify the API key, enabled APIs, '
+        'billing and key restrictions in Google Cloud Console.';
+  }
+
   /// Search locations using Google Places API (supports both Places API New & Legacy)
   Future<List<PlaceSuggestion>> searchPlaces(String query) async {
     final cleanQuery = query.trim();
@@ -111,6 +174,7 @@ class LocationService {
     }
 
     // 1. Try Places API (New) autocomplete
+    String newApiError = '';
     try {
       final uri = Uri.parse('https://places.googleapis.com/v1/places:autocomplete');
       final response = await http
@@ -154,12 +218,10 @@ class LocationService {
           }
           if (results.isNotEmpty) return results;
         }
-      } else if (response.statusCode == 403 || response.statusCode == 400) {
-        final body = jsonDecode(response.body);
-        final errorMsg = body['error']?['message']?.toString() ?? '';
-        if (errorMsg.contains('disabled') || errorMsg.contains('API key')) {
-          // Fall through to try legacy endpoint before failing
-        }
+      } else {
+        // Keep Google's reason so the failure can be explained if legacy fails too.
+        newApiError = _describeNewApiError(response);
+        debugPrint('[MEDAL] Places API (New) autocomplete failed: $newApiError');
       }
     } on SocketException {
       throw LocationServiceException(
@@ -197,9 +259,10 @@ class LocationService {
           return [];
         } else if (status == 'REQUEST_DENIED' || status == 'OVER_QUERY_LIMIT') {
           final errMsg = data['error_message']?.toString() ?? status;
+          debugPrint('[MEDAL] Places API (legacy) $status: $errMsg');
           throw LocationServiceException(
-            'Google Places request was denied ($status). Please verify your Google Cloud API key permissions.',
-            errMsg,
+            explainPlacesFailure(newApiError, '$status $errMsg'),
+            'new: $newApiError | legacy: $status $errMsg',
           );
         }
       }

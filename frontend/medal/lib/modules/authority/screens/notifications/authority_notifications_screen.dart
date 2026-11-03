@@ -5,16 +5,25 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../academy/authority_academy_screen.dart';
 import '../complaints/authority_complaints_screen.dart';
+import '../../../../widgets/medal_logo.dart';
+import '../../state/authority_notification_state.dart';
 
 class AuthorityNotificationsScreen extends StatefulWidget {
   const AuthorityNotificationsScreen({super.key});
 
   @override
-  State<AuthorityNotificationsScreen> createState() => _AuthorityNotificationsScreenState();
+  State<AuthorityNotificationsScreen> createState() =>
+      _AuthorityNotificationsScreenState();
 }
 
-class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScreen> {
-  int _selectedBottomNav = 0;
+class _AuthorityNotificationsScreenState
+    extends State<AuthorityNotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Opening this page marks everything currently listed as seen (per user).
+    AuthorityNotificationState.instance.markAllSeen();
+  }
 
   void _markAllAsRead() {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -68,14 +77,19 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
 
                         // Item 1: Course 20% pending
                         _buildAcademyNotificationItem(
-                          text: "Course 20% pending , we would\nlove to see your progress",
+                          text:
+                              "Course 20% pending , we would\nlove to see your progress",
                           buttonText: "view",
                           onView: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const Scaffold(
-                                  body: SafeArea(child: AuthorityAcademyScreen(initialTab: 0)),
+                                  body: SafeArea(
+                                    child: AuthorityAcademyScreen(
+                                      initialTab: 0,
+                                    ),
+                                  ),
                                 ),
                               ),
                             );
@@ -88,13 +102,16 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
                         _buildStandardNotificationItem(
                           icon: Icons.grid_view_rounded,
                           title: "Redirected update",
-                          subtitle: "View the redirected update on the complaint.",
+                          subtitle:
+                              "View the redirected update on the complaint.",
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const Scaffold(
-                                  body: SafeArea(child: AuthorityComplaintsScreen()),
+                                  body: SafeArea(
+                                    child: AuthorityComplaintsScreen(),
+                                  ),
                                 ),
                               ),
                             );
@@ -117,14 +134,19 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
 
                         // Item 1: Course 1 successfully completed
                         _buildAcademyNotificationItem(
-                          text: "Course 1 successfully\ncompleted , view the certificate",
+                          text:
+                              "Course 1 successfully\ncompleted , view the certificate",
                           buttonText: "view",
                           onView: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const Scaffold(
-                                  body: SafeArea(child: AuthorityAcademyScreen(initialTab: 1)),
+                                  body: SafeArea(
+                                    child: AuthorityAcademyScreen(
+                                      initialTab: 1,
+                                    ),
+                                  ),
                                 ),
                               ),
                             );
@@ -142,7 +164,9 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text("Viewing tag details from John Doe."),
+                                content: Text(
+                                  "Viewing tag details from John Doe.",
+                                ),
                                 backgroundColor: Color(0xFF0467B6),
                               ),
                             );
@@ -205,13 +229,22 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("Authority Alerts", style: TextStyle(fontSize: 1)),
+                          const Text(
+                            "Authority Alerts",
+                            style: TextStyle(fontSize: 1),
+                          ),
                           GestureDetector(
                             onTap: _markAllAsRead,
-                            child: const Text("Mark All Read", style: TextStyle(fontSize: 1)),
+                            child: const Text(
+                              "Mark All Read",
+                              style: TextStyle(fontSize: 1),
+                            ),
                           ),
                           const Text("All", style: TextStyle(fontSize: 1)),
-                          const Text("Urgent / SLA", style: TextStyle(fontSize: 1)),
+                          const Text(
+                            "Urgent / SLA",
+                            style: TextStyle(fontSize: 1),
+                          ),
                         ],
                       ),
                     ),
@@ -219,9 +252,6 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
                 ],
               ),
             ),
-
-            // Bottom Navigation
-            _buildBottomNavigation(),
           ],
         ),
       ),
@@ -241,7 +271,22 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
       ),
       child: Row(
         children: [
-          const Icon(Icons.military_tech_rounded, color: Color(0xFF0467B6), size: 22),
+          InkWell(
+            key: const Key('notifications_back_button'),
+            // Pops the navigator history so the user returns to wherever they came from.
+            onTap: () => Navigator.of(context).maybePop(),
+            borderRadius: BorderRadius.circular(20),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: Color(0xFF111C2D),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          const MedalLogo(iconSize: 18),
           const SizedBox(width: 4),
           RichText(
             text: TextSpan(
@@ -366,7 +411,11 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.groups_outlined, size: 22, color: Color(0xFF0467B6)),
+              const Icon(
+                Icons.groups_outlined,
+                size: 22,
+                color: Color(0xFF0467B6),
+              ),
               const SizedBox(height: 2),
               Text(
                 "Academy",
@@ -438,11 +487,7 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
               color: Color(0xFFD6E8FA),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF0467B6),
-              size: 18,
-            ),
+            child: Icon(icon, color: const Color(0xFF0467B6), size: 18),
           ),
           const SizedBox(width: 12),
           // Middle Text
@@ -474,7 +519,10 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
             GestureDetector(
               onTap: onTap,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFD6E8FA),
                   borderRadius: BorderRadius.circular(6),
@@ -490,86 +538,6 @@ class _AuthorityNotificationsScreenState extends State<AuthorityNotificationsScr
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  /// Bottom Navigation Bar
-  Widget _buildBottomNavigation() {
-    return Container(
-      height: 56,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildNavItem(
-              index: 0,
-              icon: Icons.grid_view_rounded,
-              label: "Dashboard",
-            ),
-          ),
-          Expanded(
-            child: _buildNavItem(
-              index: 1,
-              icon: Icons.article_outlined,
-              label: "My Complaint",
-            ),
-          ),
-          Expanded(
-            child: _buildNavItem(
-              index: 2,
-              icon: Icons.groups_outlined,
-              label: "Academy",
-            ),
-          ),
-          Expanded(
-            child: _buildNavItem(
-              index: 3,
-              icon: Icons.person_rounded,
-              label: "Profile",
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required int index,
-    required IconData icon,
-    required String label,
-  }) {
-    final isSelected = _selectedBottomNav == index;
-
-    return InkWell(
-      onTap: () {
-        setState(() => _selectedBottomNav = index);
-        Navigator.pop(context);
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? const Color(0xFF0467B6) : const Color(0xFF94A3B8),
-            size: 19,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? const Color(0xFF0467B6) : const Color(0xFF94A3B8),
-            ),
-          ),
         ],
       ),
     );

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:medal/modules/citizen/screens/academy_certificate.dart';
+import 'package:medal/core/services/course_progress_store.dart';
+import 'package:medal/modules/authority/models/authority_models.dart';
+import 'package:medal/modules/authority/screens/academy/authority_seek_course_screen.dart';
 import 'package:medal/widgets/medal_app_bar.dart';
 
 class AcademyScreen extends StatefulWidget {
@@ -15,7 +17,6 @@ class _AcademyScreenState extends State<AcademyScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   static const Color primaryIndigo = Color(0xFF0467B6);
-  static const Color accentPurple = Color(0xFF9333EA);
 
   final List<String> _courseTopics = [
     "All Topics",
@@ -25,12 +26,11 @@ class _AcademyScreenState extends State<AcademyScreen> {
     "SDGs",
   ];
 
-  final List<String> _certTopics = [
-    "All Topics",
-    "Goal oriented",
-    "Top badges",
-    "Technical",
-  ];
+  @override
+  void initState() {
+    super.initState();
+    CourseProgressStore.instance.ensureLoaded();
+  }
 
   @override
   void dispose() {
@@ -40,6 +40,13 @@ class _AcademyScreenState extends State<AcademyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: CourseProgressStore.instance,
+      builder: (context, _) => _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: const MedalAppBar(),
@@ -54,9 +61,27 @@ class _AcademyScreenState extends State<AcademyScreen> {
               height: 0,
               child: Column(
                 children: [
-                  Text("Academy", style: TextStyle(fontSize: 0.001, color: Colors.transparent)),
-                  Text("Categories", style: TextStyle(fontSize: 0.001, color: Colors.transparent)),
-                  Text("Search courses, SDGs or skills...", style: TextStyle(fontSize: 0.001, color: Colors.transparent)),
+                  Text(
+                    "Academy",
+                    style: TextStyle(
+                      fontSize: 0.001,
+                      color: Colors.transparent,
+                    ),
+                  ),
+                  Text(
+                    "Categories",
+                    style: TextStyle(
+                      fontSize: 0.001,
+                      color: Colors.transparent,
+                    ),
+                  ),
+                  Text(
+                    "Search courses, SDGs or skills...",
+                    style: TextStyle(
+                      fontSize: 0.001,
+                      color: Colors.transparent,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -136,41 +161,55 @@ class _AcademyScreenState extends State<AcademyScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Topic Chips
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: (_selectedTab == 0 ? _courseTopics : _certTopics).map((topic) {
-                  final isSelected = _selectedTopic == topic;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () => setState(() => _selectedTopic = topic),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected ? primaryIndigo : const Color(0xFFEEF2F6),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          topic,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : const Color(0xFF475569),
-                            fontSize: 12.5,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+            // Topic Chips (My Courses only; My Certificates has no filters)
+            if (_selectedTab == 0) ...[
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _courseTopics.map((topic) {
+                    final isSelected = _selectedTopic == topic;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => setState(() => _selectedTopic = topic),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? primaryIndigo
+                                : const Color(0xFFEEF2F6),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            topic,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF475569),
+                              fontSize: 12.5,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
-            const SizedBox(height: 18),
+              const SizedBox(height: 18),
+            ],
 
             // Tab-specific views:
-            if (_selectedTab == 0) _buildMyCoursesContent(context) else _buildMyCertificatesContent(context),
+            if (_selectedTab == 0)
+              _buildMyCoursesContent(context)
+            else
+              _buildMyCertificatesContent(context),
 
             const SizedBox(height: 24),
           ],
@@ -233,16 +272,17 @@ class _AcademyScreenState extends State<AcademyScreen> {
             children: [
               // In Progress Header Badge
               Row(
-                children: const [
-                  Icon(
-                    Icons.bolt,
-                    color: Color(0xFFEF4444),
-                    size: 16,
-                  ),
-                  SizedBox(width: 4),
+                children: [
+                  const Icon(Icons.bolt, color: Color(0xFFEF4444), size: 16),
+                  const SizedBox(width: 4),
                   Text(
-                    "IN PROGRESS",
-                    style: TextStyle(
+                    SeekCourseContent.completedLessons ==
+                            SeekCourseContent.totalLessons
+                        ? "COMPLETED"
+                        : (SeekCourseContent.completedLessons == 0
+                              ? "NOT STARTED"
+                              : "IN PROGRESS"),
+                    style: const TextStyle(
                       color: Color(0xFFEF4444),
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
@@ -268,16 +308,13 @@ class _AcademyScreenState extends State<AcademyScreen> {
               // Completion Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     "Course Completion",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                    ),
+                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                   Text(
-                    "68%",
+                    "${(SeekCourseContent.progress * 100).round()}%",
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
@@ -291,8 +328,8 @@ class _AcademyScreenState extends State<AcademyScreen> {
               // Progress Bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: const LinearProgressIndicator(
-                  value: 0.68,
+                child: LinearProgressIndicator(
+                  value: SeekCourseContent.progress,
                   backgroundColor: Color(0xFFEEF2FF),
                   valueColor: AlwaysStoppedAnimation<Color>(primaryIndigo),
                   minHeight: 6,
@@ -316,12 +353,14 @@ class _AcademyScreenState extends State<AcademyScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AcademyCertificates(),
+                        builder: (_) => const AuthoritySeekCourseScreen(),
                       ),
                     );
                   },
-                  child: const Text(
-                    "Continue Learning",
+                  child: Text(
+                    SeekCourseContent.completedLessons == 0
+                        ? "Start Course"
+                        : "Continue Learning",
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -332,69 +371,6 @@ class _AcademyScreenState extends State<AcademyScreen> {
               ),
             ],
           ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Course Catalog Cards matching Image 4
-        _buildCatalogCard(
-          imageUrl:
-              "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=600",
-          tag: "SDG 15",
-          title: "Lorem ipsum dolor",
-          hours: "4h",
-          rating: "4.9",
-          buttonText: "Start Course",
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AcademyCertificates()),
-            );
-          },
-        ),
-
-        const SizedBox(height: 16),
-
-        _buildCatalogCard(
-          imageUrl:
-              "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=600",
-          tag: "EMPATHY",
-          title: "Lorem ipsum dolor",
-          hours: "6h",
-          rating: "4.7",
-          buttonText: "Enroll",
-          onPressed: () {},
-        ),
-
-        const SizedBox(height: 16),
-
-        _buildCatalogCard(
-          imageUrl:
-              "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=600",
-          tag: "LEADERSHIP",
-          title: "Lorem ipsum dolor",
-          hours: "3h",
-          rating: "4.8",
-          buttonText: "Enroll",
-          onPressed: () {},
-        ),
-
-        const SizedBox(height: 16),
-
-        _buildCatalogCard(
-          imageUrl:
-              "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=600",
-          tag: "MINDFULNESS",
-          title: "Lorem ipsum dolor",
-          hours: "5h",
-          rating: "4.6",
-          buttonText: "Start Course",
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AcademyCertificates()),
-            );
-          },
         ),
       ],
     );
@@ -411,10 +387,7 @@ class _AcademyScreenState extends State<AcademyScreen> {
             Expanded(
               child: _buildGradientStatCard(
                 topText: "21 Days",
-                iconWidget: const Text(
-                  "🔥",
-                  style: TextStyle(fontSize: 28),
-                ),
+                iconWidget: const Text("🔥", style: TextStyle(fontSize: 28)),
                 bottomText: "Daily streaks",
               ),
             ),
@@ -422,11 +395,9 @@ class _AcademyScreenState extends State<AcademyScreen> {
             Expanded(
               child: _buildGradientStatCard(
                 topText: "Learning spree",
-                iconWidget: const Text(
-                  "🏅",
-                  style: TextStyle(fontSize: 28),
-                ),
-                bottomText: "5 Courses\ncompleted",
+                iconWidget: const Text("🏅", style: TextStyle(fontSize: 28)),
+                bottomText:
+                    "${MockAuthorityRepository.certificates.length} Courses\ncompleted",
               ),
             ),
             const SizedBox(width: 10),
@@ -439,11 +410,7 @@ class _AcademyScreenState extends State<AcademyScreen> {
                     color: Color(0xFF10B981),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.check,
-                    color: Colors.white,
-                    size: 22,
-                  ),
+                  child: const Icon(Icons.check, color: Colors.white, size: 22),
                 ),
                 bottomText: "Active user",
               ),
@@ -490,29 +457,58 @@ class _AcademyScreenState extends State<AcademyScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Certificate Card 1
-        _buildCertificateCard(
-          stripeColor: primaryIndigo,
-          completedDate: "COMPLETED MAY 2024",
-          title: "Lorem ipsum dolor",
-          certificateNo: "MED-8829-XR4",
-          badgeColor: const Color(0xFFEEF2FF),
-          badgeIcon: Icons.verified,
-          iconColor: primaryIndigo,
-        ),
-
-        const SizedBox(height: 14),
-
-        // Certificate Card 2
-        _buildCertificateCard(
-          stripeColor: accentPurple,
-          completedDate: "COMPLETED FEB 2024",
-          title: "Lorem ipsum dolor",
-          certificateNo: "MED-1102-G12",
-          badgeColor: const Color(0xFFFAF5FF),
-          badgeIcon: Icons.stars_rounded,
-          iconColor: accentPurple,
-        ),
+        if (MockAuthorityRepository.certificates.isEmpty)
+          Container(
+            key: const Key('no_certificates_state'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 26),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: const Column(
+              children: [
+                Icon(
+                  Icons.workspace_premium_outlined,
+                  size: 40,
+                  color: Color(0xFF94A3B8),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "No certificates yet",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E1B4B),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  "Complete a course to earn your certificate. It will appear here as soon as every lesson is done.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          for (final cert in MockAuthorityRepository.certificates) ...[
+            _buildCertificateCard(
+              stripeColor: primaryIndigo,
+              completedDate: cert.completionDateText,
+              title: cert.title,
+              certificateNo: cert.certificateNo,
+              badgeColor: const Color(0xFFEEF2FF),
+              badgeIcon: Icons.verified,
+              iconColor: primaryIndigo,
+            ),
+            const SizedBox(height: 14),
+          ],
       ],
     );
   }
@@ -529,10 +525,7 @@ class _AcademyScreenState extends State<AcademyScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1A82D2),
-            Color(0xFF0467B6),
-          ],
+          colors: [Color(0xFF1A82D2), Color(0xFF0467B6)],
         ),
         borderRadius: BorderRadius.circular(14),
         boxShadow: const [
@@ -571,136 +564,6 @@ class _AcademyScreenState extends State<AcademyScreen> {
     );
   }
 
-  Widget _buildCatalogCard({
-    required String imageUrl,
-    required String tag,
-    required String title,
-    required String hours,
-    required String rating,
-    required String buttonText,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x04000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Banner Image with Pill Tag
-          Stack(
-            children: [
-              Image.network(
-                imageUrl,
-                height: 140,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 140,
-                    width: double.infinity,
-                    color: const Color(0xFFE2E8F0),
-                    child: const Center(
-                      child: Icon(Icons.image, size: 40, color: Colors.grey),
-                    ),
-                  );
-                },
-              ),
-              Positioned(
-                left: 12,
-                bottom: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    tag,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Details & Action
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E1B4B),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time, size: 14, color: Color(0xFF64748B)),
-                    const SizedBox(width: 4),
-                    Text(
-                      hours,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                    const SizedBox(width: 14),
-                    const Icon(Icons.star, size: 14, color: Color(0xFFF59E0B)),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 38,
-                  child: OutlinedButton(
-                    onPressed: onPressed,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: primaryIndigo, width: 1.2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      buttonText,
-                      style: const TextStyle(
-                        color: primaryIndigo,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCertificateCard({
     required Color stripeColor,
     required String completedDate,
@@ -730,13 +593,15 @@ class _AcademyScreenState extends State<AcademyScreen> {
             left: 0,
             top: 0,
             bottom: 0,
-            child: Container(
-              width: 5,
-              color: stripeColor,
-            ),
+            child: Container(width: 5, color: stripeColor),
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 18, right: 16, top: 14, bottom: 14),
+            padding: const EdgeInsets.only(
+              left: 18,
+              right: 16,
+              top: 14,
+              bottom: 14,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -759,11 +624,7 @@ class _AcademyScreenState extends State<AcademyScreen> {
                         color: badgeColor,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(
-                        badgeIcon,
-                        color: iconColor,
-                        size: 18,
-                      ),
+                      child: Icon(badgeIcon, color: iconColor, size: 18),
                     ),
                   ],
                 ),

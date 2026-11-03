@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medal/core/services/api_service.dart';
+import '../../../widgets/medal_logo.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -119,11 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           child: Column(
             children: [
-              const Icon(
-                Icons.military_tech_rounded,
-                color: Color(0xFF0467B6),
-                size: 45,
-              ),
+              const MedalLogo(iconSize: 34),
               const SizedBox(height: 10),
               const Text(
                 "MEdAL",

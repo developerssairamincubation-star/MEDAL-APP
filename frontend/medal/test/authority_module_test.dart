@@ -1,6 +1,8 @@
 // test/authority_module_test.dart
 // Comprehensive widget and flow tests for the MEDAL Authority Module.
 
+import 'package:medal/core/services/course_progress_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medal/modules/authority/models/authority_models.dart';
@@ -387,8 +389,11 @@ void main() {
     expect(find.byType(AuthorityComplaintDetailScreen), findsNothing);
   });
 
-  testWidgets('AuthorityAcademyScreen shows certificates and opens preview dialog',
+  testWidgets(
+      'AuthorityAcademyScreen shows no certificate until the course is completed, then opens preview dialog',
       (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    CourseProgressStore.instance.reset();
     await tester.pumpWidget(
       const MaterialApp(
         home: AuthorityAcademyScreen(),
@@ -396,11 +401,27 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap My Certificates tab
+    // Tap My Certificates tab: nothing completed yet -> empty state, no fake cards
     await tester.tap(find.text('My Certificates'));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('no_certificates_state')), findsOneWidget);
+    expect(find.text('View Credential'), findsNothing);
 
-    expect(find.text('View Credential'), findsWidgets);
+    // Completing every lesson issues the certificate
+    await tester.runAsync(() async {
+      for (final key in SeekCourseContent.allLessonKeys) {
+        await CourseProgressStore.instance.setLessonDone(
+          key,
+          true,
+          courseId: SeekCourseContent.courseId,
+          allLessonKeys: SeekCourseContent.allLessonKeys,
+        );
+      }
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('no_certificates_state')), findsNothing);
+    expect(find.text('View Credential'), findsOneWidget);
 
     // Tap View Credential
     await tester.ensureVisible(find.text('View Credential').first);
@@ -409,6 +430,7 @@ void main() {
 
     expect(find.text('Certificate of Completion'), findsOneWidget);
     expect(find.text('Download PDF Certificate'), findsOneWidget);
+    CourseProgressStore.instance.reset();
   });
 
   testWidgets(

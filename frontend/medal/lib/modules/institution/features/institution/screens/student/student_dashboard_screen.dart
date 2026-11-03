@@ -8,6 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:medal/core/services/api_service.dart';
 import 'package:medal/modules/institution/routes/app_routes.dart';
+import 'package:medal/widgets/medal_dialog.dart';
+import '../../state/student_session_state.dart';
 import '../../widgets/student_shell_scaffold.dart';
 import '../../widgets/unesco_logo.dart';
 
@@ -25,27 +27,32 @@ class StudentDashboardScreen extends StatefulWidget {
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   bool _isLoading = true;
-  String _welcomeName = 'Dilli Ganesh';
-  int _streakDays = 21;
-  int _overallCompletionPct = 32;
+  String _welcomeName = '';
+  int _streakDays = 0;
+  int _overallCompletionPct = 0;
+  int _chaptersDone = 0;
+  int _chaptersTotal = 0;
 
-  int _certificationsReady = 2;
-  int _enrolledCourses = 3;
-  int _creditsEarned = 115;
-  int _enrollmentPending = 2;
+  int _certificationsReady = 0;
+  int _enrolledCourses = 0;
+  int _enrollmentPending = 0;
 
   List<Map<String, dynamic>> _recentActivity = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchDashboardData();
+    _fetchDashboardData().then((_) => _maybeShowImpactCard());
+  }
 
-    if (widget.showInitialPopup) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showAcademyPromotionModal();
-      });
-    }
+  /// Shows the impact-progress card once per login session (students only).
+  void _maybeShowImpactCard() {
+    if (!mounted || !widget.showInitialPopup) return;
+    if (StudentSessionState.impactCardShown) return;
+    StudentSessionState.impactCardShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showImpactCard();
+    });
   }
 
   Future<void> _fetchDashboardData() async {
@@ -66,15 +73,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         final data = jsonDecode(resp.body);
         if (mounted) {
           setState(() {
-            _welcomeName = data['welcome_name'] ?? 'Dilli Ganesh';
-            _streakDays = data['streak_days'] ?? 21;
-            _overallCompletionPct = data['overall_completion_pct'] ?? 32;
+            _welcomeName = data['welcome_name'] ?? '';
+            _streakDays = data['streak_days'] ?? 0;
+            _overallCompletionPct = data['overall_completion_pct'] ?? 0;
+            _chaptersDone = (data['chapters']?['completed'] ?? 0) as int;
+            _chaptersTotal = (data['chapters']?['total'] ?? 0) as int;
 
             final stats = data['stats'] ?? {};
-            _certificationsReady = stats['certifications_ready'] ?? 2;
-            _enrolledCourses = stats['enrolled_courses'] ?? 3;
-            _creditsEarned = stats['credits_earned'] ?? 115;
-            _enrollmentPending = stats['enrollment_pending'] ?? 2;
+            _certificationsReady = stats['certifications_ready'] ?? 0;
+            _enrolledCourses = stats['enrolled_courses'] ?? 0;
+            _enrollmentPending = stats['enrollment_pending'] ?? 0;
 
             _recentActivity = List<Map<String, dynamic>>.from(data['recent_activity'] ?? []);
             _isLoading = false;
@@ -88,106 +96,110 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     }
   }
 
-  void _showAcademyPromotionModal() {
+  String get _impactLevel {
+    if (_overallCompletionPct >= 100) return 'SEEK Graduate';
+    if (_overallCompletionPct >= 75) return 'Champion';
+    if (_overallCompletionPct >= 50) return 'Achiever';
+    if (_overallCompletionPct >= 25) return 'Explorer';
+    return 'Starter';
+  }
+
+  /// Single card showing the student's impact level; tapping it opens Course Progress.
+  void _showImpactCard() {
     showDialog(
       context: context,
-      barrierDismissible: true,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        clipBehavior: Clip.antiAlias,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Blue Header with Graduation Cap
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                color: const Color(0xFF0467B6),
-                child: const Center(
-                  child: Icon(
-                    Icons.school_rounded,
-                    color: Colors.white,
-                    size: 54,
+      builder: (ctx) {
+        void openProgress() {
+          Navigator.pop(ctx);
+          context.go(AppRoutes.studentCourseProgress);
+        }
+
+        return MedalAlertDialog(
+          icon: Icons.school_rounded,
+          title: const Text('Level Up Your Impact'),
+          content: InkWell(
+            key: const Key('impact_progress_card'),
+            onTap: openProgress,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F7FC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFD6E6F5)),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Level: $_impactLevel',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0467B6),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: _overallCompletionPct / 100,
+                      minHeight: 8,
+                      backgroundColor: const Color(0xFFD6DFE8),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0467B6)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _chaptersTotal > 0
+                        ? '$_chaptersDone of $_chaptersTotal chapters completed'
+                        : '$_overallCompletionPct% completed',
+                    style: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF475569)),
+                  ),
+                ],
               ),
-
-              // Content Body
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-                child: Column(
-                  children: [
-                    Text(
-                      'Level Up Your Impact',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Join our new Academy modules to learn how to create more effective reports and drive real community change.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 13.5,
-                        color: const Color(0xFF475569),
-                        height: 1.45,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // "Explore Academy" Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 46,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          context.go(AppRoutes.studentAcademy);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0467B6),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Explore Academy',
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // "No thanks" Button
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: Text(
-                        'No thanks',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Not now',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: openProgress,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0467B6),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(
+                'View Progress',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _formatDate(dynamic iso) {
+    final d = DateTime.tryParse(iso?.toString() ?? '');
+    if (d == null) return '';
+    final local = d.isUtc ? d.toLocal() : d;
+    return '${local.day.toString().padLeft(2, '0')} ${_months[local.month - 1]} ${local.year}';
   }
 
   @override
@@ -330,7 +342,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       badge: 'COMPLETED',
                       accentColor: const Color(0xFF0D9488), // Teal
                       badgeBgColor: const Color(0xFFE6FFFA),
-                      onTap: () => context.go(AppRoutes.studentAcademy),
+                      onTap: () => context.go('${AppRoutes.studentAcademy}?tab=certificates'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -351,9 +363,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 children: [
                   Expanded(
                     child: _buildStatCard(
-                      number: _creditsEarned.toString(),
-                      label: 'Credits Earned',
-                      badge: 'POINTS',
+                      number: _chaptersDone.toString(),
+                      label: 'Chapters Completed',
+                      badge: 'PROGRESS',
                       accentColor: const Color(0xFF0467B6), // Blue
                       badgeBgColor: const Color(0xFFE6F2FA),
                       onTap: () => context.go(AppRoutes.studentCourseProgress),
@@ -403,49 +415,52 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     ),
                   ),
                   const Spacer(),
-                  GestureDetector(
-                    onTap: () => context.push(AppRoutes.studentPendingCourses),
-                    child: Text(
-                      'View All',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0467B6),
+                  if (_recentActivity.isNotEmpty)
+                    GestureDetector(
+                      onTap: () {
+                        final rawId = _recentActivity.first['course_id'] ?? 1;
+                        final id = rawId is int ? rawId : int.tryParse(rawId.toString()) ?? 1;
+                        context.push('/student/course-detail/$id');
+                      },
+                      child: Text(
+                        'View All',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0467B6),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
               const SizedBox(height: 14),
 
-              // Recent Activity Cards (Screenshot 4)
+              // Recent activity: chapters the student has completed
               if (_recentActivity.isEmpty)
-                ...[
-                  _buildActivityCard(
-                    courseId: 1,
-                    title: 'SEEK COURSE 1',
-                    startDate: '06 Oct 2026',
-                    endDate: '26 Oct 2026',
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E4EC)),
                   ),
-                  const SizedBox(height: 12),
-                  _buildActivityCard(
-                    courseId: 2,
-                    title: 'SEEK COURSE 2',
-                    startDate: '09 Oct 2026',
-                    endDate: '30 Oct 2026',
+                  child: Text(
+                    'No chapters completed yet. Finish a chapter in your SEEK course and it will show up here.',
+                    style: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF64748B)),
                   ),
-                ]
+                )
               else
                 ..._recentActivity.map((act) {
-                  final rawId = act['course_id'] ?? act['id'] ?? 1;
+                  final rawId = act['course_id'] ?? 1;
                   final courseId = rawId is int ? rawId : int.tryParse(rawId.toString()) ?? 1;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _buildActivityCard(
                       courseId: courseId,
-                      title: act['title'] ?? 'SEEK COURSE',
-                      startDate: act['start_date'] ?? '06 Oct 2026',
-                      endDate: act['end_date'] ?? '26 Oct 2026',
+                      title: (act['title'] ?? 'Chapter').toString(),
+                      module: (act['module_title'] ?? '').toString(),
+                      completedOn: _formatDate(act['completed_at']),
                     ),
                   );
                 }),
@@ -555,8 +570,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   Widget _buildActivityCard({
     required int courseId,
     required String title,
-    required String startDate,
-    required String endDate,
+    required String module,
+    required String completedOn,
   }) {
     return Material(
       color: Colors.transparent,
@@ -613,6 +628,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               Expanded(
                                 child: Text(
                                   title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.inter(
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.w800,
@@ -650,7 +667,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Start Date :   $startDate',
+                            module,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
                               fontSize: 11.5,
                               color: const Color(0xFF475569),
@@ -659,7 +678,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'End Date :    $endDate',
+                            'Completed :   $completedOn',
                             style: GoogleFonts.inter(
                               fontSize: 11.5,
                               color: const Color(0xFF475569),
