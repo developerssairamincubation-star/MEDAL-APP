@@ -1,0 +1,2 @@
+file '/Users/macmini_stic_admin_01/Documents/Incubation_projects/MEDAL-APP/demo-recordings/_raw/authority_seg01.mp4'
+file '/Users/macmini_stic_admin_01/Documents/Incubation_projects/MEDAL-APP/demo-recordings/_raw/authority_seg02.mp4'
