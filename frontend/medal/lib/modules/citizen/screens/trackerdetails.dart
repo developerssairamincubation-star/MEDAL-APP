@@ -152,8 +152,8 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         ? DateTime.tryParse(_data!['created_at'])?.toLocal().toString().split('.')[0] ?? _data!['created_at']
         : 'N/A';
     final statusColor = _getStatusColor(status);
-    final userRole = ApiService().userRole;
-    final isOfficialOrAdmin = userRole == 'official' || userRole == 'admin';
+    // Server decides: only an authority tagged on this complaint may change its status.
+    final canUpdateStatus = _data?['can_update_status'] == true;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5FA),
@@ -451,7 +451,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
             const SizedBox(height: 16),
 
             /// Official/Admin Status Management Actions
-            if (isOfficialOrAdmin) ...[
+            if (canUpdateStatus) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),

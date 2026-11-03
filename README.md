@@ -139,9 +139,9 @@ Create `backend/.env` based on `backend/.env.example`:
 DATABASE_URL=postgresql+psycopg://postgres:password@localhost:5432/medal_db
 
 # Security & JWT Auth
-SECRET_KEY=your_super_secret_jwt_key_here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
+# Required, at least 32 bytes. Generate: python -c "import secrets; print(secrets.token_urlsafe(48))"
+JWT_SECRET=
+ACCESS_TOKEN_EXPIRE_MINUTES=15
 
 # Pluggable Storage (cloudinary or local)
 STORAGE_TYPE=cloudinary

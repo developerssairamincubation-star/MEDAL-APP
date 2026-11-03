@@ -96,8 +96,20 @@ def _member(user: User, progress: dict, total: int) -> dict:
     }
 
 
-def _members(db: Session, role: str) -> List[dict]:
-    users = db.query(User).filter(User.role == role, User.is_active.is_(True)).order_by(User.full_name.asc()).all()
+def _school_id(user: User) -> int:
+    """The caller's school. Every institution query is filtered by it; no school -> no data."""
+    if user.school_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is not assigned to a school")
+    return user.school_id
+
+
+def _members(db: Session, role: str, school_id: int) -> List[dict]:
+    users = (
+        db.query(User)
+        .filter(User.role == role, User.school_id == school_id, User.is_active.is_(True))
+        .order_by(User.full_name.asc())
+        .all()
+    )
     total = _total_chapters(db)
     progress = _progress_by_user(db, [u.id for u in users])
     return [_member(u, progress.get(u.id, {}), total) for u in users]
@@ -110,16 +122,17 @@ def institution_dashboard(
     current_user: User = Depends(require_role("principal", "staff")),
     db: Session = Depends(get_db),
 ):
+    school_id = _school_id(current_user)
     total = _total_chapters(db)
-    staff = _members(db, "staff")
-    students = _members(db, "student")
+    staff = _members(db, "staff", school_id)
+    students = _members(db, "student", school_id)
 
     now = datetime.now(timezone.utc)
     active = sum(1 for s in students if s["last_active"] and now - datetime.fromisoformat(s["last_active"]) <= ACTIVE_WINDOW)
     certified = sum(1 for m in staff + students if m["status"] == "completed")
     pending = (
         db.query(func.count(User.id))
-        .filter(User.role == "student", User.approval_status == "pending")
+        .filter(User.role == "student", User.school_id == school_id, User.approval_status == "pending")
         .scalar()
         or 0
     )
@@ -128,7 +141,7 @@ def institution_dashboard(
         db.query(StudentChapterCompletion, StudentCourseChapter, User)
         .join(StudentCourseChapter, StudentCourseChapter.id == StudentChapterCompletion.chapter_id)
         .join(User, User.id == StudentChapterCompletion.user_id)
-        .filter(User.role.in_(["staff", "student"]))
+        .filter(User.role.in_(["staff", "student"]), User.school_id == school_id)
         .order_by(StudentChapterCompletion.completed_at.desc(), StudentChapterCompletion.id.desc())
         .limit(10)
         .all()
@@ -163,7 +176,7 @@ def list_staff(
     current_user: User = Depends(require_role("principal")),
     db: Session = Depends(get_db),
 ):
-    return _members(db, "staff")
+    return _members(db, "staff", _school_id(current_user))
 
 
 @router.post("/staff", status_code=status.HTTP_201_CREATED)
@@ -172,6 +185,7 @@ def add_staff(
     current_user: User = Depends(require_role("principal")),
     db: Session = Depends(get_db),
 ):
+    school_id = _school_id(current_user)
     email = req.email.lower().strip()
     if not req.name.strip():
         raise HTTPException(status_code=400, detail="Name is required")
@@ -186,6 +200,7 @@ def add_staff(
         full_name=req.name.strip(),
         phone=(req.phone or "").strip() or None,
         role="staff",
+        school_id=school_id,
         department=(req.department or "").strip() or None,
         designation=(req.designation or "").strip() or None,
         approval_status="approved",
@@ -208,7 +223,7 @@ def list_students(
     current_user: User = Depends(require_role("principal", "staff")),
     db: Session = Depends(get_db),
 ):
-    return _members(db, "student")
+    return _members(db, "student", _school_id(current_user))
 
 
 # ── per-member progress ─────────────────────────────────────────────────
@@ -219,7 +234,12 @@ def member_progress(
     current_user: User = Depends(require_role("principal", "staff")),
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(User.id == user_id, User.role.in_(["staff", "student"])).first()
+    school_id = _school_id(current_user)
+    user = (
+        db.query(User)
+        .filter(User.id == user_id, User.role.in_(["staff", "student"]), User.school_id == school_id)
+        .first()
+    )
     if not user:
         raise HTTPException(status_code=404, detail="Member not found")
     # Staff may look at students; only the principal sees other staff.

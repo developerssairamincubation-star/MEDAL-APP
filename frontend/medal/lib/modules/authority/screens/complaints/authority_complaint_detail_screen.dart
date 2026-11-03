@@ -1162,20 +1162,24 @@ class _AuthorityComplaintDetailScreenState
 
                           const SizedBox(height: 8),
 
-                          // 5. Section 4A: Authority Actions - Update status
-                          _buildAuthorityStatusOptionsCard(),
+                          // Status controls: only for an authority tagged on this complaint
+                          // (the server enforces the same rule and answers 403 otherwise).
+                          if (_complaint.canUpdateStatus) ...[
+                            // 5. Section 4A: Authority Actions - Update status
+                            _buildAuthorityStatusOptionsCard(),
 
-                          const SizedBox(height: 8),
+                            const SizedBox(height: 8),
 
-                          // 6. Section 4B: Authority Actions - Choose action
-                          _buildAuthorityActionOptionsCard(),
+                            // 6. Section 4B: Authority Actions - Choose action
+                            _buildAuthorityActionOptionsCard(),
 
-                          const SizedBox(height: 8),
+                            const SizedBox(height: 8),
 
-                          // 7. Additional information input
-                          _buildAdditionalInfoInput(),
+                            // 7. Additional information input
+                            _buildAdditionalInfoInput(),
 
-                          const SizedBox(height: 8),
+                            const SizedBox(height: 8),
+                          ],
 
                           // 8. Section 5: SDG Alignment Card
                           _buildSdgAlignmentCard(),
@@ -1188,7 +1192,7 @@ class _AuthorityComplaintDetailScreenState
                           const SizedBox(height: 12),
 
                           // 10. Submit Update Button
-                          _buildSubmitButton(),
+                          if (_complaint.canUpdateStatus) _buildSubmitButton(),
 
                           const SizedBox(height: 4),
                         ],

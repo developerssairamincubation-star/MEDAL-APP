@@ -21,6 +21,7 @@ class StudentRegisterScreen extends StatefulWidget {
 class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  final _schoolCodeController = TextEditingController();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _studentIdController = TextEditingController();
@@ -45,6 +46,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
   @override
   void dispose() {
+    _schoolCodeController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _studentIdController.dispose();
@@ -87,6 +89,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
+          'school_code': _schoolCodeController.text.trim(),
           'name': _nameController.text.trim(),
           'email': _emailController.text.trim().toLowerCase(),
           'department': _selectedDepartment!,
@@ -301,6 +304,18 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                         }).toList(),
                         onChanged: (val) => setState(() => _selectedDepartment = val),
                         validator: (v) => v == null ? 'Please choose your department' : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // School code (given by the school)
+                      _buildFieldLabel('School code'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _schoolCodeController,
+                        textInputAction: TextInputAction.next,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: _buildInputDecoration(hintText: 'Ask your school for its code'),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter your school code' : null,
                       ),
                       const SizedBox(height: 16),
 

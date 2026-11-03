@@ -68,6 +68,8 @@ class AuthorityComplaint {
   final String reportedBy;
   final String reportedByRole; // 'Citizen' or 'Authority'
   final String? citizenProfileImageUrl;
+  /// Server-side permission: true only when this authority is tagged on the complaint.
+  final bool canUpdateStatus;
   String? officerNotes;
   String? rejectionReason;
   String? redirectedDepartment;
@@ -93,6 +95,7 @@ class AuthorityComplaint {
     required this.reportedBy,
     this.reportedByRole = 'Citizen',
     this.citizenProfileImageUrl,
+    this.canUpdateStatus = true,
     this.officerNotes,
     this.rejectionReason,
     this.redirectedDepartment,
@@ -223,6 +226,7 @@ class AuthorityComplaint {
       reportedBy: (map['citizen_name'] ?? 'Citizen').toString(),
       reportedByRole: roleLabelFor(map['citizen_role']?.toString()),
       citizenProfileImageUrl: map['profile_image_url']?.toString(),
+      canUpdateStatus: map['can_update_status'] == true,
       officerNotes: map['officer_notes']?.toString(),
       rejectionReason: map['rejection_reason']?.toString(),
     );

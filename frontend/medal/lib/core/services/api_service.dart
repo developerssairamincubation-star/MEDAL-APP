@@ -177,7 +177,20 @@ class ApiService {
     await _persistSession();
   }
 
-  Future<void> logout() async {
+  /// Ends the session: tells the server to revoke the token (best effort), then clears local state.
+  /// Pass [revokeOnServer] = false when the token is already known to be dead (401 / expired).
+  Future<void> logout({bool revokeOnServer = true}) async {
+    final token = _token;
+    if (revokeOnServer && token != null && token.isNotEmpty) {
+      try {
+        await http.post(
+          Uri.parse('$baseUrl/logout'),
+          headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        ).timeout(const Duration(seconds: 4));
+      } catch (e) {
+        debugPrint('Server-side logout failed (token will expire on its own): $e');
+      }
+    }
     _token = null;
     _currentUser = null;
     _cachedRole = null;
@@ -270,7 +283,8 @@ class ApiService {
 
       // Check if JWT token has expired according to its claim
       if (isTokenExpired(savedToken)) {
-        await logout();
+        _token = savedToken;
+        await logout(revokeOnServer: false);
         return const SessionRestoreResult(isValid: false);
       }
 
@@ -306,7 +320,7 @@ class ApiService {
       } on ApiException catch (e) {
         if (e.statusCode == 401) {
           // Token rejected by server as unauthorized
-          await logout();
+          await logout(revokeOnServer: false);
           return const SessionRestoreResult(isValid: false);
         }
         return SessionRestoreResult(
@@ -355,7 +369,7 @@ class ApiService {
 
     // Auto-clear invalid session on 401 Unauthorized
     if (response.statusCode == 401) {
-      logout();
+      logout(revokeOnServer: false);
     }
 
     String errorMsg = 'An error occurred (${response.statusCode})';
@@ -404,7 +418,7 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/register');
     final response = await http.post(
       uri,
-      headers: _headers(withAuth: false),
+      headers: _headers(),
       body: jsonEncode({
         'email': email.trim(),
         'password': password,
@@ -430,7 +444,7 @@ class ApiService {
       response = await http
           .post(
             uri,
-            headers: _headers(withAuth: false),
+            headers: _headers(),
             body: jsonEncode({
               'email': email.trim(),
               'password': password,
@@ -574,7 +588,7 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/forgot-password');
     final response = await http.post(
       uri,
-      headers: _headers(withAuth: false),
+      headers: _headers(),
       body: jsonEncode({
         'email': email.trim(),
       }),
@@ -591,7 +605,7 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/verify-otp');
     final response = await http.post(
       uri,
-      headers: _headers(withAuth: false),
+      headers: _headers(),
       body: jsonEncode({
         'email': email.trim(),
         'otp': otp.trim(),
@@ -608,7 +622,7 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/resend-otp');
     final response = await http.post(
       uri,
-      headers: _headers(withAuth: false),
+      headers: _headers(),
       body: jsonEncode({
         'email': email.trim(),
       }),
@@ -625,7 +639,7 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/reset-password');
     final response = await http.post(
       uri,
-      headers: _headers(withAuth: false),
+      headers: _headers(),
       body: jsonEncode({
         'token': token.trim(),
         'new_password': newPassword,
@@ -946,7 +960,7 @@ class ApiService {
   /// GET /complaints/{id}/comments
   Future<List<Map<String, dynamic>>> getComments(int complaintId) async {
     final uri = Uri.parse('$baseUrl/complaints/$complaintId/comments');
-    final response = await http.get(uri, headers: _headers(withAuth: false));
+    final response = await http.get(uri, headers: _headers());
     final data = _handleResponse(response) as List;
     return data.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -1046,7 +1060,7 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/authority/register');
     final response = await http.post(
       uri,
-      headers: _headers(withAuth: false),
+      headers: _headers(),
       body: jsonEncode({
         'full_name': fullName.trim(),
         'official_email': officialEmail.trim(),
@@ -1068,7 +1082,7 @@ class ApiService {
   /// GET /authority/application-status
   Future<Map<String, dynamic>> getAuthorityApplicationStatus(String email) async {
     final uri = Uri.parse('$baseUrl/authority/application-status?email=${Uri.encodeComponent(email.trim())}');
-    final response = await http.get(uri, headers: _headers(withAuth: false));
+    final response = await http.get(uri, headers: _headers());
     final data = _handleResponse(response);
     return data as Map<String, dynamic>;
   }

@@ -66,6 +66,10 @@ class Complaint(Base):
             return []
         return [m for m in data if isinstance(m, dict) and "id" in m and "name" in m]
 
+    def is_tagged(self, user_id: int) -> bool:
+        """True while this official is still tagged on the complaint (tag removed -> False)."""
+        return any(m["id"] == user_id for m in self.mentions)
+
     @property
     def citizen_role(self) -> Optional[str]:
         return self.citizen.role if self.citizen else None
