@@ -94,15 +94,8 @@ class _AuthorityComplaintsScreenState extends State<AuthorityComplaintsScreen> {
               break;
             }
           }
-          // Generic authority mentions
-          if (fullText.contains('@ward.officer') ||
-              fullText.contains('@ward_supervisor') ||
-              fullText.contains('@health_inspector') ||
-              fullText.contains('@elenarodriguez') ||
-              fullText.contains('@jane_doe') ||
-              fullText.contains('@marcus_chen') ||
-              fullText.contains('@ramyagovindhan') ||
-              fullText.contains('@anitha')) {
+          // Officially tagged on this report (decided by the server)
+          if (map['can_update_status'] == true) {
             isTagged = true;
           }
           // Ward/jurisdiction match (e.g. Ward 14)

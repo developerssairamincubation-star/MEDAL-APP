@@ -280,7 +280,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
         'avatar_color': const Color(0xFFFEF08A),
         'avatar_text_color': const Color(0xFF854D0E),
         'image': null,
-        'authorities': ['@elenarodriguez', '@Jane_doe', '@Marcus_Chen'],
+        'authorities': <String>[],
         'replies_list': <Map<String, dynamic>>[],
       },
       {
@@ -296,7 +296,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
         'avatar_color': const Color(0xFF86EFAC),
         'avatar_text_color': const Color(0xFF15803D),
         'image': 'assets/images/sample_trash_overflow.jpg',
-        'authorities': ['@elenarodriguez', '@Jane_doe', '@Marcus_Chen'],
+        'authorities': <String>[],
         'replies_list': [
           {
             'id': 301,
@@ -352,7 +352,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
         'avatar_color': const Color(0xFFF87171),
         'avatar_text_color': Colors.white,
         'image': null,
-        'authorities': ['@elenarodriguez', '@Jane_doe', '@Marcus_Chen'],
+        'authorities': <String>[],
         'replies_list': <Map<String, dynamic>>[],
       },
     ];
@@ -733,16 +733,15 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
     final description = (data['description'] ?? data['title'] ?? '').toString();
     final status = (data['status'] ?? 'in_progress').toString().toLowerCase();
 
-    // Parse real @mentions from complaint text or fallback to departmental authorities
+    // Officials actually tagged on this report (server data), plus any @mentions typed in the text.
+    // Nothing is invented when nobody is tagged.
     final allText = '$description ${data['title'] ?? ''}';
     final mentionMatches = RegExp(r'@[A-Za-z0-9_.]+').allMatches(allText);
-    List<String> authorities = mentionMatches
-        .map((m) => m.group(0)!)
-        .toSet()
-        .toList();
-    if (authorities.isEmpty) {
-      authorities = ['@elenarodriguez', '@Jane_doe', '@Marcus_Chen'];
-    }
+    final List<String> authorities = <String>{
+      for (final m in (data['mentions'] as List? ?? const []))
+        if (m is Map && (m['name'] ?? '').toString().isNotEmpty) '@${m['name']}',
+      ...mentionMatches.map((m) => m.group(0)!),
+    }.toList();
 
     final imageUrl = data['image_url'] as String?;
     final location = displayLocation(data, fallback: 'Municipal Zone');
@@ -900,7 +899,8 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
 
                               const SizedBox(height: 12),
 
-                              // Authorities assigned section
+                              // Authorities assigned section (only when someone is tagged)
+                              if (authorities.isNotEmpty) ...[
                               Text(
                                 'Authorities assigned:',
                                 style: GoogleFonts.inter(
@@ -921,6 +921,7 @@ class _AuthorityPostDetailScreenState extends State<AuthorityPostDetailScreen> {
                                   ),
                                 ),
                               ),
+                              ],
 
                               const SizedBox(height: 12),
 

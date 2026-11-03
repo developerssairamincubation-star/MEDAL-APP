@@ -77,6 +77,9 @@ class _MainScreenState
 
   @override
   Widget build(BuildContext context) {
+    // The bar is 72px of content plus the system bottom inset (gesture/3-button bar), so the
+    // SafeArea below no longer squeezes the items (that overflowed by ~20px) or hides them.
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return PopScope(
       canPop: currentIndex == 0,
       onPopInvokedWithResult: (didPop, result) async {
@@ -97,7 +100,7 @@ class _MainScreenState
       child: Scaffold(
         body: _buildPage(currentIndex),
         bottomNavigationBar: Container(
-          height: 72,
+          height: 72 + bottomInset,
           decoration: const BoxDecoration(
             color: Colors.white,
             border: Border(

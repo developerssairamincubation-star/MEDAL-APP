@@ -337,8 +337,7 @@ class _AuthorityCommentThreadScreenState
         widget.commentData['comment'] ??
         'Yes , i too have seen this issue and reported it a immediate action would be perfect.';
     final authorities =
-        widget.commentData['authorities'] as List<String>? ??
-        ['@elenarodriguez', '@Jane_doe', '@Marcus_Chen'];
+        widget.commentData['authorities'] as List<String>? ?? const <String>[];
     final imageAsset =
         widget.commentData['image_url'] as String? ??
         widget.commentData['image'] as String? ??
@@ -491,6 +490,7 @@ class _AuthorityCommentThreadScreenState
                               const SizedBox(height: 12),
 
                               // Authorities assigned section
+                              if (authorities.isNotEmpty) ...[
                               Text(
                                 'Authorities assigned:',
                                 style: GoogleFonts.inter(
@@ -511,6 +511,7 @@ class _AuthorityCommentThreadScreenState
                                   ),
                                 ),
                               ),
+                              ],
 
                               const SizedBox(height: 12),
 

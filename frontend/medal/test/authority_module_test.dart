@@ -464,8 +464,9 @@ void main() {
     expect(find.byType(AuthorityComplaintDetailScreen), findsNothing);
 
     // Verify Post Details elements
-    expect(find.text('Authorities assigned:'), findsOneWidget);
-    expect(find.text('@elenarodriguez'), findsOneWidget);
+    // No official is tagged on this sample post, so nothing is invented for the "assigned" list.
+    expect(find.text('Authorities assigned:'), findsNothing);
+    expect(find.text('@elenarodriguez'), findsNothing);
     expect(find.text('Lisa Godwin'), findsOneWidget);
     expect(find.text('Kevin Xanty'), findsOneWidget);
     expect(find.text('Divya ken'), findsOneWidget);

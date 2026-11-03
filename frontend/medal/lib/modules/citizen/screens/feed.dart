@@ -504,8 +504,12 @@ class _FeedScreenState extends State<FeedScreen> {
 
     final avatarColors = _getAvatarColors(initials);
 
-    // Whether this card shows assigned authorities (shown on Card 1 / James Doe in Image 2)
-    final bool showAuthorities = (id == 101);
+    // Officials actually tagged on this report (from the server); none tagged -> nothing shown.
+    final List<String> taggedOfficials = [
+      for (final m in (item['mentions'] as List? ?? const []))
+        if (m is Map && (m['name'] ?? '').toString().isNotEmpty) '@${m['name']}',
+    ];
+    final bool showAuthorities = taggedOfficials.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -729,8 +733,8 @@ class _FeedScreenState extends State<FeedScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           "Authorities assigned:",
                           style: TextStyle(
                             color: Color(0xFF64748B),
@@ -738,10 +742,10 @@ class _FeedScreenState extends State<FeedScreen> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        SizedBox(height: 3),
+                        const SizedBox(height: 3),
                         Text(
-                          "@elenarodriguez\n@Jane_doe\n@Marcus_Chen",
-                          style: TextStyle(
+                          taggedOfficials.join('\n'),
+                          style: const TextStyle(
                             color: Color(0xFF0467B6),
                             fontSize: 12,
                             height: 1.35,

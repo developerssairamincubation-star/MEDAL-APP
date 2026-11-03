@@ -1,5 +1,6 @@
 import 'package:medal/widgets/medal_dialog.dart';
 import 'package:medal/widgets/mention_text_field.dart';
+import 'package:medal/widgets/official_picker_sheet.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -36,6 +37,8 @@ class _ReportScreenState extends State<ReportScreen> {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   List<MentionedOfficial> _mentions = const [];
+  // Officials chosen in the "Tag officials" picker (real, approved authorities from the server).
+  List<MentionedOfficial> _taggedOfficials = const [];
   final TextEditingController locationController =
       TextEditingController();
   final TextEditingController imageUrlController = TextEditingController();
@@ -48,7 +51,6 @@ class _ReportScreenState extends State<ReportScreen> {
   String selectedImpact = "Medium";
   String selectedEquity = "Standard Urban Zone";
   String selectedPostAs = "Public";
-  String selectedOfficial = "@elenarodriguez";
 
   XFile? _selectedImage;
   Uint8List? _imageBytes;
@@ -175,14 +177,6 @@ class _ReportScreenState extends State<ReportScreen> {
       "fullName": "SDG 17: Partnerships for the Goals",
       "color": Color(0xFF19486A),
     },
-  ];
-
-  final List<String> officialsList = const [
-    "@elenarodriguez",
-    "@Jane_doe",
-    "@Marcus_Chen",
-    "@Ward_Supervisor",
-    "@Health_Inspector",
   ];
 
   final List<String> postAsOptions = const [
@@ -454,10 +448,11 @@ class _ReportScreenState extends State<ReportScreen> {
         sdgAlignment: selectedSdg,
         impactLevel: selectedImpact,
         equityClassification: selectedEquity,
-        mentionIds: [
+        mentionIds: {
           for (final m in _mentions)
             if (description.contains('@${m.name}')) m.id,
-        ],
+          for (final o in _taggedOfficials) o.id,
+        }.toList(),
       );
 
       if (!mounted) return;
@@ -913,37 +908,58 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedOfficial,
-                    icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
-                    style: const TextStyle(fontSize: 13.5, color: Color(0xFF1E293B)),
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.alternate_email, size: 18, color: Color(0xFF64748B)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
+                  if (_taggedOfficials.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final o in _taggedOfficials)
+                          InputChip(
+                            key: Key('tagged_official_${o.id}'),
+                            label: Text('@${o.name}', style: const TextStyle(fontSize: 12.5)),
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: const Color(0xFFEEF2FF),
+                            side: const BorderSide(color: Color(0xFFE0E7FF)),
+                            onDeleted: () => setState(
+                              () => _taggedOfficials = [
+                                for (final t in _taggedOfficials)
+                                  if (t.id != o.id) t,
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  InkWell(
+                    key: const Key('tag_officials_button'),
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () async {
+                      final picked = await showOfficialPicker(context, selected: _taggedOfficials);
+                      if (picked != null && mounted) setState(() => _taggedOfficials = picked);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: primaryColor, width: 1.5),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.alternate_email, size: 18, color: Color(0xFF64748B)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _taggedOfficials.isEmpty ? 'Select officials to tag' : 'Add or remove officials',
+                              style: const TextStyle(fontSize: 13.5, color: Color(0xFF1E293B)),
+                            ),
+                          ),
+                          const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
+                        ],
                       ),
                     ),
-                    items: officialsList.map((off) {
-                      return DropdownMenuItem<String>(
-                        value: off,
-                        child: Text(off),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => selectedOfficial = val);
-                    },
                   ),
                   const SizedBox(height: 6),
                   Container(
