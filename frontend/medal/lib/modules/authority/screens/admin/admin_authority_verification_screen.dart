@@ -1330,6 +1330,9 @@ class _AdminAuthorityVerificationScreenState
               foregroundColor: const Color(0xFF4F46E5),
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              // The app theme gives ElevatedButtons an infinite minimum width, which breaks layout in a Row.
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
