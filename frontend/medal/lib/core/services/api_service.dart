@@ -649,6 +649,24 @@ class ApiService {
     return data as Map<String, dynamic>;
   }
 
+  /// POST /student/manage-password — change the signed-in institution user's password.
+  /// The server then revokes every existing session, so the caller must sign in again.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final uri = Uri.parse('$baseUrl/student/manage-password');
+    final response = await http.post(
+      uri,
+      headers: _headers(),
+      body: jsonEncode({
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      }),
+    );
+    _handleResponse(response);
+  }
+
   // ── Complaint Endpoints ──────────────────────────────────────────
 
   static MediaType _resolveMediaType(String filename, [String? mimeType]) {

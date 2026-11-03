@@ -14,6 +14,7 @@ import '../../providers/institution_provider.dart';
 import '../../widgets/medal_app_bar.dart';
 import '../../widgets/custom_bottom_nav.dart';
 import '../../widgets/logout_dialog.dart';
+import '../../widgets/password_dialogs.dart';
 
 /// Principal Profile Screen — matches Principal_login_Profile.png
 class PrincipalProfileScreen extends ConsumerWidget {
@@ -123,7 +124,7 @@ class PrincipalProfileScreen extends ConsumerWidget {
               icon: Icons.sync_lock_rounded,
               title: 'Manage Password',
               subtitle: 'Update your security credentials',
-              onTap: () {},
+              onTap: () => showManagePasswordDialog(context),
             ),
             const SizedBox(height: 8),
             ProfileAccountTile(

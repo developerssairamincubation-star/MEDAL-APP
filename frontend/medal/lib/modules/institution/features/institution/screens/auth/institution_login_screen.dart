@@ -1,7 +1,6 @@
 // lib/features/institution/screens/auth/institution_login_screen.dart
 // Student Login Screen matching Screenshot 1 pixel-for-pixel, with options for staff/principal login.
 
-import 'package:medal/widgets/medal_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +12,7 @@ import '../../../../routes/app_routes.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/medal_app_bar.dart';
 import '../../widgets/custom_action_button.dart';
+import '../../widgets/password_dialogs.dart';
 import '../../services/auth_service.dart';
 
 class InstitutionLoginScreen extends ConsumerStatefulWidget {
@@ -59,63 +59,8 @@ class _InstitutionLoginScreenState
     }
   }
 
-  void _showForgotPasswordDialog() {
-    final resetEmailController = TextEditingController(text: _emailController.text);
-    showDialog(
-      context: context,
-      builder: (ctx) => MedalAlertDialog(
-        title: Text(
-          'Reset Password',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Enter your registered student email address. A password reset link will be sent to your inbox.',
-              style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: resetEmailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                hintText: 'name@organization.com',
-                prefixIcon: const Icon(Icons.email_outlined, size: 20),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('If this email is registered, a password reset link has been dispatched.'),
-                  backgroundColor: AppTheme.primary,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Send Reset Link'),
-          ),
-        ],
-      ),
-    );
-  }
+  void _showForgotPasswordDialog() =>
+      showForgotPasswordFlow(context, initialEmail: _emailController.text.trim());
 
   @override
   Widget build(BuildContext context) {
