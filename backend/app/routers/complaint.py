@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.database.database import get_db
 from app.models.complaint import Complaint, ComplaintComment, ComplaintRepost, ComplaintUpvote
 from app.models.user import User
-from app.routers.auth import get_current_user, get_optional_current_user, require_role
+from app.routers.auth import get_citizen_platform_user, get_optional_current_user, require_role
 from app.schemas.complaint import (
     CommentCreate,
     CommentResponse,
@@ -65,10 +65,20 @@ INFRASTRUCTURE_CATEGORIES = [
 import mimetypes
 
 
+def _can_update_status(user: User, complaint: Complaint) -> bool:
+    """Only an authority who is currently tagged on the complaint may change its status."""
+    return user.role == "official" and complaint.is_tagged(user.id)
+
+
+def _present(complaint: Complaint, user: User) -> Complaint:
+    complaint.can_update_status = _can_update_status(user, complaint)
+    return complaint
+
+
 @router.post("/upload-evidence", response_model=EvidenceUploadResponse, status_code=status.HTTP_200_OK)
 async def upload_evidence(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
     storage: BaseStorageService = Depends(get_storage_service),
 ):
     """
@@ -169,7 +179,7 @@ async def analyze_complaint_sdg(
 def create_complaint(
     complaint_in: ComplaintCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """Create a new complaint/report for the currently authenticated citizen."""
     location_text = complaint_in.location.strip() if complaint_in.location else (complaint_in.location_address or "")
@@ -223,7 +233,7 @@ def create_complaint(
     db.add(new_complaint)
     db.commit()
     db.refresh(new_complaint)
-    return new_complaint
+    return _present(new_complaint, current_user)
 
 
 
@@ -232,7 +242,7 @@ def list_complaints(
     status_filter: Optional[str] = Query(None, alias="status"),
     category_filter: Optional[str] = Query(None, alias="category"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """
     List complaints:
@@ -251,7 +261,7 @@ def list_complaints(
             query = query.filter(func.lower(Complaint.category) == category_filter.strip().lower())
 
     complaints = query.order_by(Complaint.created_at.desc()).all()
-    return complaints
+    return [_present(c, current_user) for c in complaints]
 
 
 @router.get("/feed", response_model=List[ComplaintFeedItem], status_code=status.HTTP_200_OK)
@@ -260,10 +270,10 @@ def get_community_feed(
     limit: int = Query(30, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """
-    Public Community Feed:
+    Community Feed (citizen platform login required):
     - Returns all active, non-rejected complaints submitted by all citizens.
     - Ordered newest first (created_at desc).
     - Uses eager loading (joinedload & selectinload) to eliminate N+1 queries.
@@ -371,6 +381,7 @@ def get_community_feed(
                 has_upvoted=(c.id in user_upvoted_ids),
                 has_reposted=(c.id in user_reposted_ids),
                 citizen_role=c.citizen.role if c.citizen else None,
+                can_update_status=bool(current_user and _can_update_status(current_user, c)),
             )
         )
     return feed_items
@@ -380,7 +391,7 @@ def get_community_feed(
 def toggle_complaint_upvote(
     complaint_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """
     Toggle upvote for a civic complaint:
@@ -427,7 +438,7 @@ def toggle_complaint_upvote(
 def get_complaint_upvote_status(
     complaint_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """Check upvote count and whether current user has upvoted."""
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
@@ -458,7 +469,7 @@ def get_complaint_upvote_status(
 def toggle_complaint_repost(
     complaint_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """
     Toggle repost for a civic complaint:
@@ -505,7 +516,7 @@ def toggle_complaint_repost(
 def get_complaint_repost_status(
     complaint_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """Check repost count and whether current user has already reposted."""
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
@@ -577,7 +588,7 @@ def get_complaint_stats(
 def get_complaint(
     complaint_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """Retrieve details for a single complaint."""
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
@@ -594,7 +605,7 @@ def get_complaint(
             detail="You do not have permission to view this complaint",
         )
 
-    return complaint
+    return _present(complaint, current_user)
 
 
 @router.patch("/{complaint_id}/status", response_model=ComplaintResponse, status_code=status.HTTP_200_OK)
@@ -602,9 +613,21 @@ def update_complaint_status(
     complaint_id: int,
     status_update: ComplaintStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("official", "admin")),
+    current_user: User = Depends(require_role("official")),
 ):
-    """Update status, officer notes, and rejection reason of a complaint (Officials and Admins only)."""
+    """Update status, officer notes and rejection reason (only an authority tagged on the complaint)."""
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Complaint not found",
+        )
+    if not _can_update_status(current_user, complaint):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only an authority tagged on this complaint can change its status",
+        )
+
     target_status = status_update.status.lower().strip()
     if target_status not in VALID_STATUSES:
         raise HTTPException(
@@ -616,13 +639,6 @@ def update_complaint_status(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot revert complaint status back to 'submitted'",
-        )
-
-    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
-    if not complaint:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Complaint not found",
         )
 
     # Validation for rejection reason
@@ -659,7 +675,7 @@ def update_complaint_status(
     complaint.status = target_status
     db.commit()
     db.refresh(complaint)
-    return complaint
+    return _present(complaint, current_user)
 
 
 @router.patch("/{complaint_id}", response_model=ComplaintResponse, status_code=status.HTTP_200_OK)
@@ -667,7 +683,7 @@ def update_complaint(
     complaint_id: int,
     complaint_in: ComplaintUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """Update complaint details."""
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
@@ -689,6 +705,11 @@ def update_complaint(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot edit a complaint that is already under review or processed",
             )
+    elif current_user.role == "official" and not complaint.is_tagged(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only an authority tagged on this complaint can edit it",
+        )
 
     if complaint_in.title is not None:
         complaint.title = complaint_in.title
@@ -715,7 +736,7 @@ def update_complaint(
 
     db.commit()
     db.refresh(complaint)
-    return complaint
+    return _present(complaint, current_user)
 
 
 
@@ -723,7 +744,7 @@ def update_complaint(
 async def delete_complaint(
     complaint_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
     storage: BaseStorageService = Depends(get_storage_service),
 ):
     """Delete a complaint (Admin can delete any; Citizen can delete own if still in 'submitted' status)."""
@@ -762,7 +783,7 @@ def add_complaint_comment(
     complaint_id: int,
     comment_in: CommentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """
     Post a citizen comment or reply on a civic complaint.
@@ -838,6 +859,7 @@ def add_complaint_comment(
 def list_complaint_comments(
     complaint_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """
     Retrieve all comments for a civic complaint in chronological order.
@@ -899,7 +921,7 @@ async def delete_complaint_comment(
     complaint_id: int,
     comment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
     storage: BaseStorageService = Depends(get_storage_service),
 ):
     """

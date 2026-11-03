@@ -97,6 +97,8 @@ class ComplaintResponse(ComplaintBase):
     citizen_name: Optional[str] = None
     citizen_role: Optional[str] = None
     profile_image_url: Optional[str] = None
+    # True only for an authority tagged on this complaint; the UI shows the status control from it.
+    can_update_status: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -116,6 +118,7 @@ class ComplaintFeedItem(ComplaintBase):
     has_upvoted: bool = False
     has_reposted: bool = False
     citizen_role: Optional[str] = None
+    can_update_status: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

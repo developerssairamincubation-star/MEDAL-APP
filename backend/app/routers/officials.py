@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.user import User
-from app.routers.auth import get_current_user
+from app.routers.auth import get_citizen_platform_user
 
 router = APIRouter(prefix="/officials", tags=["Officials"])
 
@@ -28,7 +28,7 @@ def search_officials(
     q: str = Query("", max_length=80),
     limit: int = Query(8, ge=1, le=25),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_citizen_platform_user),
 ):
     """Approved officials whose name, designation or department matches `q`."""
     query = db.query(User).filter(

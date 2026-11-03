@@ -3,10 +3,11 @@ import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.user import User
+from app.models.user import School, User
 from app.models.student import (
     StudentCertificate,
     StudentChapterCompletion,
@@ -15,14 +16,14 @@ from app.models.student import (
     StudentEnrollment,
     StudentNotification,
 )
-from app.routers.auth import get_current_user
+from app.routers.auth import get_institution_platform_user
 from app.services.seek_chapters import get_seek_course
 from app.services.storage import BaseStorageService, get_storage_service
 from app.utils.file_validation import (
     MAX_DOCUMENT_SIZE_BYTES,
     validate_and_read_upload,
 )
-from app.utils.security import create_access_token, hash_password, verify_password
+from app.utils.security import create_user_token, hash_password, verify_password
 
 logger = logging.getLogger("medal.student")
 router = APIRouter(prefix="/student", tags=["Student"])
@@ -31,6 +32,7 @@ router = APIRouter(prefix="/student", tags=["Student"])
 # ── Schemas ─────────────────────────────────────────────────────────────
 
 class StudentRegisterRequest(BaseModel):
+    school_code: str
     name: str
     email: EmailStr
     department: str
@@ -208,11 +210,19 @@ def register_student(req: StudentRegisterRequest, db: Session = Depends(get_db))
             detail="An account with this email address already exists",
         )
 
-    # 3. Check duplicate student ID / registration number
+    # The student joins exactly one school, identified by the code the school gives out.
+    school = db.query(School).filter(func.lower(School.code) == req.school_code.strip().lower()).first()
+    if not school:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unknown school code",
+        )
+
+    # 3. Check duplicate student ID / registration number (unique within a school)
     clean_student_id = req.student_id.strip()
     clean_reg_no = req.registration_number.strip()
     if clean_student_id:
-        existing_sid = db.query(User).filter(User.student_id == clean_student_id).first()
+        existing_sid = db.query(User).filter(User.student_id == clean_student_id, User.school_id == school.id).first()
         if existing_sid:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -220,7 +230,7 @@ def register_student(req: StudentRegisterRequest, db: Session = Depends(get_db))
             )
 
     if clean_reg_no:
-        existing_reg = db.query(User).filter(User.registration_number == clean_reg_no).first()
+        existing_reg = db.query(User).filter(User.registration_number == clean_reg_no, User.school_id == school.id).first()
         if existing_reg:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -237,6 +247,7 @@ def register_student(req: StudentRegisterRequest, db: Session = Depends(get_db))
         student_id=clean_student_id,
         registration_number=clean_reg_no,
         role="student",
+        school_id=school.id,
         approval_status="approved",
         is_active=True,
         is_verified=True,
@@ -271,7 +282,7 @@ def register_student(req: StudentRegisterRequest, db: Session = Depends(get_db))
     db.add(welcome_notif)
     db.commit()
 
-    token = create_access_token(data={"sub": str(new_user.id), "role": "student"})
+    token = create_user_token(new_user)
 
     return {
         "message": "Student account created successfully",
@@ -293,7 +304,7 @@ def register_student(req: StudentRegisterRequest, db: Session = Depends(get_db))
 
 @router.get("/dashboard")
 def get_student_dashboard(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     # Single SEEK course: every figure below is derived from live chapter completions.
@@ -361,7 +372,7 @@ def get_student_dashboard(
 def get_courses(
     search: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     seek = get_seek_course(db)
@@ -428,7 +439,7 @@ def get_courses(
 @router.get("/courses/{course_id}")
 def get_course_detail(
     course_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     course = db.query(StudentCourse).filter(StudentCourse.id == course_id).first()
@@ -468,7 +479,7 @@ def get_course_detail(
 @router.get("/courses/{course_id}/chapters")
 def get_course_chapters(
     course_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     if not db.query(StudentCourse).filter(StudentCourse.id == course_id).first():
@@ -484,7 +495,7 @@ class ChapterCompletionRequest(BaseModel):
 def set_chapter_completion(
     chapter_id: int,
     req: ChapterCompletionRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     chapter = db.query(StudentCourseChapter).filter(StudentCourseChapter.id == chapter_id).first()
@@ -529,7 +540,7 @@ def set_chapter_completion(
 @router.post("/courses/{course_id}/enroll")
 def enroll_in_course(
     course_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     course = db.query(StudentCourse).filter(StudentCourse.id == course_id).first()
@@ -583,7 +594,7 @@ def enroll_in_course(
 
 @router.get("/pending-courses")
 def get_pending_courses(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     # Courses this user has requested but is not yet enrolled in.
@@ -617,7 +628,7 @@ def get_pending_courses(
 
 @router.get("/progress")
 def get_course_progress(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     seek = get_seek_course(db)
@@ -653,7 +664,7 @@ def get_course_progress(
 
 @router.get("/certificates")
 def get_student_certificates(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     """Certificates exist only for courses the student has completed.
@@ -710,7 +721,7 @@ def get_student_certificates(
 @router.post("/certificates/upload", status_code=status.HTTP_201_CREATED)
 async def upload_certificate_document(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     storage: BaseStorageService = Depends(get_storage_service),
 ):
     """
@@ -740,7 +751,7 @@ async def upload_certificate_document(
 
 @router.get("/notifications")
 def get_student_notifications(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     notifs = db.query(StudentNotification).filter(
@@ -777,7 +788,7 @@ def get_student_notifications(
 @router.patch("/profile")
 def update_student_profile(
     req: StudentProfileUpdateRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     if req.phone is not None:
@@ -814,7 +825,7 @@ def update_student_profile(
 @router.post("/manage-password")
 def change_student_password(
     req: PasswordChangeRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_institution_platform_user),
     db: Session = Depends(get_db),
 ):
     if not verify_password(req.current_password, current_user.password_hash):

@@ -30,7 +30,11 @@ from app.services.email import EmailDeliveryError, EmailService, get_email_servi
 from app.services.storage import BaseStorageService, get_storage_service
 from app.utils.file_validation import MAX_IMAGE_SIZE_BYTES, validate_and_read_upload
 from app.utils.security import (
-    create_access_token,
+    CITIZEN_PLATFORM,
+    INSTITUTION_PLATFORM,
+    INSTITUTION_ROLES,
+    PLATFORM_BY_ROLE,
+    create_user_token,
     create_verified_reset_token,
     decode_access_token,
     decode_verified_reset_token,
@@ -47,23 +51,40 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/login", auto_error=False)
 
 
+def revoke_sessions(user: User) -> None:
+    """Invalidate every access token issued to this user so far (caller commits)."""
+    user.token_version = (user.token_version or 0) + 1
+
+
+def _user_from_token(token: str, db: Session) -> Optional[User]:
+    """The user a token belongs to, or None if the token is invalid, stale or inconsistent.
+
+    A token is only honoured when its version matches users.token_version and its
+    platform claim matches the platform of the user's *current* role.
+    """
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    try:
+        user_id = int(payload.get("sub"))
+        token_version = int(payload.get("tv"))
+    except (ValueError, TypeError):
+        return None
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None or token_version != (user.token_version or 0):
+        return None
+    if payload.get("plat") != PLATFORM_BY_ROLE.get(user.role):
+        return None
+    return user
+
+
 def get_optional_current_user(
     token: Optional[str] = Depends(oauth2_scheme_optional),
     db: Session = Depends(get_db),
 ) -> Optional[User]:
     if not token:
         return None
-    payload = decode_access_token(token)
-    if payload is None:
-        return None
-    user_id = payload.get("sub")
-    if user_id is None:
-        return None
-    try:
-        user_id_int = int(user_id)
-    except (ValueError, TypeError):
-        return None
-    return db.query(User).filter(User.id == user_id_int).first()
+    return _user_from_token(token, db)
 
 
 def get_current_user(
@@ -76,23 +97,7 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    payload = decode_access_token(token)
-
-    if payload is None:
-        raise credentials_exception
-
-    user_id = payload.get("sub")
-
-    if user_id is None:
-        raise credentials_exception
-
-    try:
-        user_id_int = int(user_id)
-    except (ValueError, TypeError):
-        raise credentials_exception
-
-    user = db.query(User).filter(User.id == user_id_int).first()
-
+    user = _user_from_token(token, db)
     if user is None:
         raise credentials_exception
 
@@ -109,6 +114,23 @@ def get_current_user(
         )
 
     return user
+
+
+def _platform_user(platform: str):
+    """Shared platform gate: the single place that keeps the two platforms apart."""
+    def checker(current_user: User = Depends(get_current_user)) -> User:
+        if PLATFORM_BY_ROLE.get(current_user.role) != platform:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account cannot access this platform.",
+            )
+        return current_user
+    return checker
+
+
+# Use these instead of get_current_user on every route that belongs to one platform.
+get_citizen_platform_user = _platform_user(CITIZEN_PLATFORM)
+get_institution_platform_user = _platform_user(INSTITUTION_PLATFORM)
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
@@ -193,9 +215,7 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
             )
 
     # Generate JWT access token
-    access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role}
-    )
+    access_token = create_user_token(user)
 
     return {
         "message": "Login successful",
@@ -489,12 +509,24 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
         )
 
     user.password_hash = hash_password(request.new_password)
+    revoke_sessions(user)
     db.commit()
     logger.info("Password updated successfully in PostgreSQL for email: %s", masked)
 
     return {
         "message": "Password reset successfully. You can now log in with your new password.",
     }
+
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+def logout(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """End the session server-side: every token issued so far (all devices) stops working."""
+    revoke_sessions(current_user)
+    db.commit()
+    return {"message": "Logged out"}
 
 
 @router.get("/me", response_model=UserResponse)
@@ -620,7 +652,13 @@ def list_users(
     current_user: User = Depends(require_role("admin")),
 ):
     """List all registered users (Admin only)."""
-    return db.query(User).order_by(User.id.asc()).all()
+    # Institution accounts (principals, teachers, students) are not visible to the citizen-platform admin.
+    return (
+        db.query(User)
+        .filter(User.role.notin_(INSTITUTION_ROLES))
+        .order_by(User.id.asc())
+        .all()
+    )
 
 
 
