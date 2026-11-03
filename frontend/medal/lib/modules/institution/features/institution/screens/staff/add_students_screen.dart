@@ -121,6 +121,14 @@ class _AddStudentsScreenState extends ConsumerState<AddStudentsScreen> {
                   : '${result.student.name} was added, but the invite e-mail could not be sent. '
                       'Share these sign-in details with them. The password is shown only once.',
             ),
+            if (!result.emailSent && (result.error ?? '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Reason: ${result.error}',
+                key: const Key('invite_error_reason'),
+                style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
+              ),
+            ],
             if (password != null) ...[
               const SizedBox(height: 12),
               SelectableText(result.student.email, style: const TextStyle(fontWeight: FontWeight.w700)),

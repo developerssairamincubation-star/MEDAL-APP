@@ -126,6 +126,7 @@ void main() {
     expect(find.text('Student added'), findsOneWidget);
     expect(find.byKey(const Key('student_temporary_password')), findsOneWidget);
     expect(find.text('Temp1234ab'), findsOneWidget);
+    expect(find.text('Reason: provider down'), findsOneWidget);          // why the e-mail failed
   });
 
   testWidgets('Validation and server errors are shown without crashing', (tester) async {

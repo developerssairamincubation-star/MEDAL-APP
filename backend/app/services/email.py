@@ -489,6 +489,84 @@ class EmailService:
         else:
             server.login(self.smtp_user, self.smtp_password)
 
+    # ── student invites ────────────────────────────────────────────────
+
+    def _invite_content(
+        self, to_email: str, student_name: str, teacher_name: str, school_name: str, temporary_password: str
+    ) -> tuple:
+        import html as _html
+
+        subject = f"{teacher_name} added you to MEDAL ({school_name})"
+        text_content = (
+            f"Hello {student_name},\n\n"
+            f"{teacher_name} at {school_name} has added you as a student on MEDAL.\n\n"
+            f"Sign in to the MEDAL app (Institution -> Student login) with:\n"
+            f"  Email: {to_email}\n"
+            f"  Temporary password: {temporary_password}\n\n"
+            f"Please change your password after you sign in (Profile -> Manage Password).\n"
+            f"If you were not expecting this, you can ignore this email.\n\n"
+            f"Regards,\nMEDAL Support Team"
+        )
+        e = _html.escape
+        html_content = (
+            "<!DOCTYPE html><html><body style=\"font-family:Arial,Helvetica,sans-serif;color:#111C2D\">"
+            f"<p>Hello {e(student_name)},</p>"
+            f"<p><b>{e(teacher_name)}</b> at <b>{e(school_name)}</b> has added you as a student on MEDAL.</p>"
+            "<p>Sign in to the MEDAL app (<i>Institution &rarr; Student login</i>) with:</p>"
+            f"<p>Email: <b>{e(to_email)}</b><br>Temporary password: <b>{e(temporary_password)}</b></p>"
+            "<p>Please change your password after you sign in (Profile &rarr; Manage Password).</p>"
+            "<p style=\"color:#64748B\">If you were not expecting this, you can ignore this email.</p>"
+            "<p>Regards,<br>MEDAL Support Team</p></body></html>"
+        )
+        return subject, text_content, html_content
+
+    def _mime_message(self, to_email: str, subject: str, text_content: str, html_content: str) -> MIMEMultipart:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = Header(subject, "utf-8")
+        msg["From"] = formataddr((self.from_name, self.from_email))
+        msg["To"] = to_email
+        msg.attach(MIMEText(text_content, "plain", "utf-8"))
+        msg.attach(MIMEText(html_content, "html", "utf-8"))
+        return msg
+
+    def _open_smtp(self) -> smtplib.SMTP:
+        """A connected, authenticated SMTP session. The caller must quit() it."""
+        if self.use_ssl or self.smtp_port == 465:
+            server = smtplib.SMTP_SSL(
+                self.smtp_host, self.smtp_port, context=ssl.create_default_context(), timeout=self.timeout
+            )
+        else:
+            server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=self.timeout)
+        try:
+            if not (self.use_ssl or self.smtp_port == 465) and self.use_tls:
+                server.starttls(context=ssl.create_default_context())
+            try:
+                server.ehlo()  # features (AUTH mechanisms) are only known after EHLO, and again after STARTTLS
+            except Exception:
+                pass
+            self._authenticate_smtp(server)
+            return server
+        except Exception:
+            try:
+                server.close()
+            except Exception:
+                pass
+            raise
+
+    def _smtp_error(self, exc: Exception, masked_recipient: str) -> "EmailDeliveryError":
+        if isinstance(exc, smtplib.SMTPAuthenticationError):
+            return EmailDeliveryError(
+                "Email authentication failed. For Gmail use a 16-character App Password "
+                "(2-step verification must be on) and set SMTP_FROM_EMAIL to the same address."
+            )
+        if self.is_production() and isinstance(exc, OSError) and not isinstance(exc, smtplib.SMTPException):
+            return EmailDeliveryError(
+                f"Could not connect to the SMTP server ({self.smtp_host}:{self.smtp_port}): {exc}. "
+                "Render's free plan blocks outgoing SMTP; use a paid instance or set RESEND_API_KEY."
+            )
+        logger.error("Student invite delivery failed for %s: %s", masked_recipient, exc)
+        return EmailDeliveryError(f"Could not deliver the invite email: {exc}")
+
     def send_student_invite(
         self,
         to_email: str,
@@ -515,64 +593,79 @@ class EmailService:
             )
             return False
 
-        import html as _html
-
-        subject = f"{teacher_name} added you to MEDAL ({school_name})"
-        text_content = (
-            f"Hello {student_name},\n\n"
-            f"{teacher_name} at {school_name} has added you as a student on MEDAL.\n\n"
-            f"Sign in to the MEDAL app (Institution -> Student login) with:\n"
-            f"  Email: {to_email}\n"
-            f"  Temporary password: {temporary_password}\n\n"
-            f"Please change your password after you sign in (Profile -> Manage Password).\n"
-            f"If you were not expecting this, you can ignore this email.\n\n"
-            f"Regards,\nMEDAL Support Team"
+        subject, text_content, html_content = self._invite_content(
+            to_email, student_name, teacher_name, school_name, temporary_password
         )
-        e = _html.escape
-        html_content = (
-            "<!DOCTYPE html><html><body style=\"font-family:Arial,Helvetica,sans-serif;color:#111C2D\">"
-            f"<p>Hello {e(student_name)},</p>"
-            f"<p><b>{e(teacher_name)}</b> at <b>{e(school_name)}</b> has added you as a student on MEDAL.</p>"
-            "<p>Sign in to the MEDAL app (<i>Institution &rarr; Student login</i>) with:</p>"
-            f"<p>Email: <b>{e(to_email)}</b><br>Temporary password: <b>{e(temporary_password)}</b></p>"
-            "<p>Please change your password after you sign in (Profile &rarr; Manage Password).</p>"
-            "<p style=\"color:#64748B\">If you were not expecting this, you can ignore this email.</p>"
-            "<p>Regards,<br>MEDAL Support Team</p></body></html>"
-        )
-
         if self.resend_api_key and "your_api_key" not in self.resend_api_key:
             return self._send_via_https_api(to_email, subject, text_content, html_content)
 
+        server = None
         try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = Header(subject, "utf-8")
-            msg["From"] = formataddr((self.from_name, self.from_email))
-            msg["To"] = to_email
-            msg.attach(MIMEText(text_content, "plain", "utf-8"))
-            msg.attach(MIMEText(html_content, "html", "utf-8"))
-            if self.use_ssl or self.smtp_port == 465:
-                with smtplib.SMTP_SSL(
-                    self.smtp_host, self.smtp_port, context=ssl.create_default_context(), timeout=self.timeout
-                ) as server:
-                    self._authenticate_smtp(server)
-                    server.sendmail(self.from_email, [to_email], msg.as_string())
-            else:
-                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=self.timeout) as server:
-                    if self.use_tls:
-                        server.starttls(context=ssl.create_default_context())
-                        try:
-                            server.ehlo()
-                        except Exception:
-                            pass
-                    self._authenticate_smtp(server)
-                    server.sendmail(self.from_email, [to_email], msg.as_string())
+            server = self._open_smtp()
+            server.sendmail(self.from_email, [to_email], self._mime_message(to_email, subject, text_content, html_content).as_string())
             logger.info("Student invite sent to %s", masked_recipient)
             return True
-        except smtplib.SMTPAuthenticationError as exc:
-            raise EmailDeliveryError("Email authentication failed. Check the SMTP credentials.") from exc
         except (smtplib.SMTPException, OSError) as exc:
-            logger.error("Student invite delivery failed for %s: %s", masked_recipient, exc)
-            raise EmailDeliveryError(f"Could not deliver the invite email: {exc}") from exc
+            raise self._smtp_error(exc, masked_recipient) from exc
+        finally:
+            if server is not None:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
+
+    def send_student_invites(
+        self, invites: list, teacher_name: str, school_name: str
+    ) -> list:
+        """Send many invites over ONE SMTP login (Gmail throttles repeated logins).
+
+        `invites` is a list of (student_name, to_email, temporary_password). Returns a list of
+        (to_email, error_message_or_None); one bad recipient never stops the rest.
+        """
+        results: list = []
+        use_smtp = self.is_configured() and not (self.resend_api_key and "your_api_key" not in self.resend_api_key)
+        if not use_smtp:
+            for name, email, password in invites:
+                try:
+                    sent = self.send_student_invite(email, name, teacher_name, school_name, password)
+                    results.append((email, None if sent else "email provider not configured"))
+                except EmailDeliveryError as exc:
+                    results.append((email, str(exc)))
+            return results
+
+        server = None
+        try:
+            for name, email, password in invites:
+                subject, text_content, html_content = self._invite_content(email, name, teacher_name, school_name, password)
+                raw = self._mime_message(email, subject, text_content, html_content).as_string()
+                for attempt in (1, 2):  # a second try reconnects once if the server dropped the session
+                    try:
+                        if server is None:
+                            server = self._open_smtp()
+                        server.sendmail(self.from_email, [email], raw)
+                        results.append((email, None))
+                        break
+                    except smtplib.SMTPServerDisconnected as exc:
+                        server = None
+                        if attempt == 2:
+                            results.append((email, str(self._smtp_error(exc, mask_email(email)))))
+                    except smtplib.SMTPAuthenticationError as exc:
+                        # same credentials for every row: stop and report it for the rest
+                        message = str(self._smtp_error(exc, mask_email(email)))
+                        results.append((email, message))
+                        done = {r[0] for r in results}
+                        results.extend((e, message) for _, e, _ in invites if e not in done)
+                        return results
+                    except (smtplib.SMTPException, OSError) as exc:
+                        results.append((email, str(self._smtp_error(exc, mask_email(email)))))
+                        break
+        finally:
+            if server is not None:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
+        return results
 
     def _send_via_https_api(
         self,

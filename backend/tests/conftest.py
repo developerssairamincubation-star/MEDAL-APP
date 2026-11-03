@@ -64,6 +64,17 @@ class FakeEmail:
     # Set to an exception instance to simulate a mail provider failure.
     fail_with = None
 
+    def send_student_invites(self, invites, teacher_name, school_name):
+        results = []
+        for name, email, password in invites:
+            try:
+                self.send_student_invite(to_email=email, student_name=name, teacher_name=teacher_name,
+                                         school_name=school_name, temporary_password=password)
+                results.append((email, None))
+            except Exception as exc:
+                results.append((email, str(exc)))
+        return results
+
     def send_student_invite(self, to_email, student_name, teacher_name, school_name, temporary_password):
         if FakeEmail.fail_with is not None:
             raise FakeEmail.fail_with

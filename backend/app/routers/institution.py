@@ -413,14 +413,17 @@ _HEADER_ALIASES = {
 def _send_invites_in_background(
     email_service: EmailService, teacher_name: str, school_name: str, invites: List[tuple]
 ) -> None:
-    for name, email, password in invites:
-        try:
-            email_service.send_student_invite(
-                to_email=email, student_name=name, teacher_name=teacher_name,
-                school_name=school_name, temporary_password=password,
-            )
-        except Exception as exc:  # keep going: one bad address must not stop the rest
-            logger.error("Student invite failed for a CSV row: %s", exc)
+    """Runs after the response: one e-mail session for the whole file; failures are logged, not raised."""
+    try:
+        results = email_service.send_student_invites(
+            [(name, email, password) for name, email, password in invites], teacher_name, school_name
+        )
+    except Exception as exc:
+        logger.error("Student invite batch failed: %s", exc)
+        return
+    failed = [(email, err) for email, err in results if err]
+    if failed:
+        logger.error("%d of %d student invites failed (first: %s)", len(failed), len(results), failed[0][1])
 
 
 @router.post("/students/bulk")
