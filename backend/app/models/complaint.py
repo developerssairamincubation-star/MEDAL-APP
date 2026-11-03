@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -26,6 +27,8 @@ class Complaint(Base):
     impact_level: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     equity_classification: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     officer_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # JSON list of {"id": int, "name": str} officials tagged with "@" in the description
+    mentioned_officials: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     citizen_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -44,6 +47,29 @@ class Complaint(Base):
 
     # Relationship to User
     citizen: Mapped["User"] = relationship("User")
+
+    @property
+    def citizen_name(self) -> Optional[str]:
+        return self.citizen.full_name if self.citizen else None
+
+    @property
+    def profile_image_url(self) -> Optional[str]:
+        return self.citizen.profile_image_url if self.citizen else None
+
+    @property
+    def mentions(self) -> list:
+        if not self.mentioned_officials:
+            return []
+        try:
+            data = json.loads(self.mentioned_officials)
+        except (TypeError, ValueError):
+            return []
+        return [m for m in data if isinstance(m, dict) and "id" in m and "name" in m]
+
+    @property
+    def citizen_role(self) -> Optional[str]:
+        return self.citizen.role if self.citizen else None
+
     # Relationship to Upvotes
     upvotes: Mapped[List["ComplaintUpvote"]] = relationship("ComplaintUpvote", back_populates="complaint", cascade="all, delete-orphan")
     # Relationship to Comments

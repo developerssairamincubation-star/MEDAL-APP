@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.database import Base
@@ -85,6 +85,39 @@ class StudentNotification(Base):
     period_group: Mapped[str] = mapped_column(String(32), default="last_7_days", nullable=False)  # last_7_days, last_30_days
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+    )
+
+
+class StudentCourseChapter(Base):
+    """One chapter of a course. Rows come from the seed file (see
+    app/services/seek_chapters.py), never from code."""
+    __tablename__ = "student_course_chapters"
+    __table_args__ = (UniqueConstraint("course_id", "chapter_key", name="uq_course_chapter_key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    course_id: Mapped[int] = mapped_column(Integer, ForeignKey("student_courses.id", ondelete="CASCADE"), nullable=False, index=True)
+    chapter_key: Mapped[str] = mapped_column(String(64), nullable=False)  # stable id used by the seed file, e.g. "1.1"
+    position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    module_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    module_title: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    chapter_type: Mapped[str] = mapped_column(String(32), default="reading", nullable=False)  # video, reading, quiz, practice, case_study
+    duration: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+    content_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
+
+class StudentChapterCompletion(Base):
+    __tablename__ = "student_chapter_completions"
+    __table_args__ = (UniqueConstraint("user_id", "chapter_id", name="uq_user_chapter_completion"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    chapter_id: Mapped[int] = mapped_column(Integer, ForeignKey("student_course_chapters.id", ondelete="CASCADE"), nullable=False, index=True)
+    completed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc),

@@ -1,0 +1,138 @@
+{
+  "_comment": "Chapter data source for the single SEEK course. Replace/extend this file (or insert rows into student_course_chapters) and restart the API; rows are upserted by (course_id, key). 'url' is opened when a student taps a chapter. 'course_id' is optional: it defaults to the lowest-id course. 'course' holds the SEEK course details; it is created (or updated) from this file at startup.",
+  "course_id": 1,
+  "course": {
+    "title": "SEEK Course",
+    "provider": "UNESCO",
+    "department": "SEEK Programme",
+    "category": "SEEK",
+    "language": "English",
+    "certificate_available": true,
+    "description": "Foundational socio-emotional and environmental knowledge course covering civic reporting, SDG alignment, field verification and community leadership.",
+    "what_you_will_learn": [
+      "Principles of civic grievance reporting",
+      "Mapping local issues to UN SDG targets",
+      "Field verification and evidence gathering",
+      "Community leadership and follow-through"
+    ]
+  },
+  "chapters": [
+    {
+      "key": "1.1",
+      "module": 1,
+      "module_title": "Introduction & Civic Foundations",
+      "title": "Welcome to the SEEK Curriculum",
+      "type": "video",
+      "duration": "8 mins",
+      "url": null
+    },
+    {
+      "key": "1.2",
+      "module": 1,
+      "module_title": "Introduction & Civic Foundations",
+      "title": "Principles of Civic Grievance Reporting",
+      "type": "reading",
+      "duration": "12 mins",
+      "url": null
+    },
+    {
+      "key": "1.3",
+      "module": 1,
+      "module_title": "Introduction & Civic Foundations",
+      "title": "Foundational Quiz: Ethics & Privacy",
+      "type": "quiz",
+      "duration": "15 mins",
+      "url": null
+    },
+    {
+      "key": "2.1",
+      "module": 2,
+      "module_title": "SDG Alignment & Frameworks",
+      "title": "Mapping Local Issues to UN SDG Targets",
+      "type": "video",
+      "duration": "14 mins",
+      "url": null
+    },
+    {
+      "key": "2.2",
+      "module": 2,
+      "module_title": "SDG Alignment & Frameworks",
+      "title": "Sanitation, Clean Water & Infrastructure (SDG 6 & 9)",
+      "type": "reading",
+      "duration": "10 mins",
+      "url": null
+    },
+    {
+      "key": "2.3",
+      "module": 2,
+      "module_title": "SDG Alignment & Frameworks",
+      "title": "Sustainable Communities (SDG 11) in Action",
+      "type": "reading",
+      "duration": "11 mins",
+      "url": null
+    },
+    {
+      "key": "2.4",
+      "module": 2,
+      "module_title": "SDG Alignment & Frameworks",
+      "title": "Assessment: Identifying SDG Indicators",
+      "type": "quiz",
+      "duration": "10 mins",
+      "url": null
+    },
+    {
+      "key": "3.1",
+      "module": 3,
+      "module_title": "Field Verification & Evidence Gathering",
+      "title": "Accurate Geolocation & GPS Coordinate Tagging",
+      "type": "video",
+      "duration": "10 mins",
+      "url": null
+    },
+    {
+      "key": "3.2",
+      "module": 3,
+      "module_title": "Field Verification & Evidence Gathering",
+      "title": "High-Fidelity Photo Documentation Protocols",
+      "type": "reading",
+      "duration": "15 mins",
+      "url": null
+    },
+    {
+      "key": "3.3",
+      "module": 3,
+      "module_title": "Field Verification & Evidence Gathering",
+      "title": "Verification Lab Exercise",
+      "type": "practice",
+      "duration": "15 mins",
+      "url": null
+    },
+    {
+      "key": "4.1",
+      "module": 4,
+      "module_title": "Institutional Response & Public Accountability",
+      "title": "Municipal Authority Escalation Paths",
+      "type": "video",
+      "duration": "15 mins",
+      "url": null
+    },
+    {
+      "key": "4.2",
+      "module": 4,
+      "module_title": "Institutional Response & Public Accountability",
+      "title": "Collaborative Public Commenting & Moderation",
+      "type": "reading",
+      "duration": "15 mins",
+      "url": null
+    },
+    {
+      "key": "4.3",
+      "module": 4,
+      "module_title": "Institutional Response & Public Accountability",
+      "title": "Case Analysis: Resolution from Submission to Sign-Off",
+      "type": "case_study",
+      "duration": "20 mins",
+      "url": null
+    }
+  ]
+}
